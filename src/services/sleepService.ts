@@ -36,7 +36,7 @@ export const saveLog = async (uid: string, logData: Partial<DailyLog> & { date: 
     throw new Error('Invalid clinical metrics detected. Values must be 1-10 and durations must be positive.');
   }
 
-  const docRef = doc(db, 'user_data', uid, 'history', date);
+  const docRef = doc(db, 'user_data', uid, 'logs', date);
   
   // setDoc with merge: true ensures we only update the fields provided
   await setDoc(docRef, {

@@ -24,6 +24,8 @@ import {
   where
 } from 'firebase/firestore';
 
+import { AvatarFrame } from './UI';
+
 interface Message {
   role: 'user' | 'assistant';
   content: string;
@@ -69,7 +71,7 @@ export default function AIInsightsAgent({ logs, user }: AIInsightsAgentProps) {
     if (!user) return;
 
     const q = query(
-      collection(db, 'user_data', user.uid, 'history'),
+      collection(db, 'user_data', user.uid, 'logs'),
       where('type', '==', 'chat_message'),
       orderBy('createdAt', 'asc')
     );
@@ -111,7 +113,7 @@ export default function AIInsightsAgent({ logs, user }: AIInsightsAgentProps) {
     };
     
     try {
-      await addDoc(collection(db, 'user_data', user.uid, 'history'), {
+      await addDoc(collection(db, 'user_data', user.uid, 'logs'), {
         ...userMessage,
         type: 'chat_message'
       });
@@ -166,7 +168,7 @@ export default function AIInsightsAgent({ logs, user }: AIInsightsAgentProps) {
         createdAt: serverTimestamp()
       };
       
-      await addDoc(collection(db, 'user_data', user.uid, 'history'), {
+      await addDoc(collection(db, 'user_data', user.uid, 'logs'), {
         ...assistantMessage,
         type: 'chat_message'
       });
@@ -210,18 +212,12 @@ export default function AIInsightsAgent({ logs, user }: AIInsightsAgentProps) {
               className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               <div className={`flex gap-3 max-w-[85%] ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
-                <div className={`w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center overflow-hidden ${msg.role === 'user' ? 'bg-zinc-800' : 'bg-zinc-900 text-indigo-400 border border-indigo-500/30'}`}>
-                  {msg.role === 'user' ? (
-                    <UserIcon size={14} />
-                  ) : (
-                    <img 
-                      src="https://i.imgur.com/MnI5hn3.png" 
-                      alt="SIA" 
-                      className="w-6 h-6 object-contain"
-                      referrerPolicy="no-referrer"
-                    />
-                  )}
-                </div>
+                <AvatarFrame 
+                  src={msg.role === 'user' ? (user.photoURL || undefined) : "https://i.imgur.com/MnI5hn3.png"} 
+                  alt={msg.role === 'user' ? (user.displayName || 'User') : 'SIA'}
+                  size="sm"
+                  className={`flex-shrink-0 ${msg.role === 'user' ? '' : 'border-indigo-500/30 bg-indigo-600 shadow-sm'}`}
+                />
                 <div className={`p-3 rounded-2xl text-sm ${
                   msg.role === 'user' 
                     ? 'bg-indigo-600 text-white rounded-tr-none' 
@@ -246,13 +242,13 @@ export default function AIInsightsAgent({ logs, user }: AIInsightsAgentProps) {
       {/* Quick Prompts */}
       <div className="px-4 py-2 border-t border-zinc-800 bg-zinc-900/30">
         <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold mb-2 ml-1">Quick Ask</p>
-        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+        <div className="flex flex-wrap gap-2 pb-2">
           {QUICK_PROMPTS.map((qp, i) => (
             <button
               key={i}
               onClick={() => handleSend(qp.prompt)}
               disabled={isLoading}
-              className="flex items-center gap-2 px-3 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-xl text-xs font-medium whitespace-nowrap transition-colors disabled:opacity-50"
+              className="flex items-center gap-2 px-3 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-xl text-xs font-medium transition-colors disabled:opacity-50"
             >
               <qp.icon size={14} className="text-indigo-400" />
               {qp.label}

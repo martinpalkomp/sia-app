@@ -45,7 +45,7 @@ import {
   getRangeDates, 
   formatDisplayDate 
 } from './utils/dateUtils';
-import { calculateSleepDuration, calculateSleepEfficiency } from './utils/sleepUtils';
+import { calculateSleepDuration, calculateSleepEfficiency, formatDuration } from './utils/sleepUtils';
 import { calculateSafeAverage } from './utils/statsEngine';
 
 import AIInsightsAgent from './components/AIInsightsAgent';
@@ -136,7 +136,10 @@ export default function App() {
         const isNotIgnored = !log.isIgnored;
         
         const hasTimeline = log.timeline && log.timeline.length > 0 && !log.timeline.every(s => s === 'awake-out');
-        const hasSummaryMetrics = !!log.summaryMetrics;
+        const hasSummaryMetrics = !!log.summaryMetrics && 
+                                  typeof log.summaryMetrics.sleepQuality === 'number' &&
+                                  typeof log.summaryMetrics.restedness === 'number' &&
+                                  typeof log.summaryMetrics.energyLevel === 'number';
         
         return isAfterStart && isNotIgnored && (!hasTimeline || !hasSummaryMetrics);
       }).length;
@@ -163,7 +166,7 @@ export default function App() {
     }
 
     const q = query(
-      collection(db, 'user_data', user.uid, 'history'),
+      collection(db, 'user_data', user.uid, 'logs'),
       where('type', '==', 'log')
     );
     
@@ -244,7 +247,7 @@ export default function App() {
         }
       } else {
         // If log is missing for that date, it was deleted
-        await deleteDoc(doc(db, 'user_data', user.uid, 'history', dateToUpdate));
+        await deleteDoc(doc(db, 'user_data', user.uid, 'logs', dateToUpdate));
       }
     }
   };
@@ -327,6 +330,23 @@ export default function App() {
     }
   };
 
+  const handleTouchStart = (index: number) => {
+    handleMouseDown(index);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isDragging) return;
+    const touch = e.touches[0];
+    const element = document.elementFromPoint(touch.clientX, touch.clientY);
+    if (element) {
+      const indexAttr = element.getAttribute('data-index');
+      if (indexAttr !== null) {
+        const index = parseInt(indexAttr);
+        handleMouseEnter(index);
+      }
+    }
+  };
+
   const handleMouseUp = () => {
     setIsDragging(false);
   };
@@ -356,7 +376,7 @@ export default function App() {
       sq: calculateSafeAverage(periodLogs, 'sleepQuality').average.toFixed(1),
       r: calculateSafeAverage(periodLogs, 'restedness').average.toFixed(1),
       l: calculateSafeAverage(periodLogs, 'energyLevel').average.toFixed(1),
-      duration: calculateSafeAverage(periodLogs, 'sleepDuration').average.toFixed(1),
+      duration: formatDuration(calculateSafeAverage(periodLogs, 'sleepDuration').average),
       efficiency: calculateSafeAverage(periodLogs, 'efficiency').average.toFixed(1)
     };
   }, [logs, activeDates]);
@@ -611,7 +631,7 @@ export default function App() {
     <div className="min-h-screen bg-[#0a0c10] text-zinc-100 font-sans selection:bg-indigo-500/30">
       {/* Header */}
       <header className="sticky top-0 z-50 bg-clinical-bg/80 backdrop-blur-md border-b border-clinical-border px-4 py-4">
-        <div className="max-w-4xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+        <div className="max-w-4xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div className="flex items-center gap-3 cursor-pointer" onClick={() => setView('dashboard')}>
               <AvatarFrame 
                 src="https://i.imgur.com/MnI5hn3.png" 
@@ -626,23 +646,18 @@ export default function App() {
           </div>
           
           <div className="flex items-center gap-4">
-            <div className="flex bg-zinc-900/50 p-1 rounded-xl border border-zinc-800/50 overflow-x-auto max-w-full">
-              {['dashboard', 'log', 'insights', 'corrections', 'ai'].map((v) => (
+            <div className="flex flex-wrap justify-center md:justify-end bg-zinc-900/50 p-1 rounded-xl border border-zinc-800/50 max-w-full gap-1">
+              {['dashboard', 'log', 'insights', 'ai'].map((v) => (
                 <button 
                   key={v}
                   onClick={() => setView(v === 'insights' ? 'weekly' : v as any)}
-                  className={`px-3 py-1.5 rounded-xl text-[10px] font-black transition-all uppercase tracking-widest whitespace-nowrap flex items-center gap-2 ${
+                  className={`px-4 py-1.5 rounded-xl text-[10px] font-black transition-all uppercase tracking-widest flex items-center gap-2 ${
                     view === v || (v === 'insights' && ['weekly', 'monthly', 'custom'].includes(view))
                       ? 'bg-zinc-800 text-white shadow-sm' 
                       : 'text-zinc-500 hover:text-zinc-300'
-                  } ${v === 'ai' ? 'border border-indigo-500/30 bg-indigo-500/5 text-indigo-300 shadow-[0_0_10px_rgba(99,102,241,0.1)]' : ''} ${v === 'corrections' ? 'text-amber-400' : ''}`}
+                  } ${v === 'ai' ? 'border border-indigo-500/30 bg-indigo-500/5 text-indigo-300 shadow-[0_0_10px_rgba(99,102,241,0.1)]' : ''}`}
                 >
                   {v === 'ai' ? 'AI ANALYSIS' : v}
-                  {v === 'corrections' && correctionsCount > 0 && (
-                    <span className="bg-amber-500 text-black text-[9px] font-black px-1.5 py-0.5 rounded-full min-w-[18px] flex items-center justify-center">
-                      {correctionsCount}
-                    </span>
-                  )}
                 </button>
               ))}
             </div>
@@ -668,6 +683,7 @@ export default function App() {
             >
               <Dashboard 
                 logs={logs} 
+                correctionsCount={correctionsCount}
                 onLogClick={() => {
                   setSelectedDate(getTodayDate());
                   setView('log');
@@ -685,7 +701,13 @@ export default function App() {
               <CorrectionHub 
                 user={user} 
                 logs={logs} 
-                onUpdate={() => {}} 
+                onUpdate={() => {
+                  console.log("Logs updated from CorrectionHub");
+                }} 
+                onGoToLog={(date) => {
+                  setSelectedDate(date);
+                  setView('log');
+                }}
               />
             </motion.div>
           ) : view === 'log' ? (
@@ -748,7 +770,7 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden select-none flex flex-col divide-y divide-zinc-800/50">
+                <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden select-none flex flex-col divide-y divide-zinc-800/50 touch-none">
                   {[0, 1, 2, 3, 4, 5].map((rowIdx) => (
                     <div key={rowIdx} className="flex">
                       <div className="w-12 flex-shrink-0 flex items-center justify-center border-r border-zinc-800/50 bg-zinc-900/80">
@@ -764,8 +786,11 @@ export default function App() {
                           return (
                             <button
                               key={idx}
+                              data-index={idx}
                               onMouseDown={() => handleMouseDown(idx)}
                               onMouseEnter={() => handleMouseEnter(idx)}
+                              onTouchStart={() => handleTouchStart(idx)}
+                              onTouchMove={handleTouchMove}
                               className={`h-12 flex flex-col items-center justify-center relative group transition-all border-r border-zinc-800/30 last:border-r-0 ${stateInfo?.color} hover:brightness-125 cursor-crosshair`}
                               title={getSlotLabel(idx)}
                             >
@@ -787,7 +812,7 @@ export default function App() {
                 
                 <div className="flex justify-between text-[10px] text-zinc-500 px-1 italic">
                   <span>Start: 20:00</span>
-                  <span>Duration: {calculateSleepDuration(currentLog.timeline)} hrs</span>
+                  <span>Duration: {formatDuration(calculateSleepDuration(currentLog.timeline))}</span>
                   <span>End: {getSlotLabel(TOTAL_SLOTS)}</span>
                 </div>
               </section>
@@ -1147,7 +1172,7 @@ export default function App() {
                   </div>
                   <div className="bg-zinc-900/50 border border-zinc-800 p-5 rounded-3xl space-y-1">
                     <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">Avg Sleep</p>
-                    <p className="text-2xl font-bold text-white">{averageStats.duration}<span className="text-xs text-zinc-600 ml-1">hrs</span></p>
+                    <p className="text-2xl font-bold text-white">{averageStats.duration}</p>
                   </div>
                   <div className="bg-zinc-900/50 border border-zinc-800 p-5 rounded-3xl space-y-1">
                     <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">Avg Efficiency</p>
@@ -1185,7 +1210,7 @@ export default function App() {
                         <div className="text-left">
                           <p className="text-sm font-bold">{formatDisplayDate(date)}</p>
                           <p className="text-[10px] text-zinc-500 uppercase tracking-wider">
-                            {log ? `${calculateSleepDuration(log.timeline)} hrs sleep` : 'No entry'}
+                            {log ? `${formatDuration(calculateSleepDuration(log.timeline))} sleep` : 'No entry'}
                           </p>
                         </div>
                       </div>

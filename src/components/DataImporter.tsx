@@ -8,13 +8,17 @@ import {
   CheckCircle2, 
   AlertCircle, 
   Loader2,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Send
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { User } from 'firebase/auth';
+import { writeBatch, doc, serverTimestamp } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 import { DailyLog } from '../types';
 import { TOTAL_SLOTS } from '../constants';
 import { saveLog } from '../services/sleepService';
+import { snapTo15Min } from '../utils/sleepUtils';
 
 interface DataImporterProps {
   user: User;
@@ -24,7 +28,12 @@ interface DataImporterProps {
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
 export default function DataImporter({ user, onImportComplete }: DataImporterProps) {
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isPasteOpen, setIsPasteOpen] = useState(false);
+  const [pasteContent, setPasteContent] = useState('');
   const [isUploading, setIsUploading] = useState(false);
+  const [processedCount, setProcessedCount] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -80,16 +89,22 @@ export default function DataImporter({ user, onImportComplete }: DataImporterPro
   };
 
   const processImportedData = async (data: any[]) => {
-    setIsUploading(true);
+    console.log("Starting data processing...", { rowCount: data.length });
+    
     setUploadStatus('idle');
     setErrorMessage('');
+    setProcessedCount(0);
+    setTotalCount(data.length);
     
     try {
       const cleanedData = cleanData(data);
       const skippedDates: string[] = [];
-      let successCount = 0;
+      const logsToSave: any[] = [];
       
-      for (const row of cleanedData) {
+      for (let i = 0; i < cleanedData.length; i++) {
+        const row = cleanedData[i];
+        setProcessedCount(i + 1);
+        
         let rawDate = row.Date || row.date;
         if (!rawDate) continue;
 
@@ -123,16 +138,16 @@ export default function DataImporter({ user, onImportComplete }: DataImporterPro
         }
 
         // Numeric validation (1-10)
-        const sq = Number(row.SleepQuality || row.sleepQuality);
-        const r = Number(row.Restedness || row.restedness);
-        const l = Number(row.EnergyLevel || row.energyLevel);
+        const sqRaw = row.SleepQuality || row.sleepQuality;
+        const rRaw = row.Restedness || row.restedness;
+        const lRaw = row.EnergyLevel || row.energyLevel;
+        
+        const sq = Number(sqRaw);
+        const r = Number(rRaw);
+        const l = Number(lRaw);
 
         const isValidMetric = (val: number) => !isNaN(val) && val >= 1 && val <= 10;
-
-        if (!isValidMetric(sq) || !isValidMetric(r) || !isValidMetric(l)) {
-          skippedDates.push(`${formattedDate} (Metrics out of bounds 1-10)`);
-          continue;
-        }
+        const allMetricsValid = isValidMetric(sq) && isValidMetric(r) && isValidMetric(l);
 
         // Remarks Logic: Concatenate Remarks and Notes
         const remarksVal = row.Remarks || row.remarks || '';
@@ -146,87 +161,199 @@ export default function DataImporter({ user, onImportComplete }: DataImporterPro
 
         const logUpdate: any = {
           date: formattedDate,
-          sleepQuality: sq,
-          restedness: r,
-          energyLevel: l,
-          remarks: finalRemarks,
           isIgnored: false,
-          summaryMetrics: {
+          remarks: finalRemarks,
+        };
+
+        if (allMetricsValid) {
+          logUpdate.sleepQuality = sq;
+          logUpdate.restedness = r;
+          logUpdate.energyLevel = l;
+          logUpdate.summaryMetrics = {
             sleepQuality: sq,
             restedness: r,
             energyLevel: l,
-            importedDuration: Number(row.SleepDuration || row.sleepDuration || 0),
-            importedInBed: Number(row.WakeInBed || row.wakeInBed || 0),
-          },
-        };
-
-        // Save to Firestore with merge: true to preserve timeline via saveLog service
-        await saveLog(user.uid, logUpdate);
-        successCount++;
-      }
-
-      if (skippedDates.length > 0) {
-        const message = `Imported ${successCount} logs. Skipped ${skippedDates.length} dates: ${skippedDates.join(', ')}`;
-        if (successCount > 0) {
-          setUploadStatus('success');
-          setErrorMessage(message);
+            importedDuration: snapTo15Min(Number(row.SleepDuration || row.sleepDuration || 0)),
+            importedInBed: snapTo15Min(Number(row.WakeInBed || row.wakeInBed || 0)),
+          };
         } else {
-          setUploadStatus('error');
-          setErrorMessage(message);
+          // If metrics are invalid, we still save the log but WITHOUT summaryMetrics
+          // and without the top-level scores. This ensures it's flagged in the Correction Hub.
+          console.warn(`Incomplete metrics for ${formattedDate}, saving as skeleton for Correction Hub.`);
+          // We can still save the durations if they exist
+          const duration = Number(row.SleepDuration || row.sleepDuration || 0);
+          const inBed = Number(row.WakeInBed || row.wakeInBed || 0);
+          
+          if (!isNaN(duration) || !isNaN(inBed)) {
+             logUpdate.summaryMetrics = {
+               importedDuration: snapTo15Min(isNaN(duration) ? 0 : duration),
+               importedInBed: snapTo15Min(isNaN(inBed) ? 0 : inBed),
+               // Missing SQ, R, L here will trigger "Missing Metrics" in Hub
+             };
+          }
         }
-      } else {
-        setUploadStatus('success');
+
+        logsToSave.push(logUpdate);
       }
+
+      console.log('Starting Batch Commit...');
+      const BATCH_SIZE = 500;
+      for (let i = 0; i < logsToSave.length; i += BATCH_SIZE) {
+        const batch = writeBatch(db);
+        const chunk = logsToSave.slice(i, i + BATCH_SIZE);
+        
+        for (const log of chunk) {
+          const { date, ...rest } = log;
+          const docRef = doc(db, 'user_data', user.uid, 'logs', date);
+          batch.set(docRef, {
+            ...rest,
+            date,
+            updatedAt: serverTimestamp(),
+          }, { merge: true });
+        }
+        
+        await batch.commit();
+        console.log(`Committed batch ${Math.floor(i / BATCH_SIZE) + 1}`);
+      }
+
+      console.log('All writes confirmed.');
+
+      setUploadStatus('success');
+      setErrorMessage(skippedDates.length > 0 
+        ? `Logs Imported Successfully! Saved ${logsToSave.length} logs. Skipped ${skippedDates.length} dates: ${skippedDates.join(', ')}`
+        : `Logs Imported Successfully! Saved ${logsToSave.length} logs.`
+      );
+      
+      // Reset UI state after success
+      setSelectedFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
       
       onImportComplete();
-      if (skippedDates.length === 0) {
-        setTimeout(() => setUploadStatus('idle'), 3000);
-      }
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => {
+        setUploadStatus('idle');
+        setErrorMessage('');
+      }, 3000);
+
     } catch (error: any) {
       console.error("Import failed:", error);
       setUploadStatus('error');
-      setErrorMessage(error.message || "Failed to save data to Firestore.");
+      
+      let message = error.message || "Failed to save data to Firestore.";
+      if (error.code === 'permission-denied') {
+        message = 'SIA Permission Error: Check Firestore Rules pathing.';
+      }
+      
+      setErrorMessage(message);
+      throw error; // Re-throw to be caught by the caller
+    }
+  };
+
+  const handlePasteImport = async () => {
+    if (!pasteContent.trim()) return;
+
+    setIsUploading(true);
+    setUploadStatus('idle');
+    setErrorMessage('');
+
+    try {
+      const rows = pasteContent.trim().split('\n');
+      const parsedData = rows.map(row => {
+        const cols = row.split('\t').map(c => c.trim());
+        // Map to the expected header format used in processImportedData
+        // Date, SleepQuality, Restedness, EnergyLevel, SleepDuration, WakeInBed, Remarks
+        return {
+          Date: cols[0],
+          SleepQuality: cols[1],
+          Restedness: cols[2],
+          EnergyLevel: cols[3],
+          SleepDuration: cols[4],
+          WakeInBed: cols[5],
+          Remarks: cols[6]
+        };
+      });
+
+      await processImportedData(parsedData);
+      setPasteContent('');
+      setIsPasteOpen(false);
+    } catch (error: any) {
+      console.error("Paste Import failed:", error);
+      setUploadStatus('error');
+      setErrorMessage(`Paste Error: ${error.message || "Failed to process pasted data."}`);
     } finally {
       setIsUploading(false);
     }
   };
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file) return;
+    console.log("Step 1: File selected via input.", file?.name);
+    
+    if (!file) {
+      console.warn("No file selected.");
+      return;
+    }
 
     if (!validateFile(file)) {
+      console.error("File validation failed.");
       event.target.value = '';
       return;
     }
 
-    const reader = new FileReader();
-    const fileName = file.name.toLowerCase();
+    setSelectedFile(file);
+    console.log("Step 2: File object captured in state.", { name: file.name, size: file.size });
+  };
 
-    if (fileName.endsWith('.csv')) {
-      Papa.parse(file, {
-        header: true,
-        skipEmptyLines: true,
-        complete: (results) => {
-          processImportedData(results.data);
-        },
-        error: (error) => {
-          alert(`CSV Parsing Error: ${error.message}`);
-        }
-      });
-    } else {
-      reader.onload = (e) => {
-        const data = new Uint8Array(e.target?.result as ArrayBuffer);
-        const workbook = XLSX.read(data, { type: 'array', cellDates: true });
-        const firstSheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[firstSheetName];
-        const json = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
-        processImportedData(json);
-      };
-      reader.readAsArrayBuffer(file);
+  const handleUploadSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedFile) {
+      alert("Please select a file first.");
+      return;
     }
 
-    event.target.value = '';
+    setIsUploading(true);
+    setUploadStatus('idle');
+    setErrorMessage('');
+
+    try {
+      const fileName = selectedFile.name.toLowerCase();
+      let data: any[] = [];
+
+      if (fileName.endsWith('.csv')) {
+        data = await new Promise((resolve, reject) => {
+          Papa.parse(selectedFile, {
+            header: true,
+            skipEmptyLines: true,
+            complete: (results) => resolve(results.data),
+            error: (error) => reject(error)
+          });
+        });
+      } else {
+        data = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            try {
+              const buffer = new Uint8Array(e.target?.result as ArrayBuffer);
+              const workbook = XLSX.read(buffer, { type: 'array', cellDates: true });
+              const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+              const json = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+              resolve(json);
+            } catch (err) { reject(err); }
+          };
+          reader.onerror = (err) => reject(err);
+          reader.readAsArrayBuffer(selectedFile);
+        });
+      }
+
+      await processImportedData(data);
+    } catch (error: any) {
+      console.error("Upload Submit Error:", error);
+      setUploadStatus('error');
+      setErrorMessage(error.message || "An unexpected error occurred during upload.");
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const downloadTemplate = () => {
@@ -247,8 +374,8 @@ export default function DataImporter({ user, onImportComplete }: DataImporterPro
         SleepQuality: 5,
         Restedness: 4,
         EnergyLevel: 3,
-        SleepDuration: 6.0,
-        WakeInBed: 1.2,
+        SleepDuration: 6.25,
+        WakeInBed: 1.0,
         Remarks: 'Fragmented sleep',
         Notes: 'Late coffee'
       }
@@ -280,37 +407,112 @@ export default function DataImporter({ user, onImportComplete }: DataImporterPro
           </h3>
           <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">CSV or Excel • Max 5MB</p>
         </div>
-        <button 
-          onClick={downloadTemplate}
-          className="flex items-center gap-2 px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-xl text-[10px] font-bold uppercase tracking-widest text-zinc-400 transition-all"
-        >
-          <Download size={14} />
-          Template
-        </button>
+        <div className="flex items-center gap-2">
+          <button 
+            onClick={() => setIsPasteOpen(!isPasteOpen)}
+            className={`flex items-center gap-2 px-3 py-1.5 border rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${
+              isPasteOpen 
+                ? 'bg-indigo-500/10 border-indigo-500/50 text-indigo-400' 
+                : 'bg-zinc-800 hover:bg-zinc-700 border-zinc-700 text-zinc-400'
+            }`}
+          >
+            <FileText size={14} />
+            Paste from Spreadsheet
+          </button>
+          <button 
+            onClick={downloadTemplate}
+            className="flex items-center gap-2 px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-xl text-[10px] font-bold uppercase tracking-widest text-zinc-400 transition-all"
+          >
+            <Download size={14} />
+            Template
+          </button>
+        </div>
       </div>
 
-      <div className="relative">
+      <AnimatePresence>
+        {isPasteOpen && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden space-y-4"
+          >
+            <textarea
+              value={pasteContent}
+              onChange={(e) => setPasteContent(e.target.value)}
+              placeholder="Paste rows from Excel here (Date, Quality, Restedness, Energy, Duration, InBed, Remarks, Notes)..."
+              className="w-full h-48 bg-slate-900 border border-slate-700 rounded-lg p-4 font-mono text-sm text-blue-100 placeholder-slate-500 focus:ring-2 focus:ring-blue-500 outline-none resize-none"
+            />
+            {pasteContent.trim() && (
+              <button
+                onClick={handlePasteImport}
+                disabled={isUploading}
+                className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 disabled:bg-zinc-800 text-white rounded-xl font-bold uppercase tracking-widest text-[10px] flex items-center justify-center gap-2 transition-all"
+              >
+                {isUploading ? (
+                  <div className="flex items-center gap-2">
+                    <Loader2 size={14} className="animate-spin" />
+                    <span>Processing {processedCount}/{totalCount}...</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <Send size={14} />
+                    <span>Process Pasted Data</span>
+                  </div>
+                )}
+              </button>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <form onSubmit={handleUploadSubmit} className="relative space-y-4">
         <input 
           type="file" 
           ref={fileInputRef}
-          onChange={handleFileUpload}
+          onChange={handleFileChange}
           accept=".csv,.xls,.xlsx"
           className="hidden"
         />
         
-        <button 
+        <div 
           onClick={() => fileInputRef.current?.click()}
-          disabled={isUploading}
           className={`w-full py-8 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center gap-3 transition-all ${
             isUploading 
               ? 'border-zinc-800 bg-zinc-900/30 cursor-not-allowed' 
-              : 'border-zinc-800 hover:border-indigo-500/50 hover:bg-indigo-500/5 cursor-pointer'
+              : selectedFile 
+                ? 'border-indigo-500/50 bg-indigo-500/5 cursor-pointer'
+                : 'border-zinc-800 hover:border-indigo-500/50 hover:bg-indigo-500/5 cursor-pointer'
           }`}
         >
           {isUploading ? (
             <>
               <Loader2 size={32} className="text-indigo-500 animate-spin" />
-              <p className="text-sm text-zinc-400 font-medium">Importing data...</p>
+              <div className="text-center">
+                <p className="text-sm text-zinc-300 font-medium">Processing Data...</p>
+                <p className="text-xs text-zinc-500">
+                  Row {processedCount} of {totalCount}
+                </p>
+              </div>
+            </>
+          ) : selectedFile ? (
+            <>
+              <CheckCircle2 size={32} className="text-indigo-400" />
+              <div className="text-center">
+                <p className="text-sm text-zinc-300 font-medium">{selectedFile.name}</p>
+                <p className="text-xs text-zinc-500">{(selectedFile.size / 1024).toFixed(1)} KB • Ready to import</p>
+              </div>
+              <button 
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedFile(null);
+                  if (fileInputRef.current) fileInputRef.current.value = '';
+                }}
+                className="text-[10px] text-zinc-500 hover:text-red-400 uppercase font-bold tracking-widest"
+              >
+                Remove File
+              </button>
             </>
           ) : (
             <>
@@ -319,12 +521,22 @@ export default function DataImporter({ user, onImportComplete }: DataImporterPro
                 <FileSpreadsheet size={32} className="text-zinc-600" />
               </div>
               <div className="text-center">
-                <p className="text-sm text-zinc-300 font-medium">Click to upload file</p>
+                <p className="text-sm text-zinc-300 font-medium">Click to select file</p>
                 <p className="text-xs text-zinc-500">Drop your CSV or Excel file here</p>
               </div>
             </>
           )}
-        </button>
+        </div>
+
+        {selectedFile && !isUploading && (
+          <button
+            type="submit"
+            className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-bold uppercase tracking-widest text-xs flex items-center justify-center gap-2 shadow-xl shadow-indigo-600/20 transition-all"
+          >
+            <Send size={16} />
+            Start Import Process
+          </button>
+        )}
 
         <AnimatePresence>
           {uploadStatus === 'success' && (
@@ -358,7 +570,7 @@ export default function DataImporter({ user, onImportComplete }: DataImporterPro
             </motion.div>
           )}
         </AnimatePresence>
-      </div>
+      </form>
 
       <div className="bg-zinc-900/80 rounded-2xl p-4 border border-zinc-800">
         <h4 className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold mb-2">Import Guidelines</h4>

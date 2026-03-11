@@ -59,12 +59,20 @@ interface MetricDisplayProps {
 }
 
 export const MetricDisplay: React.FC<MetricDisplayProps> = ({ title, value, unit, className = '' }) => {
+  const isMissing = value === '--' || value === undefined || value === null;
+  
   return (
     <div className={className}>
       <p className="metric-title">{title}</p>
-      <div className="flex items-baseline">
-        <span className="metric-value">{value}</span>
-        {unit && <span className="metric-unit">{unit}</span>}
+      <div className="flex items-center h-10">
+        {isMissing ? (
+          <div className="h-8 w-20 rounded-lg animate-sia-pulse" />
+        ) : (
+          <div className="flex items-baseline">
+            <span className="metric-value">{value}</span>
+            {unit && <span className="metric-unit">{unit}</span>}
+          </div>
+        )}
       </div>
     </div>
   );

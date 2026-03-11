@@ -60,6 +60,25 @@
   }
 }
 
+@keyframes sia-glow-pulse {
+  0% {
+    background-color: #0f172a; /* slate-900 */
+    box-shadow: 0 0 5px rgba(59, 130, 246, 0.1);
+  }
+  50% {
+    background-color: #1e293b; /* slate-800 */
+    box-shadow: 0 0 15px rgba(59, 130, 246, 0.3);
+  }
+  100% {
+    background-color: #0f172a; /* slate-900 */
+    box-shadow: 0 0 5px rgba(59, 130, 246, 0.1);
+  }
+}
+
+.animate-sia-pulse {
+  animation: sia-glow-pulse 10s ease-in-out infinite;
+}
+
 /* Custom Scrollbar for Clinical Review */
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;
