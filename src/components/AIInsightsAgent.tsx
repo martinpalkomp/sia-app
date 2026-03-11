@@ -1,0 +1,291 @@
+import React, { useState, useRef, useEffect } from 'react';
+import { GoogleGenAI } from "@google/genai";
+import { 
+  Sparkles, 
+  Send, 
+  User as UserIcon, 
+  Loader2, 
+  MessageSquare,
+  Zap,
+  Ghost,
+  Droplets
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { DailyLog } from '../types';
+import { User } from 'firebase/auth';
+import { db } from '../lib/firebase';
+import { 
+  collection, 
+  addDoc, 
+  query, 
+  orderBy, 
+  onSnapshot, 
+  serverTimestamp,
+  where
+} from 'firebase/firestore';
+
+interface Message {
+  role: 'user' | 'assistant';
+  content: string;
+  createdAt?: any;
+}
+
+interface AIInsightsAgentProps {
+  logs: Record<string, DailyLog>;
+  user: User;
+}
+
+const QUICK_PROMPTS = [
+  { 
+    label: "💊 Med Impact", 
+    icon: Zap, 
+    prompt: "Look at nights where 'Lormazepam' is in remarks. Compare the SQ/R scores to nights without it." 
+  },
+  { 
+    label: "🌙 Nightmares & Night Terrors", 
+    icon: Ghost, 
+    prompt: "Analyze my logs for mentions of nightmares or night terrors. Are there any common triggers or patterns in my sleep quality?" 
+  },
+  { 
+    label: "🚽 Interruption Check", 
+    icon: Droplets, 
+    prompt: "Analyze how many nights mention 'Bathroom' and how that correlates with 'Feeling Rested (R)'." 
+  },
+  { 
+    label: "🌟 Best Nights", 
+    icon: Sparkles, 
+    prompt: "Analyze my best nights from last month and tell me what patterns you see." 
+  }
+];
+
+export default function AIInsightsAgent({ logs, user }: AIInsightsAgentProps) {
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Load chat history from Firestore
+  useEffect(() => {
+    if (!user) return;
+
+    const q = query(
+      collection(db, 'user_data', user.uid, 'history'),
+      where('type', '==', 'chat_message'),
+      orderBy('createdAt', 'asc')
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const fetchedMessages: Message[] = [];
+      snapshot.forEach((doc) => {
+        fetchedMessages.push(doc.data() as Message);
+      });
+      
+      if (fetchedMessages.length === 0) {
+        setMessages([
+          { 
+            role: 'assistant', 
+            content: "Hello! I'm SIA, your Sleep Intelligence Agent. I've reviewed your history and I'm ready to help you find correlations and patterns. What would you like to analyze today?" 
+          }
+        ]);
+      } else {
+        setMessages(fetchedMessages);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [user]);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages]);
+
+  const handleSend = async (text: string) => {
+    if (!text.trim() || isLoading || !user) return;
+
+    const userMessage: Message = { 
+      role: 'user', 
+      content: text,
+      createdAt: serverTimestamp() 
+    };
+    
+    try {
+      await addDoc(collection(db, 'user_data', user.uid, 'history'), {
+        ...userMessage,
+        type: 'chat_message'
+      });
+      setInput('');
+      setIsLoading(true);
+
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+      
+      // Prepare the history context for the AI
+      const historyContext = Object.values(logs).map(log => ({
+        date: log.date,
+        sq: log.sleepQuality,
+        r: log.restedness,
+        l: log.energyLevel,
+        remarks: log.remarks,
+        timeline: log.timeline
+      }));
+
+      const systemInstruction = `
+        You are "SIA" (Sleep Intelligence Agent), a Sleep Intelligence Agent and Senior Health Data Scientist. Your task is to analyze the user's sleep history and provide insights.
+        
+        DATA CONTEXT:
+        ${JSON.stringify(historyContext)}
+        
+        ANALYSIS LOGIC:
+        1. Identify the top 20% "Best Nights" (highest SQ and R scores).
+        2. Cross-reference the remarks text and sleep timing (from timeline) for these nights to find common keywords and patterns.
+        3. Identify "Poor Night" triggers (e.g., "bathroom," "late meal," late bedtime).
+        4. Deliver the output in a conversational, supportive, and professional tone.
+        5. If the user asks about specific keywords like "Lormazepam", "Nightmares", "Night Terrors", or "Bathroom", perform a targeted correlation scan.
+        
+        STYLE:
+        - Conversational and supportive.
+        - Use data-backed observations (e.g., "On 80% of your best nights...").
+        - Refer to yourself as SIA.
+        - Keep it concise but insightful.
+      `;
+
+      const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: [
+          { role: "user", parts: [{ text: text }] }
+        ],
+        config: {
+          systemInstruction: systemInstruction
+        }
+      });
+
+      const assistantMessage: Message = { 
+        role: 'assistant', 
+        content: response.text || "I'm sorry, I couldn't process that. Please try again.",
+        createdAt: serverTimestamp()
+      };
+      
+      await addDoc(collection(db, 'user_data', user.uid, 'history'), {
+        ...assistantMessage,
+        type: 'chat_message'
+      });
+    } catch (error) {
+      console.error("AI Error:", error);
+      setMessages(prev => [...prev, { role: 'assistant', content: "I encountered an error while analyzing your data. Please check your connection and try again." }]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-col h-[600px] bg-zinc-900/50 border border-zinc-800 rounded-3xl overflow-hidden">
+      {/* Header */}
+      <div className="p-4 border-b border-zinc-800 bg-zinc-900 flex items-center gap-3">
+        <div className="w-10 h-10 rounded-xl overflow-hidden border border-indigo-500/30 bg-zinc-900 flex items-center justify-center">
+          <img 
+            src="https://i.imgur.com/MnI5hn3.png" 
+            alt="SIA" 
+            className="w-8 h-8 object-contain"
+            referrerPolicy="no-referrer"
+          />
+        </div>
+        <div>
+          <h3 className="text-sm font-bold text-white">Sleep Intelligence Agent</h3>
+          <p className="text-[10px] text-zinc-500 uppercase tracking-widest">SIA</p>
+        </div>
+      </div>
+
+      {/* Messages Area */}
+      <div 
+        ref={scrollRef}
+        className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-hide"
+      >
+        <AnimatePresence initial={false}>
+          {messages.map((msg, i) => (
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+            >
+              <div className={`flex gap-3 max-w-[85%] ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
+                <div className={`w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center overflow-hidden ${msg.role === 'user' ? 'bg-zinc-800' : 'bg-zinc-900 text-indigo-400 border border-indigo-500/30'}`}>
+                  {msg.role === 'user' ? (
+                    <UserIcon size={14} />
+                  ) : (
+                    <img 
+                      src="https://i.imgur.com/MnI5hn3.png" 
+                      alt="SIA" 
+                      className="w-6 h-6 object-contain"
+                      referrerPolicy="no-referrer"
+                    />
+                  )}
+                </div>
+                <div className={`p-3 rounded-2xl text-sm ${
+                  msg.role === 'user' 
+                    ? 'bg-indigo-600 text-white rounded-tr-none' 
+                    : 'bg-zinc-800 text-zinc-100 rounded-tl-none border border-zinc-700'
+                }`}>
+                  {msg.content}
+                </div>
+              </div>
+            </motion.div>
+          ))}
+        </AnimatePresence>
+        {isLoading && (
+          <div className="flex justify-start">
+            <div className="flex gap-3 items-center text-zinc-500 text-xs italic">
+              <Loader2 size={14} className="animate-spin" />
+              Analyzing your sleep patterns...
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Quick Prompts */}
+      <div className="px-4 py-2 border-t border-zinc-800 bg-zinc-900/30">
+        <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold mb-2 ml-1">Quick Ask</p>
+        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+          {QUICK_PROMPTS.map((qp, i) => (
+            <button
+              key={i}
+              onClick={() => handleSend(qp.prompt)}
+              disabled={isLoading}
+              className="flex items-center gap-2 px-3 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-xl text-xs font-medium whitespace-nowrap transition-colors disabled:opacity-50"
+            >
+              <qp.icon size={14} className="text-indigo-400" />
+              {qp.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Input Area */}
+      <div className="p-4 bg-zinc-900 border-t border-zinc-800">
+        <form 
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleSend(input);
+          }}
+          className="relative"
+        >
+          <input 
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="Ask about your sleep trends..."
+            className="w-full bg-zinc-800 border border-zinc-700 rounded-2xl py-3 pl-4 pr-12 text-sm focus:outline-none focus:border-indigo-500 transition-colors"
+          />
+          <button 
+            type="submit"
+            disabled={!input.trim() || isLoading}
+            className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-indigo-600 rounded-xl flex items-center justify-center text-white disabled:opacity-50 disabled:bg-zinc-700 transition-all"
+          >
+            <Send size={16} />
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}

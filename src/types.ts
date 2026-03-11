@@ -1,0 +1,52 @@
+export type SleepState = 'awake-out' | 'awake-in' | 'sleep';
+
+export interface BaseLog {
+  date: string; // ISO date string (YYYY-MM-DD)
+  type?: 'log'; // Firestore type discriminator
+  isIgnored: boolean;
+  sleepQuality: number; // 0-10
+  restedness: number; // 0-10
+  energyLevel: number; // 0-10
+  remarks: string;
+}
+
+export interface FullLog extends BaseLog {
+  timeline: SleepState[]; // 96 slots for 15-min intervals (20:00 to 20:00)
+  factors: {
+    caffeine: { consumed: boolean; amount: number; lastIntake: string };
+    alcohol: { consumed: boolean; drinks: number; lastIntake: string };
+    medication: { taken: boolean; type: string; time: string };
+    exercise: { completed: boolean; type: string; time: string };
+    screensInBed: boolean;
+    stressLevel: number; // 1-5
+  };
+}
+
+export interface SummaryLog extends BaseLog {
+  summaryMetrics: {
+    sleepQuality: number;
+    restedness: number;
+    energyLevel: number;
+    importedDuration: number;
+    importedInBed: number;
+  };
+}
+
+// DailyLog remains for backward compatibility and as the primary state interface
+export interface DailyLog extends Partial<FullLog>, Partial<SummaryLog> {
+  date: string;
+  isIgnored: boolean;
+  sleepQuality: number;
+  restedness: number;
+  energyLevel: number;
+  remarks: string;
+  timeline: SleepState[];
+  factors: {
+    caffeine: { consumed: boolean; amount: number; lastIntake: string };
+    alcohol: { consumed: boolean; drinks: number; lastIntake: string };
+    medication: { taken: boolean; type: string; time: string };
+    exercise: { completed: boolean; type: string; time: string };
+    screensInBed: boolean;
+    stressLevel: number; // 1-5
+  };
+}
