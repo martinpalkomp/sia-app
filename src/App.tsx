@@ -29,7 +29,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { GoogleGenAI } from "@google/genai";
-import { DailyLog, SleepState } from './types';
+import { DailyLog, SleepState, PersonalizationProfile } from './types';
 import { 
   TOTAL_SLOTS, 
   SLEEP_STATES, 
@@ -45,7 +45,7 @@ import {
   getRangeDates, 
   formatDisplayDate 
 } from './utils/dateUtils';
-import { calculateSleepDuration, calculateSleepEfficiency, formatDuration } from './utils/sleepUtils';
+import { calculateSleepDuration, calculateSleepEfficiency, formatDuration, snapTo15Min } from './utils/sleepUtils';
 import { calculateSafeAverage } from './utils/statsEngine';
 
 import AIInsightsAgent from './components/AIInsightsAgent';
@@ -53,6 +53,8 @@ import Dashboard from './components/Dashboard';
 import Legal from './components/Legal';
 import DataImporter from './components/DataImporter';
 import CorrectionHub from './components/CorrectionHub';
+import PersonalizationWizard from './components/PersonalizationWizard';
+import AccountPage from './components/AccountPage';
 import { AvatarFrame } from './components/UI';
 
 import { saveLog, validateLogMetrics } from './services/sleepService';
@@ -115,14 +117,17 @@ export default function App() {
   const [loginError, setLoginError] = useState<string | null>(null);
   const [logs, setLogs] = useState<Record<string, DailyLog>>({});
   const [selectedDate, setSelectedDate] = useState(getTodayDate());
-  const [view, setView] = useState<'dashboard' | 'log' | 'weekly' | 'monthly' | 'custom' | 'ai' | 'legal' | 'import' | 'corrections'>('dashboard');
+  const [view, setView] = useState<'dashboard' | 'log' | 'weekly' | 'monthly' | 'custom' | 'ai' | 'corrections' | 'legal' | 'account' | 'import'>('dashboard');
   const [customRange, setCustomRange] = useState({ start: getTodayDate(), end: getTodayDate() });
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [clinicalReport, setClinicalReport] = useState<string | null>(null);
+  const [personalizationProfile, setPersonalizationProfile] = useState<PersonalizationProfile | null>(null);
+  const [showPersonalizationWizard, setShowPersonalizationWizard] = useState(false);
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [activeState, setActiveState] = useState<SleepState>('sleep');
   const reportRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
   const [dragAction, setDragAction] = useState<'paint' | 'erase'>('paint');
 
   const correctionsCount = useMemo(() => {
@@ -158,6 +163,23 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
+  // Load Personalization Profile
+  useEffect(() => {
+    if (!user) {
+      setPersonalizationProfile(null);
+      return;
+    }
+
+    const profileRef = doc(db, 'users', user.uid, 'personalization', 'profile');
+    const unsubscribe = onSnapshot(profileRef, (doc) => {
+      if (doc.exists()) {
+        setPersonalizationProfile(doc.data() as PersonalizationProfile);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [user]);
+
   // Load data from Firestore
   useEffect(() => {
     if (!user) {
@@ -166,7 +188,7 @@ export default function App() {
     }
 
     const q = query(
-      collection(db, 'user_data', user.uid, 'logs'),
+      collection(db, 'users', user.uid, 'sleep_logs'),
       where('type', '==', 'log')
     );
     
@@ -226,28 +248,45 @@ export default function App() {
     if (dateToUpdate) {
       const log = newLogs[dateToUpdate];
       if (log) {
+        // Calculate durations from timeline
+        const sleepDuration = calculateSleepDuration(log.timeline);
+        const inBedSlots = log.timeline.filter(s => s === 'sleep' || s === 'awake-in').length;
+        const timeInBed = inBedSlots * 0.25;
+
         // Populate summaryMetrics before saving
         const summaryMetrics = {
           sleepQuality: log.sleepQuality,
           restedness: log.restedness,
           energyLevel: log.energyLevel,
-          importedDuration: (log as any).importedDuration || 0,
-          importedInBed: (log as any).importedInBed || 0,
+          importedDuration: snapTo15Min(sleepDuration),
+          importedInBed: snapTo15Min(timeInBed),
         };
 
-        if (validateLogMetrics(summaryMetrics)) {
-          await saveLog(user.uid, {
-            ...log,
-            type: 'log',
-            summaryMetrics,
-            isIgnored: log.isIgnored || false,
-          });
-        } else {
-          console.error("Invalid metrics detected, skipping save.");
+        try {
+          if (validateLogMetrics(summaryMetrics)) {
+            await saveLog(user.uid, {
+              ...log,
+              type: 'log',
+              summaryMetrics,
+              isIgnored: log.isIgnored || false,
+            });
+          } else {
+            console.warn("Incomplete metrics for manual save, still saving for Correction Hub.");
+            await saveLog(user.uid, {
+              ...log,
+              type: 'log',
+              isIgnored: log.isIgnored || false,
+            });
+          }
+        } catch (error: any) {
+          console.error("Save failed:", error);
+          alert(error.code === 'permission-denied' 
+            ? "SIA Permission Error: Check Firestore Rules pathing." 
+            : "Failed to save log. Please check your connection.");
         }
       } else {
         // If log is missing for that date, it was deleted
-        await deleteDoc(doc(db, 'user_data', user.uid, 'logs', dateToUpdate));
+        await deleteDoc(doc(db, 'users', user.uid, 'sleep_logs', dateToUpdate));
       }
     }
   };
@@ -315,6 +354,7 @@ export default function App() {
   };
 
   const handleMouseDown = (index: number) => {
+    if (!isEditing) return;
     setIsDragging(true);
     const currentState = currentLog.timeline[index];
     const nextState = currentState === activeState ? 'awake-out' : activeState;
@@ -323,7 +363,7 @@ export default function App() {
   };
 
   const handleMouseEnter = (index: number) => {
-    if (!isDragging) return;
+    if (!isDragging || !isEditing) return;
     const nextState = dragAction === 'erase' ? 'awake-out' : activeState;
     if (currentLog.timeline[index] !== nextState) {
       setSlotState(index, nextState);
@@ -331,6 +371,7 @@ export default function App() {
   };
 
   const handleTouchStart = (index: number) => {
+    if (!isEditing) return;
     handleMouseDown(index);
   };
 
@@ -541,8 +582,8 @@ export default function App() {
               className="max-w-md w-full bg-zinc-900/50 border border-zinc-800 p-8 rounded-[2.5rem] text-center space-y-8 shadow-2xl"
             >
               <div className="flex justify-center">
-                <div className="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-xl shadow-indigo-500/20">
-                  <img src="https://i.imgur.com/MnI5hn3.png" alt="SIA" className="w-12 h-12 object-contain" />
+                <div className="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-xl shadow-indigo-500/20 overflow-hidden aspect-square">
+                  <img src="https://i.imgur.com/MnI5hn3.png" alt="SIA" className="w-12 h-12 object-cover" />
                 </div>
               </div>
               <div className="space-y-2">
@@ -628,9 +669,9 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0c10] text-zinc-100 font-sans selection:bg-indigo-500/30">
+    <div className={`min-h-screen bg-[#0a0c10] text-zinc-100 font-sans selection:bg-indigo-500/30 ${personalizationProfile ? 'enhanced-mode' : ''}`}>
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-clinical-bg/80 backdrop-blur-md border-b border-clinical-border px-4 py-4">
+      <header className={`sticky top-0 z-50 bg-clinical-bg/80 backdrop-blur-md border-b border-clinical-border px-4 py-4 transition-all ${personalizationProfile ? 'border-b-2 border-indigo-500' : ''}`}>
         <div className="max-w-4xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div className="flex items-center gap-3 cursor-pointer" onClick={() => setView('dashboard')}>
               <AvatarFrame 
@@ -640,33 +681,55 @@ export default function App() {
                 className="shadow-lg shadow-indigo-500/20 border-indigo-500/30 bg-indigo-600"
               />
               <div>
-                <h1 className="text-lg font-bold tracking-tight text-white">SIA</h1>
+                <h1 className="text-lg font-bold tracking-tight text-white flex items-center gap-2">
+                  SIA
+                  {personalizationProfile && (
+                    <span className="text-[9px] font-black bg-violet-500/20 text-violet-400 px-1.5 py-0.5 rounded border border-violet-500/30 animate-pulse">
+                      ✨ PERSONALIZED
+                    </span>
+                  )}
+                </h1>
                 <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-black">Sleep Intelligence Agent</p>
               </div>
           </div>
           
-          <div className="flex items-center gap-4">
-            <div className="flex flex-wrap justify-center md:justify-end bg-zinc-900/50 p-1 rounded-xl border border-zinc-800/50 max-w-full gap-1">
-              {['dashboard', 'log', 'insights', 'ai'].map((v) => (
+          <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide flex-nowrap flex-1 md:flex-none">
+            <div className="flex bg-zinc-900/50 p-1 rounded-xl border border-zinc-800/50 gap-1 flex-nowrap">
+              {[
+                { id: 'dashboard', label: 'DASHBOARD' },
+                { id: 'log', label: 'LOG' },
+                { id: 'insights', label: 'INSIGHT' },
+                { id: 'account', label: user?.displayName?.toUpperCase() || 'ACCOUNT' },
+                { id: 'ai', label: 'AI ANALYSIS' }
+              ].map((v) => (
                 <button 
-                  key={v}
-                  onClick={() => setView(v === 'insights' ? 'weekly' : v as any)}
-                  className={`px-4 py-1.5 rounded-xl text-[10px] font-black transition-all uppercase tracking-widest flex items-center gap-2 ${
-                    view === v || (v === 'insights' && ['weekly', 'monthly', 'custom'].includes(view))
+                  key={v.id}
+                  onClick={() => setView(v.id === 'insights' ? 'weekly' : v.id as any)}
+                  className={`px-2 md:px-4 py-1.5 rounded-xl text-[0.7rem] md:text-[10px] font-black transition-all uppercase tracking-widest flex items-center gap-2 whitespace-nowrap ${
+                    view === v.id || (v.id === 'insights' && ['weekly', 'monthly', 'custom'].includes(view))
                       ? 'bg-zinc-800 text-white shadow-sm' 
                       : 'text-zinc-500 hover:text-zinc-300'
-                  } ${v === 'ai' ? 'border border-indigo-500/30 bg-indigo-500/5 text-indigo-300 shadow-[0_0_10px_rgba(99,102,241,0.1)]' : ''}`}
+                  } ${v.id === 'ai' ? 'border border-indigo-500/30 bg-indigo-500/5 text-indigo-300 shadow-[0_0_10px_rgba(99,102,241,0.1)]' : ''}`}
                 >
-                  {v === 'ai' ? 'AI ANALYSIS' : v}
+                  {v.id === 'account' && user?.photoURL && (
+                    <img 
+                      src={user.photoURL} 
+                      alt="Profile" 
+                      className="w-4 h-4 rounded-full border border-zinc-700" 
+                      referrerPolicy="no-referrer"
+                    />
+                  )}
+                  {v.label}
+                  {v.id === 'account' && personalizationProfile && <span className="text-indigo-400">✨</span>}
                 </button>
               ))}
             </div>
             <button 
               onClick={handleLogout}
-              className="p-2 text-zinc-500 hover:text-white transition-colors"
+              className="p-2 text-zinc-500 hover:text-white transition-colors flex-shrink-0"
               title="Logout"
             >
-              <LogOut size={20} />
+              <LogOut size={18} />
             </button>
           </div>
         </div>
@@ -684,11 +747,13 @@ export default function App() {
               <Dashboard 
                 logs={logs} 
                 correctionsCount={correctionsCount}
+                personalizationProfile={personalizationProfile}
                 onLogClick={() => {
                   setSelectedDate(getTodayDate());
                   setView('log');
                 }}
                 onViewChange={setView}
+                onOpenPersonalization={() => setShowPersonalizationWizard(true)}
               />
             </motion.div>
           ) : view === 'corrections' ? (
@@ -770,7 +835,20 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden select-none flex flex-col divide-y divide-zinc-800/50 touch-none">
+                <div 
+                  onClick={() => setIsEditing(true)}
+                  className={`bg-zinc-900 border rounded-2xl overflow-hidden select-none flex flex-col divide-y divide-zinc-800/50 touch-none transition-all ${
+                    isEditing ? 'border-indigo-500 ring-2 ring-indigo-500/20' : 'border-zinc-800'
+                  }`}
+                >
+                  {!isEditing && (
+                    <div className="absolute inset-0 z-20 bg-black/20 backdrop-blur-[1px] flex items-center justify-center cursor-pointer group">
+                      <div className="bg-zinc-900/90 border border-zinc-700 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest text-zinc-300 group-hover:text-white transition-colors flex items-center gap-2">
+                        <Plus size={14} />
+                        Click to Edit Sleep Window
+                      </div>
+                    </div>
+                  )}
                   {[0, 1, 2, 3, 4, 5].map((rowIdx) => (
                     <div key={rowIdx} className="flex">
                       <div className="w-12 flex-shrink-0 flex items-center justify-center border-r border-zinc-800/50 bg-zinc-900/80">
@@ -815,6 +893,17 @@ export default function App() {
                   <span>Duration: {formatDuration(calculateSleepDuration(currentLog.timeline))}</span>
                   <span>End: {getSlotLabel(TOTAL_SLOTS)}</span>
                 </div>
+                
+                {isEditing && (
+                  <div className="flex justify-center">
+                    <button 
+                      onClick={() => setIsEditing(false)}
+                      className="px-4 py-1.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-xl text-[10px] font-black uppercase tracking-widest text-zinc-400 transition-all"
+                    >
+                      Done Editing
+                    </button>
+                  </div>
+                )}
               </section>
 
               {/* Daily Factors & Disturbances Section */}
@@ -1078,10 +1167,20 @@ export default function App() {
                 <h2 className="text-2xl font-bold tracking-tight">Sleep Intelligence Agent</h2>
                 <p className="text-sm text-zinc-500">Advanced correlation analysis of your sleep history</p>
               </div>
-              <AIInsightsAgent logs={logs} user={user} />
+              <AIInsightsAgent 
+                logs={logs} 
+                user={user} 
+                personalizationProfile={personalizationProfile}
+              />
             </motion.div>
           ) : view === 'legal' ? (
             <Legal onBack={() => setView('dashboard')} />
+          ) : view === 'account' ? (
+            <AccountPage 
+              user={user} 
+              personalizationProfile={personalizationProfile} 
+              onModifyAssessment={() => setShowPersonalizationWizard(true)}
+            />
           ) : (
             <motion.div 
               key="insights"
@@ -1188,7 +1287,14 @@ export default function App() {
 
               {/* Breakdown List */}
               <div className="space-y-3">
-                <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-500 px-1">Daily Breakdown</h3>
+                <div className="flex items-center justify-between px-1">
+                  <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-500">Daily Breakdown</h3>
+                  <div className="flex items-center gap-3 text-[9px] font-black text-zinc-600 uppercase tracking-widest">
+                    <span className="flex items-center gap-1"><kbd className="bg-zinc-800 px-1 rounded border border-zinc-700">Q</kbd> Quality</span>
+                    <span className="flex items-center gap-1"><kbd className="bg-zinc-800 px-1 rounded border border-zinc-700">R</kbd> Rested</span>
+                    <span className="flex items-center gap-1"><kbd className="bg-zinc-800 px-1 rounded border border-zinc-700">E</kbd> Efficiency</span>
+                  </div>
+                </div>
                 {activeDates.slice().reverse().map(date => {
                   const log = logs[date];
                   const isToday = date === getTodayDate();
@@ -1338,6 +1444,19 @@ export default function App() {
           <Plus size={28} />
         </button>
       )}
+
+      <AnimatePresence>
+        {showPersonalizationWizard && user && (
+          <PersonalizationWizard 
+            user={user}
+            onComplete={(profile) => {
+              setPersonalizationProfile(profile);
+              setShowPersonalizationWizard(false);
+            }}
+            onClose={() => setShowPersonalizationWizard(false)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

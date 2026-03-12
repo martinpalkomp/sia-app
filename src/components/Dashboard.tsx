@@ -3,14 +3,15 @@ import {
   Moon, 
   Sun, 
   BarChart3, 
-  Sparkles, 
   Plus, 
   ChevronRight, 
   Zap, 
   Clock,
   TrendingUp,
   X,
-  BookOpen
+  BookOpen,
+  Brain,
+  Sparkles
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { DailyLog } from '../types';
@@ -20,15 +21,25 @@ import { Card, AvatarFrame, MetricDisplay } from './UI';
 import { calculateSleepDuration, calculateSleepEfficiency, formatDuration } from '../utils/sleepUtils';
 import { calculateSafeAverage } from '../utils/statsEngine';
 import { getSlotLabel } from '../constants';
+import { PersonalizationProfile } from '../types';
 
 interface DashboardProps {
   logs: Record<string, DailyLog>;
   correctionsCount: number;
+  personalizationProfile: PersonalizationProfile | null;
   onLogClick: () => void;
   onViewChange: (view: any) => void;
+  onOpenPersonalization: () => void;
 }
 
-export default function Dashboard({ logs, correctionsCount, onLogClick, onViewChange }: DashboardProps) {
+export default function Dashboard({ 
+  logs, 
+  correctionsCount, 
+  personalizationProfile,
+  onLogClick, 
+  onViewChange,
+  onOpenPersonalization
+}: DashboardProps) {
   const [aiInsight, setAiInsight] = useState<string | null>(null);
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [showAllFacts, setShowAllFacts] = useState(false);
@@ -197,53 +208,56 @@ export default function Dashboard({ logs, correctionsCount, onLogClick, onViewCh
     // Only regenerate if the number of logs changes (e.g. new day logged)
   }, [Object.keys(logs).length]);
 
+  const isEnhanced = !!personalizationProfile;
+
   return (
     <div className="space-y-8 pb-12">
       {/* Header Section */}
-      <section className="flex flex-col md:flex-row md:items-center gap-6">
+      <section className="flex flex-col md:flex-row md:items-center gap-6 text-left">
         <motion.div 
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="relative"
+          className="relative order-2 md:order-1"
         >
           <AvatarFrame 
             src="https://i.imgur.com/MnI5hn3.png" 
             alt="SIA Avatar" 
             size="lg"
-            className="shadow-xl shadow-indigo-500/10"
+            className={`shadow-xl aspect-square object-cover rounded-full ${isEnhanced ? 'shadow-violet-500/20 border-violet-500/30' : 'shadow-indigo-500/10'}`}
           />
         </motion.div>
 
-        <div className="space-y-2">
+        <div className="space-y-2 order-3 md:order-2 flex-1">
           <motion.h1 
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
-            className="text-3xl font-bold tracking-tight text-white flex flex-wrap items-center gap-3"
+            className="text-2xl md:text-3xl font-bold tracking-tight text-white flex flex-wrap items-center gap-3"
           >
-            <span className="bg-indigo-600 text-[10px] px-2 py-0.5 rounded-full uppercase tracking-tighter align-middle">Sleep Intelligence Agent</span>
+            <span className="bg-clinical-primary text-[10px] px-2 py-0.5 rounded-full uppercase tracking-tighter align-middle">Sleep Intelligence Agent</span>
             {greeting}
           </motion.h1>
           <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4">
             <p className="text-zinc-500 text-sm font-medium">I've analyzed your sleep intelligence for the last 7 days.</p>
-            <motion.div 
-              initial={{ opacity: 0, y: 5 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              onClick={() => handleOpenFact(siaFact.id)}
-              className="flex items-center gap-2 text-indigo-400 text-[10px] font-black uppercase tracking-widest bg-indigo-500/5 px-3 py-1 rounded-full border border-indigo-500/10 w-fit cursor-pointer hover:bg-indigo-500/10 transition-colors"
-            >
-              <Sparkles size={12} />
-              <span>SIA Fact: {siaFact.title}</span>
-            </motion.div>
           </div>
         </div>
+
+        <motion.div 
+          initial={{ opacity: 0, y: 5 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          onClick={() => handleOpenFact(siaFact.id)}
+          className="order-1 md:order-3 flex items-center gap-2 text-clinical-primary text-[10px] font-black uppercase tracking-widest bg-clinical-primary/5 px-3 py-1.5 rounded-full border border-clinical-primary/10 w-fit cursor-pointer hover:bg-clinical-primary/10 transition-colors animate-sia-pulse"
+        >
+          <Sparkles size={12} />
+          <span>SIA Fact: {siaFact.title}</span>
+        </motion.div>
       </section>
 
       {/* Bento Grid Overview */}
-      <section className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="flex flex-col justify-between hover:border-indigo-500/50 group hover:-translate-y-1 hover:shadow-indigo-500/10 transition-all duration-300">
+      <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card className={`flex flex-col justify-between hover:border-indigo-500/50 group hover:-translate-y-1 hover:shadow-indigo-500/10 transition-all duration-300 min-h-[160px] animate-sia-pulse ${isEnhanced ? 'bg-gradient-to-br from-zinc-900 to-indigo-950/30 border-indigo-500/10' : ''}`}>
           <div className="flex justify-between items-start">
-            <div className="w-10 h-10 bg-indigo-500/10 rounded-xl flex items-center justify-center text-indigo-400 border border-indigo-500/20">
+            <div className="w-10 h-10 bg-indigo-500/10 rounded-xl flex items-center justify-center text-indigo-400 border border-indigo-500/20 aspect-square object-cover">
               <Sparkles size={20} />
             </div>
             <TrendingUp size={16} className="text-zinc-700 group-hover:text-indigo-400 transition-colors" />
@@ -252,13 +266,13 @@ export default function Dashboard({ logs, correctionsCount, onLogClick, onViewCh
             title="Avg Quality" 
             value={stats?.avgSq || '--'} 
             unit="/10" 
-            className="mt-8"
+            className="mt-8 text-left"
           />
         </Card>
 
-        <Card className="flex flex-col justify-between hover:border-emerald-500/50 group hover:-translate-y-1 hover:shadow-emerald-500/10 transition-all duration-300">
+        <Card className={`flex flex-col justify-between hover:border-emerald-500/50 group hover:-translate-y-1 hover:shadow-emerald-500/10 transition-all duration-300 min-h-[160px] animate-sia-pulse ${isEnhanced ? 'bg-gradient-to-br from-zinc-900 to-emerald-950/20 border-emerald-500/10' : ''}`}>
           <div className="flex justify-between items-start">
-            <div className="w-10 h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center text-emerald-400 border border-emerald-500/20">
+            <div className="w-10 h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center text-emerald-400 border border-emerald-500/20 aspect-square object-cover">
               <Clock size={20} />
             </div>
             <TrendingUp size={16} className="text-zinc-700 group-hover:text-emerald-400 transition-colors" />
@@ -266,13 +280,13 @@ export default function Dashboard({ logs, correctionsCount, onLogClick, onViewCh
           <MetricDisplay 
             title="Avg Duration" 
             value={stats?.avgDuration || '--'} 
-            className="mt-8"
+            className="mt-8 text-left"
           />
         </Card>
 
-        <Card className="flex flex-col justify-between hover:border-purple-500/50 group hover:-translate-y-1 hover:shadow-purple-500/10 transition-all duration-300">
+        <Card className={`flex flex-col justify-between hover:border-purple-500/50 group hover:-translate-y-1 hover:shadow-purple-500/10 transition-all duration-300 min-h-[160px] animate-sia-pulse ${isEnhanced ? 'bg-gradient-to-br from-zinc-900 to-purple-950/20 border-purple-500/10' : ''}`}>
           <div className="flex justify-between items-start">
-            <div className="w-10 h-10 bg-purple-500/10 rounded-xl flex items-center justify-center text-purple-400 border border-purple-500/20">
+            <div className="w-10 h-10 bg-purple-500/10 rounded-xl flex items-center justify-center text-purple-400 border border-purple-500/20 aspect-square object-cover">
               <Zap size={20} />
             </div>
             <TrendingUp size={16} className="text-zinc-700 group-hover:text-purple-400 transition-colors" />
@@ -281,13 +295,13 @@ export default function Dashboard({ logs, correctionsCount, onLogClick, onViewCh
             title="Avg Efficiency" 
             value={stats?.avgEfficiency || '--'} 
             unit="%" 
-            className="mt-8"
+            className="mt-8 text-left"
           />
         </Card>
 
-        <Card className="flex flex-col justify-between hover:border-amber-500/50 group hover:-translate-y-1 hover:shadow-amber-500/10 transition-all duration-300">
+        <Card className={`flex flex-col justify-between hover:border-amber-500/50 group hover:-translate-y-1 hover:shadow-amber-500/10 transition-all duration-300 min-h-[160px] animate-sia-pulse ${isEnhanced ? 'bg-gradient-to-br from-zinc-900 to-amber-950/20 border-amber-500/10' : ''}`}>
           <div className="flex justify-between items-start">
-            <div className="w-10 h-10 bg-amber-500/10 rounded-xl flex items-center justify-center text-amber-400 border border-amber-500/20">
+            <div className="w-10 h-10 bg-amber-500/10 rounded-xl flex items-center justify-center text-amber-400 border border-amber-500/20 aspect-square object-cover">
               <Sun size={20} />
             </div>
             <TrendingUp size={16} className="text-zinc-700 group-hover:text-amber-400 transition-colors" />
@@ -296,7 +310,7 @@ export default function Dashboard({ logs, correctionsCount, onLogClick, onViewCh
             title="Morning Readiness" 
             value={stats?.avgR || '--'} 
             unit="/10" 
-            className="mt-8"
+            className="mt-8 text-left"
           />
         </Card>
       </section>
@@ -331,6 +345,32 @@ export default function Dashboard({ logs, correctionsCount, onLogClick, onViewCh
           </div>
         </Card>
       </section>
+
+      {/* Personalization Level Up Card */}
+      {!personalizationProfile && (
+        <section>
+          <Card 
+            className="bg-gradient-to-r from-indigo-600 to-violet-600 border-none relative overflow-hidden group cursor-pointer"
+            onClick={onOpenPersonalization}
+          >
+            <div className="absolute top-0 right-0 p-8 opacity-20 group-hover:scale-110 transition-transform">
+              <Sparkles size={100} className="text-white" />
+            </div>
+            <div className="relative z-10 flex items-center gap-6">
+              <div className="w-16 h-16 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center text-white shadow-xl">
+                <Brain size={32} />
+              </div>
+              <div>
+                <h3 className="text-xl font-black text-white tracking-tight">Unlock Deep Sleep Intelligence</h3>
+                <p className="text-white/80 text-sm font-medium mt-1">Personalize SIA with your goals and clinical data for better insights.</p>
+                <div className="flex items-center gap-2 text-[10px] font-black text-white uppercase tracking-[0.2em] mt-4 bg-white/10 w-fit px-3 py-1.5 rounded-lg border border-white/20">
+                  Level Up Now <ChevronRight size={14} />
+                </div>
+              </div>
+            </div>
+          </Card>
+        </section>
+      )}
 
       {/* Secondary Row: SIA Fact & Log Action */}
       <section className="grid grid-cols-1 md:grid-cols-2 gap-4">

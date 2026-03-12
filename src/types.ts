@@ -32,6 +32,37 @@ export interface SummaryLog extends BaseLog {
   };
 }
 
+export interface PersonalizationProfile {
+  demographics: {
+    age: number;
+    sex: 'Male' | 'Female' | 'Other';
+    workSchedule: 'Regular Hours' | 'Shift Work';
+    environmentType: 'Noisy/Urban' | 'Quiet/Controlled';
+  };
+  goals: string[];
+  psqi: {
+    timeToFallAsleep: number;
+    sleepQuality: number;
+    daytimeSleepiness: number;
+  };
+  clinical?: {
+    n1: number;
+    n2: number;
+    n3: number;
+    rem: number;
+    neurological?: string[];
+    oxygen?: {
+      avgSpO2: number;
+      minSpO2: number;
+    };
+    heart?: {
+      avgSleepingHR: number;
+    };
+    notes: string;
+  };
+  updatedAt?: any;
+}
+
 // DailyLog remains for backward compatibility and as the primary state interface
 export interface DailyLog extends Partial<FullLog>, Partial<SummaryLog> {
   date: string;

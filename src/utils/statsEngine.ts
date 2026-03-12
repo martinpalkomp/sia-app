@@ -40,30 +40,32 @@ export const calculateSafeAverage = (
     let value: number | undefined;
 
     // 1. Check top-level properties (sleepQuality, restedness, energyLevel)
-    if (metricName in log) {
-      const val = (log as any)[metricName];
-      if (typeof val === 'number') value = val;
-    }
+    if (metricName === 'sleepQuality' && typeof log.sleepQuality === 'number') value = log.sleepQuality;
+    if (metricName === 'restedness' && typeof log.restedness === 'number') value = log.restedness;
+    if (metricName === 'energyLevel' && typeof log.energyLevel === 'number') value = log.energyLevel;
 
-    // 2. Check summaryMetrics for clinical data points
-    if (log.summaryMetrics) {
-      if (metricName in log.summaryMetrics) {
-        value = (log.summaryMetrics as any)[metricName];
-      } 
-      // Handle alias for sleepDuration -> importedDuration
-      else if (metricName === 'sleepDuration') {
-        value = log.summaryMetrics.importedDuration;
-      } 
-      // Handle alias for timeInBed -> importedInBed
-      else if (metricName === 'timeInBed') {
-        value = log.summaryMetrics.importedInBed;
+    // 2. Prioritize timeline for sleepDuration and efficiency if available
+    if (value === undefined) {
+      if (metricName === 'sleepDuration' && log.timeline && log.timeline.some(s => s === 'sleep')) {
+        const sleepSlots = log.timeline.filter(s => s === 'sleep').length;
+        value = sleepSlots * 0.25;
       }
-      // Handle efficiency
-      else if (metricName === 'efficiency') {
+      else if (metricName === 'efficiency' && log.timeline && log.timeline.some(s => s === 'sleep' || s === 'awake-in')) {
         const sleepSlots = log.timeline.filter(s => s === 'sleep').length;
         const inBedSlots = log.timeline.filter(s => s === 'sleep' || s === 'awake-in').length;
         if (inBedSlots > 0) value = (sleepSlots / inBedSlots) * 100;
       }
+    }
+
+    // 3. Check summaryMetrics for clinical data points or imported values if not found/calculated
+    if (value === undefined && log.summaryMetrics) {
+      if (metricName === 'sleepQuality' && typeof log.summaryMetrics.sleepQuality === 'number') value = log.summaryMetrics.sleepQuality;
+      if (metricName === 'restedness' && typeof log.summaryMetrics.restedness === 'number') value = log.summaryMetrics.restedness;
+      if (metricName === 'energyLevel' && typeof log.summaryMetrics.energyLevel === 'number') value = log.summaryMetrics.energyLevel;
+      
+      // Handle aliases/imported values
+      if (metricName === 'sleepDuration' && typeof log.summaryMetrics.importedDuration === 'number') value = log.summaryMetrics.importedDuration;
+      if (metricName === 'timeInBed' && typeof log.summaryMetrics.importedInBed === 'number') value = log.summaryMetrics.importedInBed;
     }
 
     // Only include in calculation if the value is a valid number

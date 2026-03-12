@@ -9,7 +9,7 @@
   --color-clinical-bg: #0a0c10;
   --color-clinical-card: #14161b;
   --color-clinical-border: rgba(255, 255, 255, 0.08);
-  --color-clinical-primary: #4f46e5; /* indigo-600 */
+  --color-clinical-primary: var(--primary-color, #4f46e5); /* Dynamic Primary */
   --color-clinical-accent: #fbbf24;  /* amber-400 */
   
   /* Typography */
@@ -18,6 +18,14 @@
 
   /* Semi-Rounded Aesthetic */
   --radius-clinical: 1rem; /* rounded-2xl equivalent */
+}
+
+:root {
+  --primary-color: #4f46e5; /* Standard Indigo */
+}
+
+.enhanced-mode {
+  --primary-color: #8b5cf6; /* Enhanced Violet/Indigo */
 }
 
 @layer base {

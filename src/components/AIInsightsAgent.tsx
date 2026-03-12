@@ -8,10 +8,11 @@ import {
   MessageSquare,
   Zap,
   Ghost,
-  Droplets
+  Droplets,
+  FileText
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { DailyLog } from '../types';
+import { DailyLog, PersonalizationProfile } from '../types';
 import { User } from 'firebase/auth';
 import { db } from '../lib/firebase';
 import { 
@@ -35,6 +36,7 @@ interface Message {
 interface AIInsightsAgentProps {
   logs: Record<string, DailyLog>;
   user: User;
+  personalizationProfile: PersonalizationProfile | null;
 }
 
 const QUICK_PROMPTS = [
@@ -60,7 +62,7 @@ const QUICK_PROMPTS = [
   }
 ];
 
-export default function AIInsightsAgent({ logs, user }: AIInsightsAgentProps) {
+export default function AIInsightsAgent({ logs, user, personalizationProfile }: AIInsightsAgentProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -71,8 +73,8 @@ export default function AIInsightsAgent({ logs, user }: AIInsightsAgentProps) {
     if (!user) return;
 
     const q = query(
-      collection(db, 'user_data', user.uid, 'logs'),
-      where('type', '==', 'chat_message'),
+      collection(db, 'users', user.uid, 'chats'),
+      where('role', 'in', ['user', 'assistant']),
       orderBy('createdAt', 'asc')
     );
 
@@ -113,9 +115,8 @@ export default function AIInsightsAgent({ logs, user }: AIInsightsAgentProps) {
     };
     
     try {
-      await addDoc(collection(db, 'user_data', user.uid, 'logs'), {
+      await addDoc(collection(db, 'users', user.uid, 'chats'), {
         ...userMessage,
-        type: 'chat_message'
       });
       setInput('');
       setIsLoading(true);
@@ -133,10 +134,15 @@ export default function AIInsightsAgent({ logs, user }: AIInsightsAgentProps) {
       }));
 
       const systemInstruction = `
-        You are "SIA" (Sleep Intelligence Agent), a Sleep Intelligence Agent and Senior Health Data Scientist. Your task is to analyze the user's sleep history and provide insights.
+        You are "SIA", now operating in Enhanced Mode. Your analysis is no longer generic. 
+        You are speaking to a ${personalizationProfile?.demographics?.age || '[Age]'}-year-old ${personalizationProfile?.demographics?.sex || '[Sex]'} with a goal of ${personalizationProfile?.goals?.join(', ') || '[Goal]'}. 
         
-        DATA CONTEXT:
-        ${JSON.stringify(historyContext)}
+        UNIFIED DATASET CONTEXT:
+        - Personalization Profile: ${personalizationProfile ? JSON.stringify(personalizationProfile) : "No personalization profile set yet."}
+        - Recent Sleep Logs (last 7 days): ${JSON.stringify(historyContext)}
+        
+        INSTRUCTION:
+        You are analyzing a unified dataset. Cross-reference the user's Clinical Lab Results with their actual daily logs to find discrepancies or patterns.
         
         ANALYSIS LOGIC:
         1. Identify the top 20% "Best Nights" (highest SQ and R scores).
@@ -144,6 +150,15 @@ export default function AIInsightsAgent({ logs, user }: AIInsightsAgentProps) {
         3. Identify "Poor Night" triggers (e.g., "bathroom," "late meal," late bedtime).
         4. Deliver the output in a conversational, supportive, and professional tone.
         5. If the user asks about specific keywords like "Lormazepam", "Nightmares", "Night Terrors", or "Bathroom", perform a targeted correlation scan.
+        6. IMPORTANT: Use the USER PERSONALIZATION PROFILE to tailor your advice. 
+           - Whenever you provide a 'SIA FACT' or an insight, you must cross-reference it with their Work Schedule (${personalizationProfile?.demographics?.workSchedule}) and Environment (${personalizationProfile?.demographics?.environmentType}) and Clinical Lab Results (if provided). 
+           - If they have high REM but low N3, explain it through the lens of their specific demographic.
+           - AGE-ADJUSTED NORMS: If age is > 60, be more permissive of early waking and shorter total duration (6-7h can be normal). Adjust "Expected" Deep Sleep (N3) percentage, as it naturally declines with age.
+           - ENVIRONMENT: Use the Living Environment data to suggest environmental fixes (e.g., white noise machines or blackout curtains for noisy/urban environments).
+           - OXYGEN WARNING: If SpO2 (Avg or Min) is below 92%, strongly suggest the user shares this with a doctor to screen for Sleep Disordered Breathing/Sleep Apnea.
+           - GOALS: If their goal is 'Wake Up Rested' but their N3 (Deep Sleep) is low, mention the correlation.
+           - DAYTIME SLEEPINESS: If they have high 'Daytime Sleepiness' (7+), look for fragmented sleep patterns or low efficiency.
+           - CLINICAL NOTES: Incorporate specific clinical findings or neurological factors (RLS, PLM) into your findings.
         
         STYLE:
         - Conversational and supportive.
@@ -168,9 +183,8 @@ export default function AIInsightsAgent({ logs, user }: AIInsightsAgentProps) {
         createdAt: serverTimestamp()
       };
       
-      await addDoc(collection(db, 'user_data', user.uid, 'logs'), {
+      await addDoc(collection(db, 'users', user.uid, 'chats'), {
         ...assistantMessage,
-        type: 'chat_message'
       });
     } catch (error) {
       console.error("AI Error:", error);
@@ -183,12 +197,12 @@ export default function AIInsightsAgent({ logs, user }: AIInsightsAgentProps) {
   return (
     <div className="flex flex-col h-[600px] bg-zinc-900/50 border border-zinc-800 rounded-3xl overflow-hidden">
       {/* Header */}
-      <div className="p-4 border-b border-zinc-800 bg-zinc-900 flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl overflow-hidden border border-indigo-500/30 bg-zinc-900 flex items-center justify-center">
+      <div className="p-4 border-b border-zinc-800 bg-zinc-900 flex items-center gap-3 text-left">
+        <div className="w-10 h-10 rounded-xl overflow-hidden border border-indigo-500/30 bg-zinc-900 flex items-center justify-center aspect-square">
           <img 
             src="https://i.imgur.com/MnI5hn3.png" 
             alt="SIA" 
-            className="w-8 h-8 object-contain"
+            className="w-8 h-8 object-cover"
             referrerPolicy="no-referrer"
           />
         </div>
@@ -241,7 +255,17 @@ export default function AIInsightsAgent({ logs, user }: AIInsightsAgentProps) {
 
       {/* Quick Prompts */}
       <div className="px-4 py-2 border-t border-zinc-800 bg-zinc-900/30">
-        <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold mb-2 ml-1">Quick Ask</p>
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold ml-1">Quick Ask</p>
+          <button
+            onClick={() => handleSend("Based on my recent sleep logs, generate a structured clinical summary including sleep efficiency, average onset, and recovery trends for my doctor.")}
+            disabled={isLoading}
+            className="flex items-center gap-2 px-3 py-1 bg-indigo-600/10 hover:bg-indigo-600/20 border border-indigo-500/30 rounded-lg text-[9px] font-black uppercase tracking-widest text-indigo-400 transition-all"
+          >
+            <FileText size={12} />
+            Clinical Report
+          </button>
+        </div>
         <div className="flex flex-wrap gap-2 pb-2">
           {QUICK_PROMPTS.map((qp, i) => (
             <button

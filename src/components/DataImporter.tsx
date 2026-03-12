@@ -58,7 +58,8 @@ export default function DataImporter({ user, onImportComplete }: DataImporterPro
 
   const validateFile = (file: File) => {
     if (file.size > MAX_FILE_SIZE) {
-      alert("File too large. Please upload a file under 5MB.");
+      setUploadStatus('error');
+      setErrorMessage("File too large. Please upload a file under 5MB.");
       return false;
     }
 
@@ -67,7 +68,8 @@ export default function DataImporter({ user, onImportComplete }: DataImporterPro
     const isValidExtension = allowedExtensions.some(ext => fileName.endsWith(ext));
 
     if (!isValidExtension) {
-      alert("Invalid file type. Only .csv, .xls, and .xlsx are accepted.");
+      setUploadStatus('error');
+      setErrorMessage("Invalid file type. Only .csv, .xls, and .xlsx are accepted.");
       return false;
     }
 
@@ -204,7 +206,7 @@ export default function DataImporter({ user, onImportComplete }: DataImporterPro
         
         for (const log of chunk) {
           const { date, ...rest } = log;
-          const docRef = doc(db, 'user_data', user.uid, 'logs', date);
+          const docRef = doc(db, 'users', user.uid, 'sleep_logs', date);
           batch.set(docRef, {
             ...rest,
             date,
@@ -258,21 +260,30 @@ export default function DataImporter({ user, onImportComplete }: DataImporterPro
     setErrorMessage('');
 
     try {
-      const rows = pasteContent.trim().split('\n');
+      // Sanitize input: handle different line endings and filter out empty lines
+      const rows = pasteContent.trim().split(/\r?\n/).filter(line => line.trim());
+      
       const parsedData = rows.map(row => {
-        const cols = row.split('\t').map(c => c.trim());
+        // Handle both tab-separated and comma-separated as fallback
+        const separator = row.includes('\t') ? '\t' : ',';
+        const cols = row.split(separator).map(c => c.trim());
+        
         // Map to the expected header format used in processImportedData
         // Date, SleepQuality, Restedness, EnergyLevel, SleepDuration, WakeInBed, Remarks
         return {
-          Date: cols[0],
-          SleepQuality: cols[1],
-          Restedness: cols[2],
-          EnergyLevel: cols[3],
-          SleepDuration: cols[4],
-          WakeInBed: cols[5],
-          Remarks: cols[6]
+          Date: cols[0] || '',
+          SleepQuality: cols[1] || '',
+          Restedness: cols[2] || '',
+          EnergyLevel: cols[3] || '',
+          SleepDuration: cols[4] || '',
+          WakeInBed: cols[5] || '',
+          Remarks: cols[6] || ''
         };
       });
+
+      if (parsedData.length === 0) {
+        throw new Error("No valid data found in paste content.");
+      }
 
       await processImportedData(parsedData);
       setPasteContent('');
@@ -280,7 +291,7 @@ export default function DataImporter({ user, onImportComplete }: DataImporterPro
     } catch (error: any) {
       console.error("Paste Import failed:", error);
       setUploadStatus('error');
-      setErrorMessage(`Paste Error: ${error.message || "Failed to process pasted data."}`);
+      setErrorMessage(error.message || "Failed to process pasted data. Ensure columns match the template.");
     } finally {
       setIsUploading(false);
     }
@@ -308,7 +319,8 @@ export default function DataImporter({ user, onImportComplete }: DataImporterPro
   const handleUploadSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedFile) {
-      alert("Please select a file first.");
+      setUploadStatus('error');
+      setErrorMessage("Please select a file first.");
       return;
     }
 
@@ -399,18 +411,18 @@ export default function DataImporter({ user, onImportComplete }: DataImporterPro
 
   return (
     <div className="bg-zinc-900/50 border border-zinc-800 rounded-3xl p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="space-y-1">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="space-y-1 text-left">
           <h3 className="text-sm font-bold text-white flex items-center gap-2">
             <Upload size={16} className="text-indigo-400" />
             Data Importer
           </h3>
           <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">CSV or Excel • Max 5MB</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full md:w-auto">
           <button 
             onClick={() => setIsPasteOpen(!isPasteOpen)}
-            className={`flex items-center gap-2 px-3 py-1.5 border rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${
+            className={`flex items-center justify-center gap-2 px-3 py-2 border rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${
               isPasteOpen 
                 ? 'bg-indigo-500/10 border-indigo-500/50 text-indigo-400' 
                 : 'bg-zinc-800 hover:bg-zinc-700 border-zinc-700 text-zinc-400'
@@ -421,7 +433,7 @@ export default function DataImporter({ user, onImportComplete }: DataImporterPro
           </button>
           <button 
             onClick={downloadTemplate}
-            className="flex items-center gap-2 px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-xl text-[10px] font-bold uppercase tracking-widest text-zinc-400 transition-all"
+            className="flex items-center justify-center gap-2 px-3 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-xl text-[10px] font-bold uppercase tracking-widest text-zinc-400 transition-all"
           >
             <Download size={14} />
             Template
