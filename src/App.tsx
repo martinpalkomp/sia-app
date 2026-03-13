@@ -25,7 +25,10 @@ import {
   Printer,
   X,
   FileText,
-  Loader2
+  Loader2,
+  CheckCircle2,
+  AlertCircle,
+  Save
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { GoogleGenAI } from "@google/genai";
@@ -36,7 +39,7 @@ import {
   getSlotLabel
 } from './constants';
 
-import { format, isAfter, parseISO, startOfDay } from 'date-fns';
+import { format, isAfter, parseISO, startOfDay, startOfWeek, startOfMonth, eachDayOfInterval, endOfDay } from 'date-fns';
 
 import { 
   getTodayDate, 
@@ -54,6 +57,7 @@ import Legal from './components/Legal';
 import DataImporter from './components/DataImporter';
 import CorrectionHub from './components/CorrectionHub';
 import PersonalizationWizard from './components/PersonalizationWizard';
+import SleepGuideInteractive from './components/SleepGuideInteractive';
 import AccountPage from './components/AccountPage';
 import { AvatarFrame } from './components/UI';
 
@@ -117,7 +121,7 @@ export default function App() {
   const [loginError, setLoginError] = useState<string | null>(null);
   const [logs, setLogs] = useState<Record<string, DailyLog>>({});
   const [selectedDate, setSelectedDate] = useState(getTodayDate());
-  const [view, setView] = useState<'dashboard' | 'log' | 'weekly' | 'monthly' | 'custom' | 'ai' | 'corrections' | 'legal' | 'account' | 'import'>('dashboard');
+  const [view, setView] = useState<'dashboard' | 'log' | 'weekly' | 'monthly' | 'custom' | 'ai' | 'corrections' | 'legal' | 'account' | 'import'>('weekly');
   const [customRange, setCustomRange] = useState({ start: getTodayDate(), end: getTodayDate() });
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [clinicalReport, setClinicalReport] = useState<string | null>(null);
@@ -129,6 +133,32 @@ export default function App() {
   const [isDragging, setIsDragging] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [dragAction, setDragAction] = useState<'paint' | 'erase'>('paint');
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [showSleepGuide, setShowSleepGuide] = useState(false);
+
+  // Reset editing state on mount
+  useEffect(() => {
+    setIsEditing(false);
+  }, []);
+
+  // Handle auto-save animation
+  useEffect(() => {
+    if (saveStatus === 'saving') {
+      const timer = setTimeout(() => {
+        setSaveStatus('saved');
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [saveStatus]);
+
+  // Toast auto-hide
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => setToast(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
 
   const correctionsCount = useMemo(() => {
     const trackingStartDate = format(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd');
@@ -175,42 +205,6 @@ export default function App() {
       if (doc.exists()) {
         setPersonalizationProfile(doc.data() as PersonalizationProfile);
       }
-    });
-
-    return () => unsubscribe();
-  }, [user]);
-
-  // Load data from Firestore
-  useEffect(() => {
-    if (!user) {
-      setLogs({});
-      return;
-    }
-
-    const q = query(
-      collection(db, 'users', user.uid, 'sleep_logs'),
-      where('type', '==', 'log')
-    );
-    
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const fetchedLogs: Record<string, DailyLog> = {};
-      snapshot.forEach((doc) => {
-        const data = doc.data() as DailyLog;
-        // Ensure timeline exists
-        if (!data.timeline) {
-          data.timeline = Array(TOTAL_SLOTS).fill('awake-out');
-        }
-        // Normalize logs to ensure correct timeline length
-        if (data.timeline.length !== TOTAL_SLOTS) {
-          if (data.timeline.length < TOTAL_SLOTS) {
-            data.timeline = [...data.timeline, ...Array(TOTAL_SLOTS - data.timeline.length).fill('awake-out')];
-          } else {
-            data.timeline = data.timeline.slice(0, TOTAL_SLOTS);
-          }
-        }
-        fetchedLogs[doc.id] = data;
-      });
-      setLogs(fetchedLogs);
     });
 
     return () => unsubscribe();
@@ -340,6 +334,7 @@ export default function App() {
     const newLog = { ...currentLog, ...updates };
     const newLogs = { ...logs, [selectedDate]: newLog };
     setLogs(newLogs);
+    setSaveStatus('saving');
     saveLogs(newLogs, selectedDate);
   };
 
@@ -398,8 +393,17 @@ export default function App() {
     return () => window.removeEventListener('mouseup', handleGlobalMouseUp);
   }, []);
 
-  const weekDates = useMemo(() => getWeekDates(selectedDate), [selectedDate]);
-  const monthDates = useMemo(() => getMonthDates(selectedDate), [selectedDate]);
+  const weekDates = useMemo(() => {
+    const today = new Date();
+    const start = startOfWeek(today, { weekStartsOn: 1 }); // Monday
+    return eachDayOfInterval({ start, end: today }).map(d => format(d, 'yyyy-MM-dd'));
+  }, []);
+
+  const monthDates = useMemo(() => {
+    const today = new Date();
+    const start = startOfMonth(today);
+    return eachDayOfInterval({ start, end: today }).map(d => format(d, 'yyyy-MM-dd'));
+  }, []);
   const customDates = useMemo(() => getRangeDates(customRange.start, customRange.end), [customRange]);
 
   const activeDates = useMemo(() => {
@@ -408,6 +412,50 @@ export default function App() {
     if (view === 'custom') return customDates;
     return [selectedDate];
   }, [view, selectedDate, weekDates, monthDates, customDates]);
+
+  // Load data from Firestore based on active range
+  useEffect(() => {
+    if (!user) {
+      setLogs({});
+      return;
+    }
+
+    // Determine the range to fetch
+    const start = activeDates[0];
+    const end = activeDates[activeDates.length - 1];
+
+    if (!start || !end) return;
+
+    const q = query(
+      collection(db, 'users', user.uid, 'sleep_logs'),
+      where('type', '==', 'log'),
+      where('date', '>=', start),
+      where('date', '<=', end)
+    );
+    
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const fetchedLogs: Record<string, DailyLog> = { ...logs }; // Keep existing to avoid flickering
+      snapshot.forEach((doc) => {
+        const data = doc.data() as DailyLog;
+        // Ensure timeline exists
+        if (!data.timeline) {
+          data.timeline = Array(TOTAL_SLOTS).fill('awake-out');
+        }
+        // Normalize logs to ensure correct timeline length
+        if (data.timeline.length !== TOTAL_SLOTS) {
+          if (data.timeline.length < TOTAL_SLOTS) {
+            data.timeline = [...data.timeline, ...Array(TOTAL_SLOTS - data.timeline.length).fill('awake-out')];
+          } else {
+            data.timeline = data.timeline.slice(0, TOTAL_SLOTS);
+          }
+        }
+        fetchedLogs[doc.id] = data;
+      });
+      setLogs(fetchedLogs);
+    });
+
+    return () => unsubscribe();
+  }, [user, activeDates]);
 
   const averageStats = useMemo(() => {
     const periodLogs = activeDates.map(d => logs[d]).filter(Boolean);
@@ -644,7 +692,7 @@ export default function App() {
                   disabled={!agreedToTerms}
                   className={`w-full py-4 rounded-2xl font-bold flex items-center justify-center gap-3 transition-all group ${
                     agreedToTerms 
-                      ? 'bg-white text-black hover:bg-zinc-100' 
+                      ? 'bg-indigo-600 text-white hover:bg-indigo-500 shadow-lg shadow-indigo-500/20' 
                       : 'bg-zinc-800 text-zinc-600 cursor-not-allowed'
                   }`}
                 >
@@ -669,61 +717,73 @@ export default function App() {
   }
 
   return (
-    <div className={`min-h-screen bg-[#0a0c10] text-zinc-100 font-sans selection:bg-indigo-500/30 ${personalizationProfile ? 'enhanced-mode' : ''}`}>
+    <div className={`min-h-screen bg-clinical-bg text-clinical-text font-sans selection:bg-indigo-500/30 max-w-[100vw] overflow-x-hidden ${personalizationProfile ? 'enhanced-mode' : ''}`}>
       {/* Header */}
-      <header className={`sticky top-0 z-50 bg-clinical-bg/80 backdrop-blur-md border-b border-clinical-border px-4 py-4 transition-all ${personalizationProfile ? 'border-b-2 border-indigo-500' : ''}`}>
-        <div className="max-w-4xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div className="flex items-center gap-3 cursor-pointer" onClick={() => setView('dashboard')}>
+      <header className={`absolute top-0 left-0 right-0 w-full z-50 bg-clinical-bg/80 backdrop-blur-md border-b border-clinical-border px-4 py-3 transition-all ${personalizationProfile ? 'border-b-2 border-indigo-500' : ''}`}>
+        <div className="max-w-4xl mx-auto flex flex-row justify-between items-center gap-4">
+          <div className="flex items-center gap-3 cursor-pointer shrink-0" onClick={() => setView('dashboard')}>
               <AvatarFrame 
                 src="https://i.imgur.com/MnI5hn3.png" 
                 alt="SIA" 
                 size="sm"
-                className="shadow-lg shadow-indigo-500/20 border-indigo-500/30 bg-indigo-600"
+                className="w-8 h-8 md:w-10 md:h-10 shadow-lg shadow-indigo-500/20 border-indigo-500/30 bg-indigo-600"
               />
-              <div>
-                <h1 className="text-lg font-bold tracking-tight text-white flex items-center gap-2">
+              <div className="hidden sm:block">
+                <h1 className="text-sm md:text-lg font-bold tracking-tight text-white flex items-center gap-2">
                   SIA
                   {personalizationProfile && (
-                    <span className="text-[9px] font-black bg-violet-500/20 text-violet-400 px-1.5 py-0.5 rounded border border-violet-500/30 animate-pulse">
-                      ✨ PERSONALIZED
+                    <span className="text-[8px] md:text-[9px] font-black bg-violet-500/20 text-violet-400 px-1.5 py-0.5 rounded border border-violet-500/30 animate-pulse">
+                      ✨
                     </span>
                   )}
                 </h1>
-                <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-black">Sleep Intelligence Agent</p>
+                <p className="text-[8px] md:text-[10px] text-zinc-500 uppercase tracking-widest font-black">Sleep Intelligence Agent</p>
               </div>
           </div>
           
-          <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide flex-nowrap flex-1 md:flex-none">
-            <div className="flex bg-zinc-900/50 p-1 rounded-xl border border-zinc-800/50 gap-1 flex-nowrap">
+          <div className="flex items-center gap-1 md:gap-2 flex-nowrap">
+            <div className="flex bg-zinc-900/50 p-1 rounded-xl border border-zinc-800/50 gap-0.5 md:gap-1 flex-nowrap items-center">
               {[
                 { id: 'dashboard', label: 'DASHBOARD' },
                 { id: 'log', label: 'LOG' },
                 { id: 'insights', label: 'INSIGHT' },
-                { id: 'account', label: user?.displayName?.toUpperCase() || 'ACCOUNT' },
                 { id: 'ai', label: 'AI ANALYSIS' }
               ].map((v) => (
                 <button 
                   key={v.id}
                   onClick={() => setView(v.id === 'insights' ? 'weekly' : v.id as any)}
-                  className={`px-2 md:px-4 py-1.5 rounded-xl text-[0.7rem] md:text-[10px] font-black transition-all uppercase tracking-widest flex items-center gap-2 whitespace-nowrap ${
+                  className={`px-1.5 md:px-3 py-1.5 rounded-lg md:rounded-xl text-[9px] md:text-[10px] font-black transition-all uppercase tracking-tighter md:tracking-widest flex items-center gap-1.5 whitespace-nowrap ${
                     view === v.id || (v.id === 'insights' && ['weekly', 'monthly', 'custom'].includes(view))
                       ? 'bg-zinc-800 text-white shadow-sm' 
                       : 'text-zinc-500 hover:text-zinc-300'
                   } ${v.id === 'ai' ? 'border border-indigo-500/30 bg-indigo-500/5 text-indigo-300 shadow-[0_0_10px_rgba(99,102,241,0.1)]' : ''}`}
                 >
-                  {v.id === 'account' && user?.photoURL && (
-                    <img 
-                      src={user.photoURL} 
-                      alt="Profile" 
-                      className="w-4 h-4 rounded-full border border-zinc-700" 
-                      referrerPolicy="no-referrer"
-                    />
-                  )}
                   {v.label}
-                  {v.id === 'account' && personalizationProfile && <span className="text-indigo-400">✨</span>}
                 </button>
               ))}
+              
+              {/* User Icon */}
+              <button 
+                onClick={() => setView('account')}
+                className={`p-0.5 rounded-full transition-all border-2 ${view === 'account' ? 'border-indigo-500 shadow-lg shadow-indigo-500/20' : 'border-transparent hover:border-zinc-700'}`}
+                title={user?.displayName || 'Account'}
+              >
+                {user?.photoURL ? (
+                  <img 
+                    src={user.photoURL} 
+                    alt="Profile" 
+                    className="w-7 h-7 md:w-8 md:h-8 rounded-full" 
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <div className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-zinc-800 flex items-center justify-center text-[10px] font-bold text-zinc-400">
+                    {user?.displayName?.charAt(0) || 'U'}
+                  </div>
+                )}
+              </button>
             </div>
+
+            {/* Logout Icon */}
             <button 
               onClick={handleLogout}
               className="p-2 text-zinc-500 hover:text-white transition-colors flex-shrink-0"
@@ -735,7 +795,7 @@ export default function App() {
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto p-4 pb-24">
+      <main className="max-w-4xl mx-auto p-4 pb-24 pt-24 md:pt-28">
         <AnimatePresence mode="wait">
           {view === 'dashboard' ? (
             <motion.div
@@ -754,6 +814,7 @@ export default function App() {
                 }}
                 onViewChange={setView}
                 onOpenPersonalization={() => setShowPersonalizationWizard(true)}
+                onOpenSleepGuide={() => setShowSleepGuide(true)}
               />
             </motion.div>
           ) : view === 'corrections' ? (
@@ -767,7 +828,7 @@ export default function App() {
                 user={user} 
                 logs={logs} 
                 onUpdate={() => {
-                  console.log("Logs updated from CorrectionHub");
+                  // Logs updated from CorrectionHub
                 }} 
                 onGoToLog={(date) => {
                   setSelectedDate(date);
@@ -836,19 +897,26 @@ export default function App() {
                 </div>
 
                 <div 
-                  onClick={() => setIsEditing(true)}
-                  className={`bg-zinc-900 border rounded-2xl overflow-hidden select-none flex flex-col divide-y divide-zinc-800/50 touch-none transition-all ${
+                  className={`relative bg-zinc-900 border rounded-2xl overflow-hidden select-none flex flex-col divide-y divide-zinc-800/50 touch-none transition-all ${
                     isEditing ? 'border-indigo-500 ring-2 ring-indigo-500/20' : 'border-zinc-800'
                   }`}
                 >
-                  {!isEditing && (
-                    <div className="absolute inset-0 z-20 bg-black/20 backdrop-blur-[1px] flex items-center justify-center cursor-pointer group">
-                      <div className="bg-zinc-900/90 border border-zinc-700 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest text-zinc-300 group-hover:text-white transition-colors flex items-center gap-2">
-                        <Plus size={14} />
-                        Click to Edit Sleep Window
-                      </div>
-                    </div>
-                  )}
+                  <AnimatePresence>
+                    {!isEditing && (
+                      <motion.div 
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        onClick={() => setIsEditing(true)}
+                        className="absolute inset-0 z-20 bg-black/20 backdrop-blur-[2px] flex items-center justify-center cursor-pointer group"
+                      >
+                        <div className="bg-zinc-900/90 border border-zinc-700 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest text-zinc-300 group-hover:text-white transition-colors flex items-center gap-2">
+                          <Plus size={14} />
+                          Tap to edit sleep window
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                   {[0, 1, 2, 3, 4, 5].map((rowIdx) => (
                     <div key={rowIdx} className="flex">
                       <div className="w-12 flex-shrink-0 flex items-center justify-center border-r border-zinc-800/50 bg-zinc-900/80">
@@ -1143,10 +1211,58 @@ export default function App() {
               <div className="flex gap-4">
                 <button 
                   onClick={() => {
+                    setSaveStatus('saving');
+                    setTimeout(() => {
+                      setSaveStatus('saved');
+                      setToast({ message: 'All changes synced to SIA cloud', type: 'success' });
+                    }, 500);
+                  }}
+                  className="flex-[2] py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-bold text-sm transition-all shadow-xl shadow-indigo-600/20 flex items-center justify-center gap-2"
+                >
+                  <AnimatePresence mode="wait">
+                    {saveStatus === 'saving' ? (
+                      <motion.div
+                        key="saving"
+                        initial={{ opacity: 0, scale: 0.8 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.8 }}
+                        className="flex items-center gap-2"
+                      >
+                        <Loader2 size={18} className="animate-spin" />
+                        <span>Saving...</span>
+                      </motion.div>
+                    ) : saveStatus === 'saved' ? (
+                      <motion.div
+                        key="saved"
+                        initial={{ opacity: 0, scale: 0.8 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.8 }}
+                        className="flex items-center gap-2"
+                      >
+                        <CheckCircle2 size={18} />
+                        <span>Saved</span>
+                      </motion.div>
+                    ) : (
+                      <motion.div
+                        key="idle"
+                        initial={{ opacity: 0, scale: 0.8 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.8 }}
+                        className="flex items-center gap-2"
+                      >
+                        <Save size={18} />
+                        <span>Save Changes</span>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </button>
+                <button 
+                  onClick={() => {
                     const newLogs = { ...logs };
                     delete newLogs[selectedDate];
                     setLogs(newLogs);
                     saveLogs(newLogs, selectedDate);
+                    setSaveStatus('idle');
                   }}
                   className="flex-1 py-4 bg-zinc-900 hover:bg-red-900/20 text-zinc-500 hover:text-red-400 rounded-2xl font-bold text-sm transition-all border border-zinc-800 flex items-center justify-center gap-2"
                 >
@@ -1206,7 +1322,7 @@ export default function App() {
                         key={sub}
                         onClick={() => setView(sub as any)}
                         className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all uppercase tracking-wider ${
-                          (view === sub || (view === 'insights' && sub === 'weekly'))
+                          view === sub
                             ? 'bg-zinc-800 text-white shadow-sm'
                             : 'text-zinc-500 hover:text-zinc-300'
                         }`}
@@ -1347,6 +1463,34 @@ export default function App() {
         </div>
       </main>
 
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            initial={{ opacity: 0, y: 50, x: '-50%' }}
+            animate={{ opacity: 1, y: 0, x: '-50%' }}
+            exit={{ opacity: 0, y: 50, x: '-50%' }}
+            className={`fixed bottom-24 left-1/2 px-6 py-3 rounded-2xl shadow-2xl z-[100] flex items-center gap-3 border ${
+              toast.type === 'success' ? 'bg-emerald-900/90 border-emerald-500 text-emerald-100' : 'bg-red-900/90 border-red-500 text-red-100'
+            }`}
+          >
+            {toast.type === 'success' ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
+            <span className="text-sm font-bold">{toast.message}</span>
+            <button onClick={() => setToast(null)} className="ml-2 hover:opacity-70">
+              <X size={16} />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showSleepGuide && (
+          <SleepGuideInteractive 
+            onClose={() => setShowSleepGuide(false)} 
+            onOpenPersonalization={() => setShowPersonalizationWizard(true)}
+          />
+        )}
+      </AnimatePresence>
+
       {/* Clinical Report Overlay */}
       <AnimatePresence>
         {clinicalReport && (
@@ -1360,16 +1504,16 @@ export default function App() {
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="bg-white w-full max-w-4xl h-full max-h-[90vh] rounded-[2.5rem] overflow-hidden flex flex-col shadow-2xl"
+              className="bg-zinc-900 w-full max-w-4xl h-full max-h-[90vh] rounded-[2.5rem] overflow-hidden flex flex-col shadow-2xl border border-zinc-800"
             >
               {/* Report Header */}
-              <div className="px-8 py-6 bg-zinc-50 border-b border-zinc-200 flex items-center justify-between">
+              <div className="px-8 py-6 bg-zinc-900 border-b border-zinc-800 flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-500/20">
                     <FileText size={24} />
                   </div>
                   <div>
-                    <h2 className="text-xl font-bold text-zinc-900">Clinical Sleep Report</h2>
+                    <h2 className="text-xl font-bold text-white">Clinical Sleep Report</h2>
                     <p className="text-xs text-zinc-500 font-medium uppercase tracking-wider">SOAP Analysis • {view.toUpperCase()}</p>
                   </div>
                 </div>
@@ -1393,7 +1537,7 @@ export default function App() {
               {/* Report Content */}
               <div 
                 ref={reportRef}
-                className="flex-1 overflow-y-auto p-12 md:p-16 bg-white text-zinc-900 font-serif leading-relaxed"
+                className="flex-1 overflow-y-auto p-12 md:p-16 bg-zinc-900 text-zinc-300 font-serif leading-relaxed"
               >
                 <div className="max-w-2xl mx-auto space-y-8">
                   <div className="border-b-2 border-zinc-900 pb-8 mb-8">

@@ -18,6 +18,7 @@ import { DailyLog } from '../types';
 import { GoogleGenAI } from "@google/genai";
 import { SLEEP_FACTS } from '../data/sleepFacts';
 import { Card, AvatarFrame, MetricDisplay } from './UI';
+import SleepGuideCard from './SleepGuideCard';
 import { calculateSleepDuration, calculateSleepEfficiency, formatDuration } from '../utils/sleepUtils';
 import { calculateSafeAverage } from '../utils/statsEngine';
 import { getSlotLabel } from '../constants';
@@ -30,6 +31,7 @@ interface DashboardProps {
   onLogClick: () => void;
   onViewChange: (view: any) => void;
   onOpenPersonalization: () => void;
+  onOpenSleepGuide: () => void;
 }
 
 export default function Dashboard({ 
@@ -38,7 +40,8 @@ export default function Dashboard({
   personalizationProfile,
   onLogClick, 
   onViewChange,
-  onOpenPersonalization
+  onOpenPersonalization,
+  onOpenSleepGuide
 }: DashboardProps) {
   const [aiInsight, setAiInsight] = useState<string | null>(null);
   const [isAiLoading, setIsAiLoading] = useState(false);
@@ -346,6 +349,11 @@ export default function Dashboard({
         </Card>
       </section>
 
+      {/* Sleep Guide Card */}
+      <section>
+        <SleepGuideCard onClick={onOpenSleepGuide} />
+      </section>
+
       {/* Personalization Level Up Card */}
       {!personalizationProfile && (
         <section>
@@ -402,15 +410,15 @@ export default function Dashboard({
 
         <Card 
           onClick={onLogClick}
-          className="bg-white hover:bg-zinc-100 flex items-center justify-between group"
+          className="bg-zinc-900 border-zinc-800 hover:bg-zinc-800 flex items-center justify-between group"
         >
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-black rounded-xl flex items-center justify-center text-white shadow-lg shadow-black/20">
+            <div className="w-12 h-12 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-600/20">
               <Plus size={24} />
             </div>
             <div className="text-left">
-              <p className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em]">Action</p>
-              <p className="text-xl text-black font-black tracking-tight mt-0.5">Log Last Night</p>
+              <p className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em]">Action</p>
+              <p className="text-xl text-white font-black tracking-tight mt-0.5">Log Last Night</p>
               {correctionsCount > 0 && (
                 <div className="flex flex-col gap-2 mt-2">
                   <button 
@@ -418,7 +426,7 @@ export default function Dashboard({
                       e.stopPropagation();
                       onViewChange('corrections');
                     }}
-                    className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest hover:text-indigo-800 bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-100 transition-all block text-left w-fit"
+                    className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest hover:text-indigo-300 bg-indigo-400/10 px-3 py-1.5 rounded-lg border border-indigo-400/20 transition-all block text-left w-fit"
                   >
                     FIX MISSING DATA ({correctionsCount})
                   </button>

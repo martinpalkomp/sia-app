@@ -158,7 +158,7 @@ const CorrectionHub: React.FC<CorrectionHubProps> = ({ user, logs, onUpdate, onG
                   </button>
                   <button
                     onClick={() => onGoToLog(log.date)}
-                    className="bg-white text-black px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-zinc-200 transition-all flex items-center gap-2 shadow-lg shadow-white/5"
+                    className="bg-indigo-600 text-white px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-indigo-500 transition-all flex items-center gap-2 shadow-lg shadow-indigo-600/20"
                   >
                     Go to Log
                     <ChevronRight className="w-4 h-4" />

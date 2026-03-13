@@ -15,6 +15,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { DailyLog, PersonalizationProfile } from '../types';
 import { User } from 'firebase/auth';
 import { db } from '../lib/firebase';
+import Markdown from 'react-markdown';
 import { 
   collection, 
   addDoc, 
@@ -22,7 +23,11 @@ import {
   orderBy, 
   onSnapshot, 
   serverTimestamp,
-  where
+  where,
+  getDocs,
+  getDoc,
+  doc,
+  limit
 } from 'firebase/firestore';
 
 import { AvatarFrame } from './UI';
@@ -66,6 +71,7 @@ export default function AIInsightsAgent({ logs, user, personalizationProfile }: 
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Load chat history from Firestore
@@ -120,51 +126,47 @@ export default function AIInsightsAgent({ logs, user, personalizationProfile }: 
       });
       setInput('');
       setIsLoading(true);
+      setIsTyping(true);
+
+      // Fetch fresh data for context
+      const logsRef = collection(db, 'users', user.uid, 'sleep_logs');
+      const logsQuery = query(
+        logsRef,
+        where('type', '==', 'log'),
+        orderBy('date', 'desc'),
+        limit(14)
+      );
+      
+      const [logsSnap, profileSnap] = await Promise.all([
+        getDocs(logsQuery),
+        getDoc(doc(db, 'users', user.uid, 'personalization', 'profile'))
+      ]);
+
+      const recentLogs: any[] = [];
+      logsSnap.forEach(doc => recentLogs.push(doc.data()));
+      const profile = profileSnap.exists() ? profileSnap.data() : null;
 
       const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
       
-      // Prepare the history context for the AI
-      const historyContext = Object.values(logs).map(log => ({
-        date: log.date,
-        sq: log.sleepQuality,
-        r: log.restedness,
-        l: log.energyLevel,
-        remarks: log.remarks,
-        timeline: log.timeline
-      }));
-
       const systemInstruction = `
-        You are "SIA", now operating in Enhanced Mode. Your analysis is no longer generic. 
-        You are speaking to a ${personalizationProfile?.demographics?.age || '[Age]'}-year-old ${personalizationProfile?.demographics?.sex || '[Sex]'} with a goal of ${personalizationProfile?.goals?.join(', ') || '[Goal]'}. 
+        You are SIA, a clinical sleep scientist. Always use bolding for metrics, bullet points for advice, and never return a wall of unformatted text.
         
-        UNIFIED DATASET CONTEXT:
-        - Personalization Profile: ${personalizationProfile ? JSON.stringify(personalizationProfile) : "No personalization profile set yet."}
-        - Recent Sleep Logs (last 7 days): ${JSON.stringify(historyContext)}
+        USER CONTEXT:
+        - Personalization Profile: ${profile ? JSON.stringify(profile) : "No personalization profile set yet."}
+        - Recent Sleep Logs (last 14 days): ${JSON.stringify(recentLogs)}
         
-        INSTRUCTION:
-        You are analyzing a unified dataset. Cross-reference the user's Clinical Lab Results with their actual daily logs to find discrepancies or patterns.
-        
-        ANALYSIS LOGIC:
-        1. Identify the top 20% "Best Nights" (highest SQ and R scores).
-        2. Cross-reference the remarks text and sleep timing (from timeline) for these nights to find common keywords and patterns.
-        3. Identify "Poor Night" triggers (e.g., "bathroom," "late meal," late bedtime).
-        4. Deliver the output in a conversational, supportive, and professional tone.
-        5. If the user asks about specific keywords like "Lormazepam", "Nightmares", "Night Terrors", or "Bathroom", perform a targeted correlation scan.
-        6. IMPORTANT: Use the USER PERSONALIZATION PROFILE to tailor your advice. 
-           - Whenever you provide a 'SIA FACT' or an insight, you must cross-reference it with their Work Schedule (${personalizationProfile?.demographics?.workSchedule}) and Environment (${personalizationProfile?.demographics?.environmentType}) and Clinical Lab Results (if provided). 
-           - If they have high REM but low N3, explain it through the lens of their specific demographic.
-           - AGE-ADJUSTED NORMS: If age is > 60, be more permissive of early waking and shorter total duration (6-7h can be normal). Adjust "Expected" Deep Sleep (N3) percentage, as it naturally declines with age.
-           - ENVIRONMENT: Use the Living Environment data to suggest environmental fixes (e.g., white noise machines or blackout curtains for noisy/urban environments).
-           - OXYGEN WARNING: If SpO2 (Avg or Min) is below 92%, strongly suggest the user shares this with a doctor to screen for Sleep Disordered Breathing/Sleep Apnea.
-           - GOALS: If their goal is 'Wake Up Rested' but their N3 (Deep Sleep) is low, mention the correlation.
-           - DAYTIME SLEEPINESS: If they have high 'Daytime Sleepiness' (7+), look for fragmented sleep patterns or low efficiency.
-           - CLINICAL NOTES: Incorporate specific clinical findings or neurological factors (RLS, PLM) into your findings.
+        INSTRUCTIONS:
+        1. Use the provided data to find correlations, patterns, and triggers.
+        2. Deliver insights in a conversational, supportive, and professional tone.
+        3. Use Markdown formatting (bolding, bullet points, and headers) to make insights easy to read.
+        4. If the user asks about specific keywords like "Lormazepam", "Nightmares", "Night Terrors", or "Bathroom", perform a targeted correlation scan.
+        5. AGE-ADJUSTED NORMS: If age is > 60, be more permissive of early waking and shorter total duration (6-7h can be normal).
+        6. OXYGEN WARNING: If SpO2 (Avg or Min) is below 92%, strongly suggest the user shares this with a doctor to screen for Sleep Disordered Breathing/Sleep Apnea.
         
         STYLE:
-        - Conversational and supportive.
-        - Use data-backed observations (e.g., "On 80% of your best nights...").
         - Refer to yourself as SIA.
         - Keep it concise but insightful.
+        - Use data-backed observations (e.g., "On **80%** of your best nights...").
       `;
 
       const response = await ai.models.generateContent({
@@ -191,6 +193,7 @@ export default function AIInsightsAgent({ logs, user, personalizationProfile }: 
       setMessages(prev => [...prev, { role: 'assistant', content: "I encountered an error while analyzing your data. Please check your connection and try again." }]);
     } finally {
       setIsLoading(false);
+      setIsTyping(false);
     }
   };
 
@@ -237,17 +240,35 @@ export default function AIInsightsAgent({ logs, user, personalizationProfile }: 
                     ? 'bg-indigo-600 text-white rounded-tr-none' 
                     : 'bg-zinc-800 text-zinc-100 rounded-tl-none border border-zinc-700'
                 }`}>
-                  {msg.content}
+                  <div className="markdown-body prose prose-invert prose-sm max-w-none">
+                    <Markdown>{msg.content}</Markdown>
+                  </div>
                 </div>
               </div>
             </motion.div>
           ))}
         </AnimatePresence>
-        {isLoading && (
+        {isTyping && (
           <div className="flex justify-start">
             <div className="flex gap-3 items-center text-zinc-500 text-xs italic">
-              <Loader2 size={14} className="animate-spin" />
-              Analyzing your sleep patterns...
+              <div className="flex gap-1">
+                <motion.div
+                  animate={{ scale: [1, 1.2, 1] }}
+                  transition={{ repeat: Infinity, duration: 1 }}
+                  className="w-1 h-1 bg-indigo-500 rounded-full"
+                />
+                <motion.div
+                  animate={{ scale: [1, 1.2, 1] }}
+                  transition={{ repeat: Infinity, duration: 1, delay: 0.2 }}
+                  className="w-1 h-1 bg-indigo-500 rounded-full"
+                />
+                <motion.div
+                  animate={{ scale: [1, 1.2, 1] }}
+                  transition={{ repeat: Infinity, duration: 1, delay: 0.4 }}
+                  className="w-1 h-1 bg-indigo-500 rounded-full"
+                />
+              </div>
+              SIA is analyzing your sleep...
             </div>
           </div>
         )}

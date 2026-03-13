@@ -494,7 +494,7 @@ export default function PersonalizationWizard({ user, onComplete, onClose }: Per
             {step < totalSteps - 1 ? (
               <button
                 onClick={nextStep}
-                className="flex items-center gap-2 bg-white text-black px-8 py-3 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-zinc-200 transition-all shadow-lg shadow-white/5"
+                className="flex items-center gap-2 bg-indigo-600 text-white px-8 py-3 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-indigo-500 transition-all shadow-lg shadow-indigo-600/20"
               >
                 Next
                 <ChevronRight size={16} />
