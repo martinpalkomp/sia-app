@@ -40,8 +40,9 @@ interface Message {
 
 interface AIInsightsAgentProps {
   logs: Record<string, DailyLog>;
-  user: User;
+  user: User | null;
   personalizationProfile: PersonalizationProfile | null;
+  isProfileLoading?: boolean;
 }
 
 const QUICK_PROMPTS = [
@@ -67,12 +68,17 @@ const QUICK_PROMPTS = [
   }
 ];
 
-export default function AIInsightsAgent({ logs, user, personalizationProfile }: AIInsightsAgentProps) {
+export default function AIInsightsAgent({ logs, user, personalizationProfile, isProfileLoading }: AIInsightsAgentProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  const isEnhanced = !!personalizationProfile;
+  const daysCount = isEnhanced ? 180 : 30;
 
   // Load chat history from Firestore
   useEffect(() => {
@@ -112,7 +118,7 @@ export default function AIInsightsAgent({ logs, user, personalizationProfile }: 
   }, [messages]);
 
   const handleSend = async (text: string) => {
-    if (!text.trim() || isLoading || !user) return;
+    if (!text.trim() || isLoading || !user || isProfileLoading) return;
 
     const userMessage: Message = { 
       role: 'user', 
@@ -120,21 +126,24 @@ export default function AIInsightsAgent({ logs, user, personalizationProfile }: 
       createdAt: serverTimestamp() 
     };
     
+    setErrorMsg(null);
+    setIsAnalyzing(true);
+    setIsLoading(true);
+    setIsTyping(true);
+
     try {
       await addDoc(collection(db, 'users', user.uid, 'chats'), {
         ...userMessage,
       });
       setInput('');
-      setIsLoading(true);
-      setIsTyping(true);
 
-      // Fetch fresh data for context
+      // Fetch tiered historical context
       const logsRef = collection(db, 'users', user.uid, 'sleep_logs');
       const logsQuery = query(
         logsRef,
         where('type', '==', 'log'),
         orderBy('date', 'desc'),
-        limit(14)
+        limit(daysCount)
       );
       
       const [logsSnap, profileSnap] = await Promise.all([
@@ -142,18 +151,30 @@ export default function AIInsightsAgent({ logs, user, personalizationProfile }: 
         getDoc(doc(db, 'users', user.uid, 'personalization', 'profile'))
       ]);
 
-      const recentLogs: any[] = [];
-      logsSnap.forEach(doc => recentLogs.push(doc.data()));
-      const profile = profileSnap.exists() ? profileSnap.data() : null;
+      const historicalLogs: any[] = [];
+      logsSnap.forEach(doc => {
+        const data = doc.data() as DailyLog;
+        // Condensed JSON format for efficiency
+        historicalLogs.push({
+          d: data.date,
+          dur: data.timeline ? (data.timeline.filter(s => s === 'sleep').length * 0.25) : (data.summaryMetrics?.importedDuration || 0),
+          q: data.sleepQuality,
+          r: data.restedness,
+          txt: data.remarks?.substring(0, 50) // Keep remarks short
+        });
+      });
+      const profile = profileSnap.exists() ? profileSnap.data() : personalizationProfile;
 
       const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
       
       const systemInstruction = `
-        You are SIA, a clinical sleep scientist. Always use bolding for metrics, bullet points for advice, and never return a wall of unformatted text.
+        You are SIA, a clinical sleep scientist. You are viewing ${daysCount} days of data. 
+        Look for long-term trends, seasonal shifts, and correlations between the user's personalization profile and their actual logs.
+        Always use bolding for metrics, bullet points for advice, and never return a wall of unformatted text.
         
         USER CONTEXT:
         - Personalization Profile: ${profile ? JSON.stringify(profile) : "No personalization profile set yet."}
-        - Recent Sleep Logs (last 14 days): ${JSON.stringify(recentLogs)}
+        - Historical Sleep Logs (${daysCount} days): ${JSON.stringify(historicalLogs)}
         
         INSTRUCTIONS:
         1. Use the provided data to find correlations, patterns, and triggers.
@@ -188,31 +209,62 @@ export default function AIInsightsAgent({ logs, user, personalizationProfile }: 
       await addDoc(collection(db, 'users', user.uid, 'chats'), {
         ...assistantMessage,
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("AI Error:", error);
-      setMessages(prev => [...prev, { role: 'assistant', content: "I encountered an error while analyzing your data. Please check your connection and try again." }]);
+      let friendlyMessage = "I encountered an error while analyzing your data. Please check your connection and try again.";
+      
+      // Handle specific error codes if possible
+      const errorStr = String(error);
+      if (errorStr.includes('429')) {
+        friendlyMessage = "SIA is currently resting (Rate Limit). Please try again in a moment.";
+      } else if (errorStr.includes('400')) {
+        friendlyMessage = "I had trouble understanding that request. Could you try rephrasing it?";
+      } else if (errorStr.includes('500')) {
+        friendlyMessage = "My analytical systems are temporarily offline. Please try again later.";
+      }
+
+      setErrorMsg(friendlyMessage);
+      setMessages(prev => [...prev, { role: 'assistant', content: friendlyMessage }]);
     } finally {
       setIsLoading(false);
+      setIsAnalyzing(false);
       setIsTyping(false);
     }
   };
 
+  if (isProfileLoading || !user) {
+    return (
+      <div className="flex flex-col h-[600px] bg-zinc-900/50 border border-zinc-800 rounded-3xl overflow-hidden items-center justify-center space-y-4">
+        <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
+        <p className="text-sm text-zinc-400 font-medium animate-pulse">Syncing Profile...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col h-[600px] bg-zinc-900/50 border border-zinc-800 rounded-3xl overflow-hidden">
       {/* Header */}
-      <div className="p-4 border-b border-zinc-800 bg-zinc-900 flex items-center gap-3 text-left">
-        <div className="w-10 h-10 rounded-xl overflow-hidden border border-indigo-500/30 bg-zinc-900 flex items-center justify-center aspect-square">
-          <img 
-            src="https://i.imgur.com/MnI5hn3.png" 
-            alt="SIA" 
-            className="w-8 h-8 object-cover"
-            referrerPolicy="no-referrer"
-          />
+      <div className="p-4 border-b border-zinc-800 bg-zinc-900 flex items-center justify-between text-left">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl overflow-hidden border border-indigo-500/30 bg-zinc-900 flex items-center justify-center aspect-square">
+            <img 
+              src="https://i.imgur.com/MnI5hn3.png" 
+              alt="SIA" 
+              className={`w-8 h-8 object-cover ${isAnalyzing ? 'animate-sia-pulse' : ''}`}
+              referrerPolicy="no-referrer"
+            />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-white">Sleep Intelligence Agent</h3>
+            <p className="text-[10px] text-zinc-500 uppercase tracking-widest">SIA • {isEnhanced ? 'Enhanced' : 'Standard'}</p>
+          </div>
         </div>
-        <div>
-          <h3 className="text-sm font-bold text-white">Sleep Intelligence Agent</h3>
-          <p className="text-[10px] text-zinc-500 uppercase tracking-widest">SIA</p>
-        </div>
+        {isAnalyzing && (
+          <div className="flex items-center gap-2 px-3 py-1 bg-indigo-500/10 border border-indigo-500/20 rounded-full">
+            <div className="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-pulse" />
+            <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest">Analyzing {daysCount} Days</span>
+          </div>
+        )}
       </div>
 
       {/* Messages Area */}
@@ -248,7 +300,7 @@ export default function AIInsightsAgent({ logs, user, personalizationProfile }: 
             </motion.div>
           ))}
         </AnimatePresence>
-        {isTyping && (
+        {isAnalyzing && (
           <div className="flex justify-start">
             <div className="flex gap-3 items-center text-zinc-500 text-xs italic">
               <div className="flex gap-1">
@@ -268,7 +320,7 @@ export default function AIInsightsAgent({ logs, user, personalizationProfile }: 
                   className="w-1 h-1 bg-indigo-500 rounded-full"
                 />
               </div>
-              SIA is analyzing your sleep...
+              SIA is analyzing your {daysCount}-day sleep history...
             </div>
           </div>
         )}
@@ -280,8 +332,8 @@ export default function AIInsightsAgent({ logs, user, personalizationProfile }: 
           <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold ml-1">Quick Ask</p>
           <button
             onClick={() => handleSend("Based on my recent sleep logs, generate a structured clinical summary including sleep efficiency, average onset, and recovery trends for my doctor.")}
-            disabled={isLoading}
-            className="flex items-center gap-2 px-3 py-1 bg-indigo-600/10 hover:bg-indigo-600/20 border border-indigo-500/30 rounded-lg text-[9px] font-black uppercase tracking-widest text-indigo-400 transition-all"
+            disabled={isLoading || isAnalyzing}
+            className="flex items-center gap-2 px-3 py-1 bg-indigo-600/10 hover:bg-indigo-600/20 border border-indigo-500/30 rounded-lg text-[9px] font-black uppercase tracking-widest text-indigo-400 transition-all disabled:opacity-50"
           >
             <FileText size={12} />
             Clinical Report
@@ -292,7 +344,7 @@ export default function AIInsightsAgent({ logs, user, personalizationProfile }: 
             <button
               key={i}
               onClick={() => handleSend(qp.prompt)}
-              disabled={isLoading}
+              disabled={isLoading || isAnalyzing}
               className="flex items-center gap-2 px-3 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-xl text-xs font-medium transition-colors disabled:opacity-50"
             >
               <qp.icon size={14} className="text-indigo-400" />
@@ -315,15 +367,16 @@ export default function AIInsightsAgent({ logs, user, personalizationProfile }: 
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask about your sleep trends..."
-            className="w-full bg-zinc-800 border border-zinc-700 rounded-2xl py-3 pl-4 pr-12 text-sm focus:outline-none focus:border-indigo-500 transition-colors"
+            placeholder={isAnalyzing ? "SIA is thinking..." : "Ask about your sleep trends..."}
+            disabled={isLoading || isAnalyzing}
+            className="w-full bg-zinc-800 border border-zinc-700 rounded-2xl py-3 pl-4 pr-12 text-sm focus:outline-none focus:border-indigo-500 transition-colors disabled:opacity-50"
           />
           <button 
             type="submit"
-            disabled={!input.trim() || isLoading}
+            disabled={!input.trim() || isLoading || isAnalyzing}
             className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-indigo-600 rounded-xl flex items-center justify-center text-white disabled:opacity-50 disabled:bg-zinc-700 transition-all"
           >
-            <Send size={16} />
+            {isAnalyzing ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
           </button>
         </form>
       </div>

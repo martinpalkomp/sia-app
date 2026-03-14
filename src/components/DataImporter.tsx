@@ -14,12 +14,12 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { User } from 'firebase/auth';
-import { writeBatch, doc, serverTimestamp } from 'firebase/firestore';
+import { writeBatch, doc, serverTimestamp, getDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { DailyLog } from '../types';
+import { DailyLog, SleepState } from '../types';
 import { TOTAL_SLOTS } from '../constants';
 import { saveLog } from '../services/sleepService';
-import { snapTo15Min } from '../utils/sleepUtils';
+import { snapTo15Min, timeToIndex } from '../utils/sleepUtils';
 
 interface DataImporterProps {
   user: User;
@@ -38,7 +38,23 @@ export default function DataImporter({ user, onImportComplete }: DataImporterPro
   const [totalCount, setTotalCount] = useState(0);
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
+  const [showConflictModal, setShowConflictModal] = useState(false);
+  const [pendingData, setPendingData] = useState<any[] | null>(null);
+  const [cleaningReport, setCleaningReport] = useState<{ skipped: number; cleaned: number; metrics: string[] } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const fuzzyMapHeader = (header: string): string | null => {
+    const h = header.toLowerCase().trim();
+    if (h === 'date') return 'Date';
+    if (h.includes('start') || h.includes('begin')) return 'Start_Time';
+    if (h.includes('end') || h.includes('finish')) return 'End_Time';
+    if (h.includes('status') || h.includes('type') || h.includes('code')) return 'Status_Code';
+    if (h === 'sq' || h.includes('quality')) return 'SQ';
+    if (h === 'r' || h.includes('rest') || h.includes('awakening')) return 'R';
+    if (h === 'l' || h.includes('energy') || h.includes('level')) return 'L';
+    if (h.includes('remark') || h.includes('note') || h.includes('comment')) return 'Remarks';
+    return null;
+  };
 
   const defaultLog = (date: string): DailyLog => ({
     date,
@@ -48,6 +64,7 @@ export default function DataImporter({ user, onImportComplete }: DataImporterPro
     energyLevel: 5,
     timeline: Array(TOTAL_SLOTS).fill('awake-out'),
     remarks: '',
+    source: 'import',
     factors: {
       caffeine: { consumed: false, amount: 0, lastIntake: '12:00' },
       alcohol: { consumed: false, drinks: 0, lastIntake: '18:00' },
@@ -92,158 +109,215 @@ export default function DataImporter({ user, onImportComplete }: DataImporterPro
     });
   };
 
-  const processImportedData = async (data: any[]) => {
-    
+  const processImportedData = async (data: any[], forceOverwrite = false) => {
     setUploadStatus('idle');
     setErrorMessage('');
-    setProcessedCount(0);
-    setTotalCount(data.length);
+    setCleaningReport(null);
     
     try {
       const cleanedData = cleanData(data);
-      const skippedDates: string[] = [];
-      const logsToSave: any[] = [];
+      const skippedRows: string[] = [];
+      let cleanedCount = 0;
+      const logsToSave: Record<string, DailyLog> = {};
+      const metricsCaptured = new Set<string>();
       
-      for (let i = 0; i < cleanedData.length; i++) {
-        const row = cleanedData[i];
-        setProcessedCount(i + 1);
-        
-        let rawDate = row.Date || row.date;
-        if (!rawDate) continue;
+      // 1. Validation & Sanitization with Fuzzy Matching
+      const validRows = cleanedData.filter((row, idx) => {
+        const mappedRow: any = {};
+        const unmappedData: string[] = [];
 
-        let formattedDate: string | null = null;
-
-        // Handle Excel serial dates (numbers)
-        if (typeof rawDate === 'number') {
-          // Excel dates are days since 1899-12-30
-          const excelDate = new Date(Math.round((rawDate - 25569) * 86400 * 1000));
-          if (!isNaN(excelDate.getTime())) {
-            formattedDate = excelDate.toISOString().split('T')[0];
-          }
-        } else {
-          const dateStr = String(rawDate).trim();
-          // Check if it's already YYYY-MM-DD
-          if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-            formattedDate = dateStr;
+        Object.keys(row).forEach(key => {
+          const mappedKey = fuzzyMapHeader(key);
+          if (mappedKey) {
+            mappedRow[mappedKey] = row[key];
           } else {
-            // Try parsing with native Date
-            const parsed = new Date(dateStr);
-            if (!isNaN(parsed.getTime())) {
-              formattedDate = parsed.toISOString().split('T')[0];
+            unmappedData.push(`${key}: ${row[key]}`);
+          }
+        });
+
+        const date = mappedRow.Date;
+        const start = mappedRow.Start_Time;
+        const end = mappedRow.End_Time;
+        const status = mappedRow.Status_Code;
+
+        if (!date || !start || !end || !status) {
+          skippedRows.push(`Row ${idx + 1}: Missing required fields (Date, Start, End, Status)`);
+          return false;
+        }
+
+        if (start === end) {
+          skippedRows.push(`Row ${idx + 1}: Start time matches end time (${start})`);
+          return false;
+        }
+
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+          skippedRows.push(`Row ${idx + 1}: Invalid date format (${date})`);
+          return false;
+        }
+
+        // Attach mapped row for later processing
+        (row as any)._mapped = mappedRow;
+        (row as any)._unmapped = unmappedData;
+        return true;
+      });
+
+      if (validRows.length === 0) {
+        throw new Error("No valid data found after sanitization.");
+      }
+
+      setTotalCount(validRows.length);
+
+      // 2. Check for conflicts if not forcing overwrite
+      if (!forceOverwrite) {
+        const uniqueDates = Array.from(new Set(validRows.map(r => (r as any)._mapped.Date)));
+        let hasConflict = false;
+        for (const date of uniqueDates) {
+          const docRef = doc(db, 'users', user.uid, 'sleep_logs', date as string);
+          const docSnap = await getDoc(docRef);
+          if (docSnap.exists()) {
+            const existingData = docSnap.data() as DailyLog;
+            if (existingData.timeline && !existingData.timeline.every(s => s === 'awake-out')) {
+              hasConflict = true;
+              break;
             }
           }
         }
 
-        if (!formattedDate) {
-          skippedDates.push(`${rawDate || 'Unknown'} (Invalid Date Format)`);
-          continue;
+        if (hasConflict) {
+          setPendingData(data);
+          setShowConflictModal(true);
+          return;
         }
+      }
 
-        // Numeric validation (1-10)
-        const sqRaw = row.SleepQuality || row.sleepQuality;
-        const rRaw = row.Restedness || row.restedness;
-        const lRaw = row.EnergyLevel || row.energyLevel;
+      // 3. Translation Engine (Timestamp to Index)
+      for (const rawRow of validRows) {
+        const row = (rawRow as any)._mapped;
+        const unmapped = (rawRow as any)._unmapped;
+        const date = row.Date;
+        const start = row.Start_Time;
+        const end = row.End_Time;
+        const statusVal = row.Status_Code?.toString().toUpperCase();
         
-        const sq = Number(sqRaw);
-        const r = Number(rRaw);
-        const l = Number(lRaw);
+        let state: SleepState = 'awake-out';
+        if (statusVal === '1' || statusVal.includes('SLEEP')) state = 'sleep';
+        else if (statusVal === '2' || statusVal.includes('AWAKE')) state = 'awake-in';
 
-        const isValidMetric = (val: number) => !isNaN(val) && val >= 1 && val <= 10;
-        const allMetricsValid = isValidMetric(sq) && isValidMetric(r) && isValidMetric(l);
-
-        // Remarks Logic: Concatenate Remarks and Notes
-        const remarksVal = row.Remarks || row.remarks || '';
-        const notesVal = row.Notes || row.notes || '';
-        let finalRemarks = '';
-        if (remarksVal && notesVal) {
-          finalRemarks = `Remarks: ${remarksVal} | Notes: ${notesVal}`;
-        } else {
-          finalRemarks = remarksVal || notesVal || '';
+        if (!logsToSave[date]) {
+          logsToSave[date] = defaultLog(date);
+          logsToSave[date].modifiedBySync = Array(TOTAL_SLOTS).fill(false);
         }
 
-        const logUpdate: any = {
-          date: formattedDate,
-          isIgnored: false,
-          remarks: finalRemarks,
-        };
-
-        if (allMetricsValid) {
-          logUpdate.sleepQuality = sq;
-          logUpdate.restedness = r;
-          logUpdate.energyLevel = l;
-          logUpdate.summaryMetrics = {
-            sleepQuality: sq,
-            restedness: r,
-            energyLevel: l,
-            importedDuration: snapTo15Min(Number(row.SleepDuration || row.sleepDuration || 0)),
-            importedInBed: snapTo15Min(Number(row.WakeInBed || row.wakeInBed || 0)),
-          };
-        } else {
-          // If metrics are invalid, we still save the log but WITHOUT summaryMetrics
-          // and without the top-level scores. This ensures it's flagged in the Correction Hub.
-          // We can still save the durations if they exist
-          const duration = Number(row.SleepDuration || row.sleepDuration || 0);
-          const inBed = Number(row.WakeInBed || row.wakeInBed || 0);
-          
-          if (!isNaN(duration) || !isNaN(inBed)) {
-             logUpdate.summaryMetrics = {
-               importedDuration: snapTo15Min(isNaN(duration) ? 0 : duration),
-               importedInBed: snapTo15Min(isNaN(inBed) ? 0 : inBed),
-               // Missing SQ, R, L here will trigger "Missing Metrics" in Hub
-             };
+        // Map Clinical Metrics
+        if (row.SQ !== undefined) {
+          const val = parseInt(row.SQ);
+          if (!isNaN(val)) {
+            logsToSave[date].sleepQuality = val;
+            logsToSave[date].sleep_quality = val;
+            metricsCaptured.add('SQ');
           }
         }
-
-        logsToSave.push(logUpdate);
-      }
-
-      const BATCH_SIZE = 500;
-      for (let i = 0; i < logsToSave.length; i += BATCH_SIZE) {
-        const batch = writeBatch(db);
-        const chunk = logsToSave.slice(i, i + BATCH_SIZE);
-        
-        for (const log of chunk) {
-          const { date, ...rest } = log;
-          const docRef = doc(db, 'users', user.uid, 'sleep_logs', date);
-          batch.set(docRef, {
-            ...rest,
-            date,
-            updatedAt: serverTimestamp(),
-          }, { merge: true });
+        if (row.R !== undefined) {
+          const val = parseInt(row.R);
+          if (!isNaN(val)) {
+            logsToSave[date].restedness = val;
+            logsToSave[date].morning_alertness = val;
+            metricsCaptured.add('R');
+          }
+        }
+        if (row.L !== undefined) {
+          const val = parseInt(row.L);
+          if (!isNaN(val)) {
+            logsToSave[date].energyLevel = val;
+            logsToSave[date].daytime_energy = val;
+            metricsCaptured.add('L');
+          }
         }
         
-        await batch.commit();
+        // Map Remarks
+        let remarks = row.Remarks || '';
+        if (unmapped.length > 0) {
+          remarks += (remarks ? ' ' : '') + unmapped.map((u: string) => `[Unmapped: ${u}]`).join(' ');
+        }
+        if (remarks) {
+          logsToSave[date].remarks = remarks;
+          logsToSave[date].daily_remarks = remarks;
+        }
+
+        const startIndex = timeToIndex(start);
+        const endIndex = timeToIndex(end);
+
+        if (endIndex < startIndex) {
+          // Midnight Crossover Logic
+          for (let i = startIndex; i < TOTAL_SLOTS; i++) {
+            logsToSave[date].timeline[i] = state;
+            logsToSave[date].modifiedBySync![i] = true;
+          }
+          
+          const nextDate = new Date(date);
+          nextDate.setDate(nextDate.getDate() + 1);
+          const nextDateStr = nextDate.toISOString().split('T')[0];
+          
+          if (!logsToSave[nextDateStr]) {
+            logsToSave[nextDateStr] = defaultLog(nextDateStr);
+            logsToSave[nextDateStr].modifiedBySync = Array(TOTAL_SLOTS).fill(false);
+          }
+          for (let i = 0; i < endIndex; i++) {
+            logsToSave[nextDateStr].timeline[i] = state;
+            logsToSave[nextDateStr].modifiedBySync![i] = true;
+          }
+        } else {
+          for (let i = startIndex; i < endIndex; i++) {
+            logsToSave[date].timeline[i] = state;
+            logsToSave[date].modifiedBySync![i] = true;
+          }
+        }
+        cleanedCount++;
       }
 
+      // 4. Batch Write to sleep_logs and daily_metrics
+      const batch = writeBatch(db);
+      const logEntries = Object.entries(logsToSave);
+      for (const [date, log] of logEntries) {
+        // Write to sleep_logs
+        const logRef = doc(db, 'users', user.uid, 'sleep_logs', date);
+        batch.set(logRef, {
+          ...log,
+          updatedAt: serverTimestamp(),
+        }, { merge: true });
+
+        // Write to daily_metrics
+        const metricsRef = doc(db, 'users', user.uid, 'daily_metrics', date);
+        batch.set(metricsRef, {
+          date,
+          sleep_quality: log.sleep_quality || log.sleepQuality,
+          morning_alertness: log.morning_alertness || log.restedness,
+          daytime_energy: log.daytime_energy || log.energyLevel,
+          daily_remarks: log.daily_remarks || log.remarks,
+          source: 'import',
+          updatedAt: serverTimestamp(),
+        }, { merge: true });
+      }
+      await batch.commit();
+
+      setCleaningReport({ 
+        skipped: skippedRows.length, 
+        cleaned: cleanedCount,
+        metrics: Array.from(metricsCaptured)
+      });
       setUploadStatus('success');
-      setErrorMessage(skippedDates.length > 0 
-        ? `Logs Imported Successfully! Saved ${logsToSave.length} logs. Skipped ${skippedDates.length} dates: ${skippedDates.join(', ')}`
-        : `Logs Imported Successfully! Saved ${logsToSave.length} logs.`
-      );
+      setErrorMessage(skippedRows.length > 0 ? `Data Cleaned: Skipped ${skippedRows.length} invalid rows.` : '');
       
-      // Reset UI state after success
       setSelectedFile(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
-      
       onImportComplete();
-      
-      // Clear success message after 3 seconds
-      setTimeout(() => {
-        setUploadStatus('idle');
-        setErrorMessage('');
-      }, 3000);
 
     } catch (error: any) {
       console.error("Import failed:", error);
       setUploadStatus('error');
-      
-      let message = error.message || "Failed to save data to Firestore.";
-      if (error.code === 'permission-denied') {
-        message = 'SIA Permission Error: Check Firestore Rules pathing.';
-      }
-      
-      setErrorMessage(message);
-      throw error; // Re-throw to be caught by the caller
+      setErrorMessage(error.message || "An unexpected error occurred.");
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -258,23 +332,38 @@ export default function DataImporter({ user, onImportComplete }: DataImporterPro
       // Sanitize input: handle different line endings and filter out empty lines
       const rows = pasteContent.trim().split(/\r?\n/).filter(line => line.trim());
       
-      const parsedData = rows.map(row => {
-        // Handle both tab-separated and comma-separated as fallback
-        const separator = row.includes('\t') ? '\t' : ',';
-        const cols = row.split(separator).map(c => c.trim());
-        
-        // Map to the expected header format used in processImportedData
-        // Date, SleepQuality, Restedness, EnergyLevel, SleepDuration, WakeInBed, Remarks
-        return {
-          Date: cols[0] || '',
-          SleepQuality: cols[1] || '',
-          Restedness: cols[2] || '',
-          EnergyLevel: cols[3] || '',
-          SleepDuration: cols[4] || '',
-          WakeInBed: cols[5] || '',
-          Remarks: cols[6] || ''
-        };
-      });
+      // Heuristic: If the first row looks like headers, use them
+      const firstRow = rows[0].split(/[,\t]/);
+      const hasHeaders = firstRow.some(col => fuzzyMapHeader(col) !== null);
+      
+      let parsedData: any[] = [];
+      if (hasHeaders) {
+        const headers = firstRow.map(h => h.trim());
+        parsedData = rows.slice(1).map(row => {
+          const cols = row.split(/[,\t]/).map(c => c.trim());
+          const obj: any = {};
+          headers.forEach((h, i) => {
+            obj[h] = cols[i] || '';
+          });
+          return obj;
+        });
+      } else {
+        parsedData = rows.map(row => {
+          const separator = row.includes('\t') ? '\t' : ',';
+          const cols = row.split(separator).map(c => c.trim());
+          
+          return {
+            Date: cols[0] || '',
+            Start_Time: cols[1] || '',
+            End_Time: cols[2] || '',
+            Status_Code: cols[3] || '',
+            SQ: cols[4] || '',
+            R: cols[5] || '',
+            L: cols[6] || '',
+            Remarks: cols[7] || ''
+          };
+        });
+      }
 
       if (parsedData.length === 0) {
         throw new Error("No valid data found in paste content.");
@@ -360,27 +449,37 @@ export default function DataImporter({ user, onImportComplete }: DataImporterPro
   };
 
   const downloadTemplate = () => {
-    const headers = ['Date', 'SleepQuality', 'Restedness', 'EnergyLevel', 'SleepDuration', 'WakeInBed', 'Remarks', 'Notes'];
+    const headers = ['Date', 'Start_Time', 'End_Time', 'Status_Code', 'SQ', 'R', 'L', 'Remarks'];
     const sampleData = [
       {
         Date: '2024-03-10',
-        SleepQuality: 8,
-        Restedness: 7,
-        EnergyLevel: 6,
-        SleepDuration: 7.5,
-        WakeInBed: 0.5,
-        Remarks: 'Felt good',
-        Notes: 'Woke up once'
+        Start_Time: '22:30',
+        End_Time: '06:45',
+        Status_Code: 'SLEEP',
+        SQ: 8,
+        R: 7,
+        L: 6,
+        Remarks: 'Felt good'
       },
       {
         Date: '2024-03-11',
-        SleepQuality: 5,
-        Restedness: 4,
-        EnergyLevel: 3,
-        SleepDuration: 6.25,
-        WakeInBed: 1.0,
-        Remarks: 'Fragmented sleep',
-        Notes: 'Late coffee'
+        Start_Time: '23:15',
+        End_Time: '07:30',
+        Status_Code: 'SLEEP',
+        SQ: 5,
+        R: 4,
+        L: 5,
+        Remarks: 'Interrupted sleep'
+      },
+      {
+        Date: '2024-03-11',
+        Start_Time: '07:30',
+        End_Time: '08:00',
+        Status_Code: 'AWAKE IN BED',
+        SQ: '',
+        R: '',
+        L: '',
+        Remarks: 'Scrolling phone'
       }
     ];
 
@@ -581,10 +680,69 @@ export default function DataImporter({ user, onImportComplete }: DataImporterPro
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0 }}
-                      className="absolute inset-0 bg-zinc-900/90 backdrop-blur-sm rounded-2xl flex flex-col items-center justify-center gap-2 text-emerald-400"
+                      className="absolute inset-0 bg-zinc-900/90 backdrop-blur-sm rounded-2xl flex flex-col items-center justify-center gap-2 text-emerald-400 p-4 text-center"
                     >
                       <CheckCircle2 size={32} />
                       <p className="text-sm font-bold uppercase tracking-widest">Import Successful</p>
+                      {cleaningReport && (
+                        <div className="space-y-1 mt-2">
+                          <p className="text-[10px] text-zinc-400">
+                            Successfully imported <span className="text-emerald-400">{cleaningReport.cleaned}</span> nights.
+                          </p>
+                          <p className="text-[10px] text-zinc-500">
+                            Metrics captured: {cleaningReport.metrics.join(', ') || 'None'}
+                          </p>
+                          <p className="text-[10px] text-zinc-500">
+                            Remarks updated.
+                          </p>
+                          {cleaningReport.skipped > 0 && (
+                            <p className="text-[9px] text-amber-500/70 italic">
+                              Skipped {cleaningReport.skipped} invalid rows.
+                            </p>
+                          )}
+                        </div>
+                      )}
+                      <button 
+                        onClick={() => setUploadStatus('idle')}
+                        className="mt-2 text-[10px] font-bold uppercase tracking-widest text-zinc-400 underline"
+                      >
+                        Dismiss
+                      </button>
+                    </motion.div>
+                  )}
+
+                  {showConflictModal && (
+                    <motion.div 
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="absolute inset-0 bg-zinc-900/95 backdrop-blur-md rounded-2xl flex flex-col items-center justify-center p-6 text-center z-50"
+                    >
+                      <AlertCircle size={32} className="text-amber-500 mb-2" />
+                      <h4 className="text-sm font-bold text-white uppercase tracking-wider mb-2">Conflict Detected</h4>
+                      <p className="text-xs text-zinc-400 mb-6">
+                        You have manual logs for some of these dates. How would you like to proceed?
+                      </p>
+                      <div className="flex flex-col w-full gap-2">
+                        <button 
+                          onClick={() => {
+                            setShowConflictModal(false);
+                            if (pendingData) processImportedData(pendingData, true);
+                          }}
+                          className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
+                        >
+                          Overwrite with Import
+                        </button>
+                        <button 
+                          onClick={() => {
+                            setShowConflictModal(false);
+                            setPendingData(null);
+                            setIsUploading(false);
+                          }}
+                          className="w-full py-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
+                        >
+                          Keep Manual Logs
+                        </button>
+                      </div>
                     </motion.div>
                   )}
 

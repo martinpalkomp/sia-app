@@ -8,6 +8,7 @@ import {
   Zap, 
   Clock,
   TrendingUp,
+  AlertCircle,
   X,
   BookOpen,
   Brain,
@@ -23,9 +24,14 @@ import { calculateSleepDuration, calculateSleepEfficiency, formatDuration } from
 import { calculateSafeAverage } from '../utils/statsEngine';
 import { getSlotLabel } from '../constants';
 import { PersonalizationProfile } from '../types';
+import { User } from 'firebase/auth';
+import { db } from '../lib/firebase';
+import { collection, query, where, orderBy, limit, getDocs } from 'firebase/firestore';
 
 interface DashboardProps {
   logs: Record<string, DailyLog>;
+  user: User | null;
+  selectedDate: string;
   correctionsCount: number;
   personalizationProfile: PersonalizationProfile | null;
   onLogClick: () => void;
@@ -36,6 +42,8 @@ interface DashboardProps {
 
 export default function Dashboard({ 
   logs, 
+  user,
+  selectedDate,
   correctionsCount, 
   personalizationProfile,
   onLogClick, 
@@ -45,6 +53,7 @@ export default function Dashboard({
 }: DashboardProps) {
   const [aiInsight, setAiInsight] = useState<string | null>(null);
   const [isAiLoading, setIsAiLoading] = useState(false);
+  const [isDeepAnalysis, setIsDeepAnalysis] = useState(false);
   const [showAllFacts, setShowAllFacts] = useState(false);
   const [isFirstVisit, setIsFirstVisit] = useState(false);
   const [factAnchor, setFactAnchor] = useState<string | null>(null);
@@ -103,16 +112,17 @@ export default function Dashboard({
     }
   }, [showAllFacts, factAnchor]);
 
-  // Get last 7 days of logs
+  // Get last 7 days of logs relative to selectedDate
   const last7Days = useMemo(() => {
     const dates = [];
+    const baseDate = new Date(selectedDate);
     for (let i = 0; i < 7; i++) {
-      const d = new Date();
+      const d = new Date(baseDate);
       d.setDate(d.getDate() - i);
       dates.push(d.toISOString().split('T')[0]);
     }
     return dates;
-  }, []);
+  }, [selectedDate]);
 
   const stats = useMemo(() => {
     const periodLogs = last7Days.map(d => logs[d]).filter(Boolean);
@@ -154,16 +164,16 @@ export default function Dashboard({
     return `${prefix}... ${suffix}`;
   }, [isFirstVisit, averageBedtime]);
 
-  // AI Insight Generation - Only on mount or when logs count changes significantly
+  // AI Insight Generation - Quick Analysis (7 days)
   useEffect(() => {
-    const generateInsight = async () => {
+    const generateQuickInsight = async () => {
       const logsCount = Object.keys(logs).length;
-      if (logsCount < 3) return;
+      if (logsCount < 3 || aiInsight) return;
       
       setIsAiLoading(true);
       try {
         const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
-        const historyContext = Object.values(logs).slice(-14).map(log => {
+        const historyContext = Object.values(logs).map(log => {
           const sleepSlots = log.timeline.filter(s => s === 'sleep').length;
           const inBedSlots = log.timeline.filter(s => s === 'sleep' || s === 'awake-in').length;
           const efficiency = inBedSlots > 0 ? ((sleepSlots / inBedSlots) * 100).toFixed(1) : "0";
@@ -174,28 +184,20 @@ export default function Dashboard({
             r: log.restedness,
             l: log.energyLevel,
             efficiency: efficiency + "%",
-            remarks: log.remarks,
-            factors: log.factors,
-            timeline: log.timeline
           };
         });
 
         const prompt = `
-          Analyze these sleep logs: ${JSON.stringify(historyContext)}
-          
-          TASK: Provide ONE punchy, proactive "SIA Insight" (max 2 sentences).
-          Focus on correlations between Sleep Efficiency, Factors (caffeine, alcohol, stress, screens), and SQ/R/L scores.
-          
-          Example: "💡 SIA Pattern Found: Your Sleep Efficiency drops by 15% on nights with 'Screens in Bed' toggled ON."
-          
-          Format: "💡 SIA Pattern Found: [Your insight here]"
+          Analyze these recent sleep logs (last 7 days): ${JSON.stringify(historyContext)}
+          Provide ONE brief, proactive "SIA Insight" (max 15 words).
+          Format: "💡 SIA Insight: [Your insight here]"
         `;
 
         const response = await ai.models.generateContent({
           model: "gemini-3-flash-preview",
           contents: [{ role: "user", parts: [{ text: prompt }] }],
           config: {
-            systemInstruction: "You are 'SIA' (Sleep Intelligence Agent), a Sleep Intelligence Agent and Senior Health Data Scientist. Your goal is to provide brief, data-backed sleep insights."
+            systemInstruction: "You are 'SIA', a Sleep Intelligence Agent. Provide very brief, data-backed sleep insights."
           }
         });
 
@@ -207,14 +209,88 @@ export default function Dashboard({
       }
     };
 
-    generateInsight();
-    // Only regenerate if the number of logs changes (e.g. new day logged)
+    generateQuickInsight();
   }, [Object.keys(logs).length]);
+
+  const handleDeepAnalysis = async () => {
+    if (!user || isAiLoading) return;
+    
+    setIsAiLoading(true);
+    setIsDeepAnalysis(true);
+    try {
+      const daysCount = personalizationProfile ? 180 : 30;
+      const logsRef = collection(db, 'users', user.uid, 'sleep_logs');
+      const q = query(
+        logsRef,
+        where('type', '==', 'log'),
+        orderBy('date', 'desc'),
+        limit(daysCount)
+      );
+      
+      const querySnapshot = await getDocs(q);
+      const historicalLogs: any[] = [];
+      querySnapshot.forEach(doc => {
+        const data = doc.data() as DailyLog;
+        historicalLogs.push({
+          d: data.date,
+          dur: data.timeline ? (data.timeline.filter(s => s === 'sleep').length * 0.25) : (data.summaryMetrics?.importedDuration || 0),
+          q: data.sleepQuality,
+          r: data.restedness,
+          eff: data.timeline ? ((data.timeline.filter(s => s === 'sleep').length / data.timeline.filter(s => s === 'sleep' || s === 'awake-in').length) * 100).toFixed(1) : "0"
+        });
+      });
+
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+      const prompt = `
+        Analyze ${daysCount} days of sleep history: ${JSON.stringify(historicalLogs)}
+        Provide a deep, proactive "SIA Long-term Insight" (max 2 sentences).
+        Focus on trends and correlations.
+      `;
+
+      const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        config: {
+          systemInstruction: "You are 'SIA', a Sleep Intelligence Agent. Provide deep, data-backed long-term sleep insights."
+        }
+      });
+
+      setAiInsight(response.text || null);
+    } catch (e) {
+      console.error("Deep Analysis Error:", e);
+    } finally {
+      setIsAiLoading(false);
+    }
+  };
 
   const isEnhanced = !!personalizationProfile;
 
   return (
     <div className="space-y-8 pb-12">
+      {/* Import Alert */}
+      {logs[selectedDate]?.source === 'import' && (
+        <motion.div 
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-amber-500/10 border border-amber-500/20 p-4 rounded-2xl flex items-center justify-between gap-4"
+        >
+          <div className="flex items-center gap-3 text-left">
+            <div className="w-8 h-8 bg-amber-500/20 rounded-lg flex items-center justify-center text-amber-500 flex-shrink-0">
+              <AlertCircle size={18} />
+            </div>
+            <p className="text-xs text-amber-200/80 font-medium">
+              Data for this night was uploaded via Import. Do you want to manually adjust the data?
+            </p>
+          </div>
+          <button 
+            onClick={onLogClick}
+            className="text-[10px] font-black text-amber-500 uppercase tracking-widest hover:text-amber-400 transition-colors whitespace-nowrap"
+          >
+            Adjust Data
+          </button>
+        </motion.div>
+      )}
+
       {/* Header Section */}
       <section className="flex flex-col md:flex-row md:items-center gap-6 text-left">
         <motion.div 
@@ -336,10 +412,24 @@ export default function Dashboard({
                 className="shadow-lg shadow-indigo-500/20"
               />
               <div>
-                <h3 className="text-[10px] font-black text-indigo-300 uppercase tracking-[0.2em]">Sleep Intelligence Agent's Insight</h3>
+                <h3 className="text-[10px] font-black text-indigo-300 uppercase tracking-[0.2em]">
+                  {isDeepAnalysis ? "SIA Deep Intelligence" : "SIA Quick Insight"}
+                </h3>
                 <p className="text-white font-bold mt-1 leading-tight">
-                  {isAiLoading ? "I'm analyzing your sleep patterns..." : (aiInsight || "Log more nights to unlock my personalized insights.")}
+                  {isAiLoading ? (isDeepAnalysis ? "Analyzing long-term trends..." : "Scanning recent logs...") : (aiInsight || "Log more nights to unlock my personalized insights.")}
                 </p>
+                {!isDeepAnalysis && !isAiLoading && aiInsight && (
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeepAnalysis();
+                    }}
+                    className="mt-2 text-[9px] font-black text-indigo-400 hover:text-indigo-300 uppercase tracking-widest flex items-center gap-1"
+                  >
+                    <Sparkles size={10} />
+                    Run Deep Analysis ({personalizationProfile ? '180' : '30'} Days)
+                  </button>
+                )}
               </div>
             </div>
             <button className="flex items-center gap-2 text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em] hover:text-indigo-300 transition-colors">

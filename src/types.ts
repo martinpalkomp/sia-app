@@ -80,4 +80,10 @@ export interface DailyLog extends Partial<FullLog>, Partial<SummaryLog> {
     screensInBed: boolean;
     stressLevel: number; // 1-5
   };
+  modifiedBySync?: boolean[];
+  source?: 'manual' | 'import';
+  sleep_quality?: number;
+  morning_alertness?: number;
+  daytime_energy?: number;
+  daily_remarks?: string;
 }

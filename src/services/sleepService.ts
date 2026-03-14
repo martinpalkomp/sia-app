@@ -37,11 +37,27 @@ export const saveLog = async (uid: string, logData: Partial<DailyLog> & { date: 
   }
 
   const docRef = doc(db, 'users', uid, 'sleep_logs', date);
+  const metricsRef = doc(db, 'users', uid, 'daily_metrics', date);
   
-  // setDoc with merge: true ensures we only update the fields provided
-  await setDoc(docRef, {
+  const payload = {
     ...rest,
     date,
     updatedAt: serverTimestamp(),
-  }, { merge: true });
+  };
+
+  // setDoc with merge: true ensures we only update the fields provided
+  await setDoc(docRef, payload, { merge: true });
+
+  // Sync to daily_metrics if it has metrics
+  if (rest.sleepQuality !== undefined || rest.sleep_quality !== undefined) {
+    await setDoc(metricsRef, {
+      date,
+      sleep_quality: rest.sleep_quality || rest.sleepQuality,
+      morning_alertness: rest.morning_alertness || rest.restedness,
+      daytime_energy: rest.daytime_energy || rest.energyLevel,
+      daily_remarks: rest.daily_remarks || rest.remarks,
+      source: rest.source || 'manual',
+      updatedAt: serverTimestamp(),
+    }, { merge: true });
+  }
 };

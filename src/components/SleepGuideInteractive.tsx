@@ -24,17 +24,18 @@ interface SleepGuideInteractiveProps {
 }
 
 const SECTIONS = [
-  { id: 'intro', title: 'What is this Guide, and What Can It Do for Me?', icon: <BookOpen size={18} /> },
-  { id: 'hygiene', title: 'The Importance of Sleep Hygiene', icon: <Brain size={18} /> },
-  { id: 'laws', title: 'The Two Laws of Sleep', icon: <Sparkles size={18} /> },
-  { id: 'environment', title: 'How to Prep the Perfect Sleep Environment', icon: <Moon size={18} /> },
-  { id: 'schedule', title: 'Structuring Your Day for Better Sleep', icon: <Sun size={18} /> },
-  { id: 'conclusion', title: 'Getting to Know Yourself is the Best First Step', icon: <CheckCircle2 size={18} /> },
+  { id: 'intro', title: 'What is this Guide, and What Can It Do for Me?', shortTitle: '1. Intro', icon: <BookOpen size={18} /> },
+  { id: 'hygiene', title: 'The Importance of Sleep Hygiene', shortTitle: '2. Hygiene', icon: <Brain size={18} /> },
+  { id: 'laws', title: 'The Two Laws of Sleep', shortTitle: '3. Laws', icon: <Sparkles size={18} /> },
+  { id: 'environment', title: 'How to Prep the Perfect Sleep Environment', shortTitle: '4. Env', icon: <Moon size={18} /> },
+  { id: 'schedule', title: 'Structuring Your Day for Better Sleep', shortTitle: '5. Schedule', icon: <Sun size={18} /> },
+  { id: 'conclusion', title: 'Getting to Know Yourself is the Best First Step', shortTitle: '6. Self', icon: <CheckCircle2 size={18} /> },
 ];
 
 export default function SleepGuideInteractive({ onClose, onOpenPersonalization }: SleepGuideInteractiveProps) {
   const [activeSection, setActiveSection] = useState('intro');
   const [showReferences, setShowReferences] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({ container: scrollRef });
   const scaleX = useSpring(scrollYProgress, {
@@ -130,14 +131,74 @@ export default function SleepGuideInteractive({ onClose, onOpenPersonalization }
       </aside>
 
       {/* Mobile Header */}
-      <header className="md:hidden flex items-center justify-between p-4 border-b border-zinc-800 bg-zinc-900/50 backdrop-blur-xl sticky top-0 z-[205]">
-        <div className="flex items-center gap-3">
-          <Sparkles size={18} className="text-indigo-400" />
-          <span className="text-sm font-bold">Sleep Mastery</span>
+      <header className="md:hidden flex flex-col border-b border-zinc-800 bg-zinc-900/50 backdrop-blur-xl sticky top-0 z-[205]">
+        <div className="flex items-center justify-between p-3">
+          <div className="flex items-center gap-2">
+            <Sparkles size={16} className="text-indigo-400" />
+            <span className="text-xs font-bold uppercase tracking-wider">Sleep Mastery</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              className="flex items-center gap-2 px-3 py-1.5 bg-zinc-800 rounded-lg text-[10px] font-bold uppercase tracking-widest text-zinc-300 portrait:flex landscape:hidden"
+            >
+              {SECTIONS.find(s => s.id === activeSection)?.shortTitle || 'Menu'}
+              <ChevronRight size={14} className={`transition-transform ${isMenuOpen ? 'rotate-90' : ''}`} />
+            </button>
+            <button onClick={onClose} className="p-1.5 text-zinc-400 hover:text-white">
+              <X size={18} />
+            </button>
+          </div>
         </div>
-        <button onClick={onClose} className="p-2 text-zinc-400 hover:text-white">
-          <X size={20} />
-        </button>
+
+        {/* Landscape Scroll Strip */}
+        <div className="hidden landscape:flex overflow-x-auto no-scrollbar border-t border-zinc-800/50 p-2 gap-2 flex-nowrap">
+          {SECTIONS.map((section) => (
+            <button
+              key={section.id}
+              onClick={() => scrollToSection(section.id)}
+              className={`whitespace-nowrap px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${
+                activeSection === section.id 
+                  ? 'bg-indigo-600 text-white' 
+                  : 'text-zinc-500 hover:text-zinc-300'
+              }`}
+            >
+              {section.shortTitle}
+            </button>
+          ))}
+        </div>
+
+        {/* Portrait Dropdown */}
+        <AnimatePresence>
+          {isMenuOpen && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="portrait:block landscape:hidden overflow-hidden bg-zinc-900 border-t border-zinc-800"
+            >
+              <div className="p-2 grid grid-cols-1 gap-1">
+                {SECTIONS.map((section) => (
+                  <button
+                    key={section.id}
+                    onClick={() => {
+                      scrollToSection(section.id);
+                      setIsMenuOpen(false);
+                    }}
+                    className={`flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all ${
+                      activeSection === section.id 
+                        ? 'bg-indigo-600 text-white' 
+                        : 'text-zinc-400 hover:bg-zinc-800'
+                    }`}
+                  >
+                    {section.icon}
+                    <span className="text-xs font-bold">{section.title}</span>
+                  </button>
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </header>
 
       {/* Main Content Area */}
@@ -145,7 +206,7 @@ export default function SleepGuideInteractive({ onClose, onOpenPersonalization }
         ref={scrollRef}
         className="flex-1 overflow-y-auto bg-zinc-950 scroll-smooth"
       >
-        <div className="max-w-3xl mx-auto px-6 py-12 md:py-24 space-y-32">
+        <div className="max-w-3xl mx-auto px-4 py-8 md:px-6 md:py-24 space-y-16 md:space-y-32">
           
           {/* Section 1: Intro */}
           <section id="guide-section-intro" className="space-y-8">

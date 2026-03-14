@@ -11,6 +11,7 @@ import {
   Plus, 
   ChevronLeft, 
   ChevronRight, 
+  ChevronDown,
   Info,
   Trash2,
   Coffee,
@@ -24,6 +25,7 @@ import {
   Stethoscope,
   Printer,
   X,
+  Check,
   FileText,
   Loader2,
   CheckCircle2,
@@ -54,10 +56,8 @@ import { calculateSafeAverage } from './utils/statsEngine';
 import AIInsightsAgent from './components/AIInsightsAgent';
 import Dashboard from './components/Dashboard';
 import Legal from './components/Legal';
-import DataImporter from './components/DataImporter';
 import CorrectionHub from './components/CorrectionHub';
 import PersonalizationWizard from './components/PersonalizationWizard';
-import SleepGuideInteractive from './components/SleepGuideInteractive';
 import AccountPage from './components/AccountPage';
 import { AvatarFrame } from './components/UI';
 
@@ -73,6 +73,10 @@ import {
   deleteDoc,
   onSnapshot
 } from 'firebase/firestore';
+
+// Lazy load heavy components
+const SleepGuideInteractive = React.lazy(() => import('./components/SleepGuideInteractive'));
+const DataImporter = React.lazy(() => import('./components/DataImporter'));
 
 // --- Components ---
 
@@ -121,11 +125,13 @@ export default function App() {
   const [loginError, setLoginError] = useState<string | null>(null);
   const [logs, setLogs] = useState<Record<string, DailyLog>>({});
   const [selectedDate, setSelectedDate] = useState(getTodayDate());
+  const [direction, setDirection] = useState(0);
   const [view, setView] = useState<'dashboard' | 'log' | 'weekly' | 'monthly' | 'custom' | 'ai' | 'corrections' | 'legal' | 'account' | 'import'>('weekly');
   const [customRange, setCustomRange] = useState({ start: getTodayDate(), end: getTodayDate() });
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [clinicalReport, setClinicalReport] = useState<string | null>(null);
   const [personalizationProfile, setPersonalizationProfile] = useState<PersonalizationProfile | null>(null);
+  const [isProfileLoading, setIsProfileLoading] = useState(true);
   const [showPersonalizationWizard, setShowPersonalizationWizard] = useState(false);
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [activeState, setActiveState] = useState<SleepState>('sleep');
@@ -136,6 +142,35 @@ export default function App() {
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [showSleepGuide, setShowSleepGuide] = useState(false);
+
+  const changeDate = (days: number) => {
+    setDirection(days);
+    const d = new Date(selectedDate);
+    d.setDate(d.getDate() + days);
+    setSelectedDate(d.toISOString().split('T')[0]);
+  };
+
+  const swipeConfidenceThreshold = 10000;
+  const swipePower = (offset: number, velocity: number) => {
+    return Math.abs(offset) * velocity;
+  };
+
+  const slideVariants = {
+    enter: (direction: number) => ({
+      x: direction > 0 ? 500 : -500,
+      opacity: 0
+    }),
+    center: {
+      zIndex: 1,
+      x: 0,
+      opacity: 1
+    },
+    exit: (direction: number) => ({
+      zIndex: 0,
+      x: direction < 0 ? 500 : -500,
+      opacity: 0
+    })
+  };
 
   // Reset editing state on mount
   useEffect(() => {
@@ -201,10 +236,15 @@ export default function App() {
     }
 
     const profileRef = doc(db, 'users', user.uid, 'personalization', 'profile');
+    setIsProfileLoading(true);
     const unsubscribe = onSnapshot(profileRef, (doc) => {
       if (doc.exists()) {
         setPersonalizationProfile(doc.data() as PersonalizationProfile);
       }
+      setIsProfileLoading(false);
+    }, (error) => {
+      console.error("Profile fetch error:", error);
+      setIsProfileLoading(false);
     });
 
     return () => unsubscribe();
@@ -295,7 +335,7 @@ export default function App() {
       stressLevel: 3
     };
 
-    const log = logs[selectedDate] || {
+    const log = (logs[selectedDate] || {
       date: selectedDate,
       type: 'log',
       sleepQuality: 5,
@@ -304,6 +344,7 @@ export default function App() {
       timeline: Array(TOTAL_SLOTS).fill('awake-out'),
       remarks: '',
       isIgnored: false,
+      source: 'manual',
       summaryMetrics: {
         sleepQuality: 5,
         restedness: 5,
@@ -312,7 +353,7 @@ export default function App() {
         importedInBed: 0,
       },
       factors: defaultFactors
-    };
+    }) as DailyLog;
     
     // Ensure factors exist for legacy logs
     if (!log.factors) {
@@ -332,6 +373,10 @@ export default function App() {
 
   const updateLog = (updates: Partial<DailyLog>) => {
     const newLog = { ...currentLog, ...updates };
+    // If the log was imported and is now being manually adjusted, update the source
+    if (newLog.source === 'import') {
+      newLog.source = 'manual';
+    }
     const newLogs = { ...logs, [selectedDate]: newLog };
     setLogs(newLogs);
     setSaveStatus('saving');
@@ -410,6 +455,16 @@ export default function App() {
     if (view === 'weekly') return weekDates;
     if (view === 'monthly') return monthDates;
     if (view === 'custom') return customDates;
+    if (view === 'dashboard') {
+      const dates = [];
+      const baseDate = new Date(selectedDate);
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(baseDate);
+        d.setDate(d.getDate() - i);
+        dates.push(d.toISOString().split('T')[0]);
+      }
+      return dates.reverse();
+    }
     return [selectedDate];
   }, [view, selectedDate, weekDates, monthDates, customDates]);
 
@@ -741,8 +796,8 @@ export default function App() {
               </div>
           </div>
           
-          <div className="flex items-center gap-1 md:gap-2 flex-nowrap">
-            <div className="flex bg-zinc-900/50 p-1 rounded-xl border border-zinc-800/50 gap-0.5 md:gap-1 flex-nowrap items-center">
+          <div className="flex items-center gap-x-2 md:gap-x-3 flex-nowrap">
+            <div className="flex bg-zinc-900/50 p-1 rounded-xl border border-zinc-800/50 gap-x-2 md:gap-x-3 flex-nowrap items-center">
               {[
                 { id: 'dashboard', label: 'DASHBOARD' },
                 { id: 'log', label: 'LOG' },
@@ -765,18 +820,18 @@ export default function App() {
               {/* User Icon */}
               <button 
                 onClick={() => setView('account')}
-                className={`p-0.5 rounded-full transition-all border-2 ${view === 'account' ? 'border-indigo-500 shadow-lg shadow-indigo-500/20' : 'border-transparent hover:border-zinc-700'}`}
+                className={`p-0.5 rounded-full transition-all border-2 flex-shrink-0 aspect-square ${view === 'account' ? 'border-indigo-500 shadow-lg shadow-indigo-500/20' : 'border-transparent hover:border-zinc-700'}`}
                 title={user?.displayName || 'Account'}
               >
                 {user?.photoURL ? (
                   <img 
                     src={user.photoURL} 
                     alt="Profile" 
-                    className="w-7 h-7 md:w-8 md:h-8 rounded-full" 
+                    className="w-8 h-8 rounded-full object-cover flex-shrink-0" 
                     referrerPolicy="no-referrer"
                   />
                 ) : (
-                  <div className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-zinc-800 flex items-center justify-center text-[10px] font-bold text-zinc-400">
+                  <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center text-[10px] font-bold text-zinc-400 flex-shrink-0 aspect-square">
                     {user?.displayName?.charAt(0) || 'U'}
                   </div>
                 )}
@@ -803,19 +858,48 @@ export default function App() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
+              className="relative overflow-hidden"
             >
-              <Dashboard 
-                logs={logs} 
-                correctionsCount={correctionsCount}
-                personalizationProfile={personalizationProfile}
-                onLogClick={() => {
-                  setSelectedDate(getTodayDate());
-                  setView('log');
-                }}
-                onViewChange={setView}
-                onOpenPersonalization={() => setShowPersonalizationWizard(true)}
-                onOpenSleepGuide={() => setShowSleepGuide(true)}
-              />
+              <AnimatePresence initial={false} custom={direction}>
+                <motion.div
+                  key={selectedDate}
+                  custom={direction}
+                  variants={slideVariants}
+                  initial="enter"
+                  animate="center"
+                  exit="exit"
+                  transition={{
+                    x: { type: "spring", stiffness: 300, damping: 30 },
+                    opacity: { duration: 0.2 }
+                  }}
+                  drag="x"
+                  dragConstraints={{ left: 0, right: 0 }}
+                  dragElastic={1}
+                  onDragEnd={(e, { offset, velocity }) => {
+                    const swipe = swipePower(offset.x, velocity.x);
+                    if (swipe < -swipeConfidenceThreshold) {
+                      changeDate(1);
+                    } else if (swipe > swipeConfidenceThreshold) {
+                      changeDate(-1);
+                    }
+                  }}
+                >
+                  <Dashboard 
+                    logs={logs} 
+                    user={user}
+                    selectedDate={selectedDate}
+                    correctionsCount={correctionsCount}
+                    personalizationProfile={personalizationProfile}
+                    onLogClick={() => {
+                      setSelectedDate(getTodayDate());
+                      setView('log');
+                    }}
+                    onViewChange={setView}
+                    onOpenPersonalization={() => setShowPersonalizationWizard(true)}
+                    onOpenSleepGuide={() => setShowSleepGuide(true)}
+                  />
+                </motion.div>
+              </AnimatePresence>
             </motion.div>
           ) : view === 'corrections' ? (
             <motion.div
@@ -842,35 +926,52 @@ export default function App() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              className="space-y-8"
+              className="space-y-8 relative overflow-hidden"
             >
-              {/* Date Selector */}
-              <div className="flex items-center justify-between bg-zinc-900/50 p-4 rounded-2xl border border-zinc-800">
-                <button 
-                  onClick={() => {
-                    const d = new Date(selectedDate);
-                    d.setDate(d.getDate() - 1);
-                    setSelectedDate(d.toISOString().split('T')[0]);
+              <AnimatePresence initial={false} custom={direction}>
+                <motion.div
+                  key={selectedDate}
+                  custom={direction}
+                  variants={slideVariants}
+                  initial="enter"
+                  animate="center"
+                  exit="exit"
+                  transition={{
+                    x: { type: "spring", stiffness: 300, damping: 30 },
+                    opacity: { duration: 0.2 }
                   }}
-                  className="p-2 hover:bg-zinc-800 rounded-full transition-colors text-zinc-400"
-                >
-                  <ChevronLeft size={20} />
-                </button>
-                <div className="text-center">
-                  <div className="text-sm font-semibold">{formatDisplayDate(selectedDate)}</div>
-                  <div className="text-[10px] text-zinc-500 uppercase tracking-widest">Selected Entry</div>
-                </div>
-                <button 
-                  onClick={() => {
-                    const d = new Date(selectedDate);
-                    d.setDate(d.getDate() + 1);
-                    setSelectedDate(d.toISOString().split('T')[0]);
+                  drag={isEditing ? false : "x"}
+                  dragConstraints={{ left: 0, right: 0 }}
+                  dragElastic={1}
+                  onDragEnd={(e, { offset, velocity }) => {
+                    const swipe = swipePower(offset.x, velocity.x);
+                    if (swipe < -swipeConfidenceThreshold) {
+                      changeDate(1);
+                    } else if (swipe > swipeConfidenceThreshold) {
+                      changeDate(-1);
+                    }
                   }}
-                  className="p-2 hover:bg-zinc-800 rounded-full transition-colors text-zinc-400"
+                  className="space-y-8"
                 >
-                  <ChevronRight size={20} />
-                </button>
-              </div>
+                  {/* Date Selector */}
+                  <div className="flex items-center justify-between bg-zinc-900/50 p-4 rounded-2xl border border-zinc-800">
+                    <button 
+                      onClick={() => changeDate(-1)}
+                      className="p-2 hover:bg-zinc-800 rounded-full transition-colors text-zinc-400"
+                    >
+                      <ChevronLeft size={20} />
+                    </button>
+                    <div className="text-center">
+                      <div className="text-sm font-semibold">{formatDisplayDate(selectedDate)}</div>
+                      <div className="text-[10px] text-zinc-500 uppercase tracking-widest">Selected Entry</div>
+                    </div>
+                    <button 
+                      onClick={() => changeDate(1)}
+                      className="p-2 hover:bg-zinc-800 rounded-full transition-colors text-zinc-400"
+                    >
+                      <ChevronRight size={20} />
+                    </button>
+                  </div>
 
               {/* Timeline Section */}
               <section className="space-y-4">
@@ -897,8 +998,8 @@ export default function App() {
                 </div>
 
                 <div 
-                  className={`relative bg-zinc-900 border rounded-2xl overflow-hidden select-none flex flex-col divide-y divide-zinc-800/50 touch-none transition-all ${
-                    isEditing ? 'border-indigo-500 ring-2 ring-indigo-500/20' : 'border-zinc-800'
+                  className={`relative bg-zinc-900 border rounded-2xl overflow-hidden select-none flex flex-col divide-y divide-zinc-800/50 transition-all ${
+                    isEditing ? 'border-indigo-500 ring-2 ring-indigo-500/20 touch-none' : 'border-zinc-800 touch-pan-y'
                   }`}
                 >
                   <AnimatePresence>
@@ -908,11 +1009,22 @@ export default function App() {
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         onClick={() => setIsEditing(true)}
-                        className="absolute inset-0 z-20 bg-black/20 backdrop-blur-[2px] flex items-center justify-center cursor-pointer group"
+                        className="absolute inset-0 z-20 bg-black/20 backdrop-blur-[2px] flex flex-col items-center justify-center cursor-pointer group touch-pan-y"
                       >
                         <div className="bg-zinc-900/90 border border-zinc-700 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest text-zinc-300 group-hover:text-white transition-colors flex items-center gap-2">
                           <Plus size={14} />
                           Tap to edit sleep window
+                        </div>
+                        
+                        {/* Scroll Hint */}
+                        <div className="absolute bottom-4 flex flex-col items-center gap-1 opacity-40 group-hover:opacity-100 transition-opacity">
+                          <p className="text-[8px] font-black uppercase tracking-[0.2em] text-zinc-400">Drag to scroll / Tap to edit</p>
+                          <motion.div
+                            animate={{ y: [0, 4, 0] }}
+                            transition={{ repeat: Infinity, duration: 1.5 }}
+                          >
+                            <ChevronDown size={12} className="text-zinc-500" />
+                          </motion.div>
                         </div>
                       </motion.div>
                     )}
@@ -929,6 +1041,8 @@ export default function App() {
                           const idx = rowIdx * 16 + localIdx;
                           const stateInfo = SLEEP_STATES.find(s => s.value === state);
                           const isHourStart = idx % 4 === 0;
+                          const isImported = currentLog.modifiedBySync?.[idx];
+                          
                           return (
                             <button
                               key={idx}
@@ -937,7 +1051,7 @@ export default function App() {
                               onMouseEnter={() => handleMouseEnter(idx)}
                               onTouchStart={() => handleTouchStart(idx)}
                               onTouchMove={handleTouchMove}
-                              className={`h-12 flex flex-col items-center justify-center relative group transition-all border-r border-zinc-800/30 last:border-r-0 ${stateInfo?.color} hover:brightness-125 cursor-crosshair`}
+                              className={`h-12 flex flex-col items-center justify-center relative group transition-all border-r border-zinc-800/30 last:border-r-0 ${stateInfo?.color} hover:brightness-125 cursor-crosshair ${isImported ? 'ring-1 ring-inset ring-indigo-400/50 animate-pulse' : ''}`}
                               title={getSlotLabel(idx)}
                             >
                               <span className="text-[8px] text-zinc-500 opacity-0 group-hover:opacity-100 absolute -top-4 bg-black px-1 rounded border border-zinc-800 z-10 whitespace-nowrap pointer-events-none">
@@ -963,7 +1077,19 @@ export default function App() {
                 </div>
                 
                 {isEditing && (
-                  <div className="flex justify-center">
+                  <div className="flex justify-center gap-3">
+                    {currentLog.modifiedBySync?.some(v => v) && (
+                      <button 
+                        onClick={() => {
+                          const { modifiedBySync, ...rest } = currentLog;
+                          updateLog({ modifiedBySync: undefined });
+                        }}
+                        className="px-4 py-1.5 bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/50 rounded-xl text-[10px] font-black uppercase tracking-widest text-indigo-400 transition-all flex items-center gap-2"
+                      >
+                        <Check size={14} />
+                        Confirm Sync
+                      </button>
+                    )}
                     <button 
                       onClick={() => setIsEditing(false)}
                       className="px-4 py-1.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-xl text-[10px] font-black uppercase tracking-widest text-zinc-400 transition-all"
@@ -1206,7 +1332,9 @@ export default function App() {
                 />
               </section>
 
-              <DataImporter user={user} onImportComplete={() => {}} />
+              <React.Suspense fallback={<div className="p-4 text-center text-zinc-500 text-xs">Loading Importer...</div>}>
+                <DataImporter user={user} onImportComplete={() => {}} />
+              </React.Suspense>
 
               <div className="flex gap-4">
                 <button 
@@ -1271,6 +1399,8 @@ export default function App() {
                 </button>
               </div>
             </motion.div>
+          </AnimatePresence>
+        </motion.div>
           ) : view === 'ai' ? (
             <motion.div
               key="ai"
@@ -1287,6 +1417,7 @@ export default function App() {
                 logs={logs} 
                 user={user} 
                 personalizationProfile={personalizationProfile}
+                isProfileLoading={isProfileLoading}
               />
             </motion.div>
           ) : view === 'legal' ? (
@@ -1484,10 +1615,12 @@ export default function App() {
 
       <AnimatePresence>
         {showSleepGuide && (
-          <SleepGuideInteractive 
-            onClose={() => setShowSleepGuide(false)} 
-            onOpenPersonalization={() => setShowPersonalizationWizard(true)}
-          />
+          <React.Suspense fallback={<div className="fixed inset-0 z-[110] bg-black/80 backdrop-blur-sm flex items-center justify-center text-white">Loading Guide...</div>}>
+            <SleepGuideInteractive 
+              onClose={() => setShowSleepGuide(false)} 
+              onOpenPersonalization={() => setShowPersonalizationWizard(true)}
+            />
+          </React.Suspense>
         )}
       </AnimatePresence>
 
