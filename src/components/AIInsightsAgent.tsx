@@ -170,7 +170,20 @@ export default function AIInsightsAgent({ logs, user, personalizationProfile, is
       const profileContext = profile ? JSON.stringify(profile) : "No personalization profile set yet.";
       const logsContext = historicalLogs.length > 0 
         ? JSON.stringify(historicalLogs) 
-        : "User has no sleep logs for this period. Greet them and encourage them to start logging or importing data.";
+        : "EMPTY_HISTORY";
+
+      if (logsContext === "EMPTY_HISTORY") {
+        const assistantMessage: Message = { 
+          role: 'assistant', 
+          content: "No sleep data found to analyze. Please log some nights or import data first so I can help you find patterns!",
+          createdAt: serverTimestamp()
+        };
+        await addDoc(collection(db, 'users', user.uid, 'chats'), assistantMessage);
+        setIsLoading(false);
+        setIsAnalyzing(false);
+        setIsTyping(false);
+        return;
+      }
 
       const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
       

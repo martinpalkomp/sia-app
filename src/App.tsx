@@ -142,6 +142,20 @@ export default function App() {
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [showSleepGuide, setShowSleepGuide] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const refreshAllData = async () => {
+    setIsRefreshing(true);
+    // Incrementing refreshKey will trigger the useEffect to re-subscribe/re-fetch
+    setRefreshKey(prev => prev + 1);
+    
+    // Simulate a brief delay for visual feedback if it's too fast
+    await new Promise(resolve => setTimeout(resolve, 800));
+    
+    setIsRefreshing(false);
+    setToast({ message: 'Sync Complete', type: 'success' });
+  };
 
   const changeDate = (days: number) => {
     setDirection(days);
@@ -507,7 +521,7 @@ export default function App() {
     });
 
     return () => unsubscribe();
-  }, [user, activeDates]);
+  }, [user, activeDates, refreshKey]);
 
   const averageStats = useMemo(() => {
     const periodLogs = activeDates.map(d => logs[d]).filter(Boolean);
@@ -915,6 +929,8 @@ export default function App() {
                     onViewChange={setView}
                     onOpenPersonalization={() => setShowPersonalizationWizard(true)}
                     onOpenSleepGuide={() => setShowSleepGuide(true)}
+                    refreshAllData={refreshAllData}
+                    isRefreshing={isRefreshing}
                   />
                 </motion.div>
               </AnimatePresence>
@@ -1357,6 +1373,7 @@ export default function App() {
                   onImportComplete={() => {
                     setToast({ message: 'Data imported and synced successfully', type: 'success' });
                   }} 
+                  onRefresh={refreshAllData}
                 />
               </React.Suspense>
 
@@ -1451,6 +1468,7 @@ export default function App() {
               user={user} 
               personalizationProfile={personalizationProfile} 
               onModifyAssessment={() => setShowPersonalizationWizard(true)}
+              onRefresh={refreshAllData}
             />
           ) : (
             <motion.div 

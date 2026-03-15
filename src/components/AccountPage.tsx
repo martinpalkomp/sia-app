@@ -24,9 +24,10 @@ interface AccountPageProps {
   user: User;
   personalizationProfile: PersonalizationProfile | null;
   onModifyAssessment: () => void;
+  onRefresh?: () => void;
 }
 
-export default function AccountPage({ user, personalizationProfile, onModifyAssessment }: AccountPageProps) {
+export default function AccountPage({ user, personalizationProfile, onModifyAssessment, onRefresh }: AccountPageProps) {
   const handleLogout = async () => {
     try {
       await signOut(auth);
@@ -53,8 +54,7 @@ export default function AccountPage({ user, personalizationProfile, onModifyAsse
   const handleSeedData = async () => {
     if (window.confirm("This will populate 60 days of logs. Continue?")) {
       try {
-        await seedTestData(user.uid);
-        window.location.reload();
+        await seedTestData(user.uid, onRefresh);
       } catch (error) {
         console.error("Seeding error:", error);
         alert("Failed to seed data.");

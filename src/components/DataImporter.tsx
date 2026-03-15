@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
-import { parse, format, isValid } from 'date-fns';
+import { parse, format, isValid, addDays } from 'date-fns';
 import { 
   Upload, 
   FileText, 
@@ -25,11 +25,12 @@ import { snapTo15Min, timeToIndex } from '../utils/sleepUtils';
 interface DataImporterProps {
   user: User;
   onImportComplete: () => void;
+  onRefresh?: () => void;
 }
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
-export default function DataImporter({ user, onImportComplete }: DataImporterProps) {
+export default function DataImporter({ user, onImportComplete, onRefresh }: DataImporterProps) {
   const [isCollapsed, setIsCollapsed] = useState(true);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isPasteOpen, setIsPasteOpen] = useState(false);
@@ -240,31 +241,22 @@ export default function DataImporter({ user, onImportComplete }: DataImporterPro
           logsToSave[date].modifiedBySync = Array(TOTAL_SLOTS).fill(false);
         }
 
-        // Map Clinical Metrics
-        if (row.SQ !== undefined) {
-          const val = parseInt(row.SQ);
-          if (!isNaN(val)) {
-            logsToSave[date].sleepQuality = val;
-            logsToSave[date].sleep_quality = val;
-            metricsCaptured.add('SQ');
-          }
-        }
-        if (row.R !== undefined) {
-          const val = parseInt(row.R);
-          if (!isNaN(val)) {
-            logsToSave[date].restedness = val;
-            logsToSave[date].morning_alertness = val;
-            metricsCaptured.add('R');
-          }
-        }
-        if (row.L !== undefined) {
-          const val = parseInt(row.L);
-          if (!isNaN(val)) {
-            logsToSave[date].energyLevel = val;
-            logsToSave[date].daytime_energy = val;
-            metricsCaptured.add('L');
-          }
-        }
+        // Map Clinical Metrics (SQ -> sleep_quality, R -> morning_alertness, L -> daytime_energy)
+        // Default to 5 if blank or invalid
+        const sqVal = parseInt(row.SQ);
+        logsToSave[date].sleepQuality = !isNaN(sqVal) ? sqVal : 5;
+        logsToSave[date].sleep_quality = !isNaN(sqVal) ? sqVal : 5;
+        if (!isNaN(sqVal)) metricsCaptured.add('SQ');
+
+        const rVal = parseInt(row.R);
+        logsToSave[date].restedness = !isNaN(rVal) ? rVal : 5;
+        logsToSave[date].morning_alertness = !isNaN(rVal) ? rVal : 5;
+        if (!isNaN(rVal)) metricsCaptured.add('R');
+
+        const lVal = parseInt(row.L);
+        logsToSave[date].energyLevel = !isNaN(lVal) ? lVal : 5;
+        logsToSave[date].daytime_energy = !isNaN(lVal) ? lVal : 5;
+        if (!isNaN(lVal)) metricsCaptured.add('L');
         
         // Map Remarks
         let remarks = row.Remarks || '';
@@ -280,15 +272,15 @@ export default function DataImporter({ user, onImportComplete }: DataImporterPro
         const endIndex = timeToIndex(end);
 
         if (endIndex < startIndex) {
-          // Midnight Crossover Logic
+          // Midnight Crossover Logic (Timezone-agnostic)
           for (let i = startIndex; i < TOTAL_SLOTS; i++) {
             logsToSave[date].timeline[i] = state;
             logsToSave[date].modifiedBySync![i] = true;
           }
           
-          const nextDate = new Date(date);
-          nextDate.setDate(nextDate.getDate() + 1);
-          const nextDateStr = nextDate.toISOString().split('T')[0];
+          // Use addDays for robust date math
+          const nextDateObj = addDays(parse(date, 'yyyy-MM-dd', new Date()), 1);
+          const nextDateStr = format(nextDateObj, 'yyyy-MM-dd');
           
           if (!logsToSave[nextDateStr]) {
             logsToSave[nextDateStr] = defaultLog(nextDateStr);
@@ -343,6 +335,7 @@ export default function DataImporter({ user, onImportComplete }: DataImporterPro
       setSelectedFile(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
       onImportComplete();
+      if (onRefresh) onRefresh();
 
     } catch (error: any) {
       console.error("Import failed:", error);
@@ -484,34 +477,14 @@ export default function DataImporter({ user, onImportComplete }: DataImporterPro
     const headers = ['Date', 'Start_Time', 'End_Time', 'Status_Code', 'SQ', 'R', 'L', 'Remarks'];
     const sampleData = [
       {
-        Date: '2024-03-10',
-        Start_Time: '22:30',
-        End_Time: '06:45',
-        Status_Code: 'SLEEP',
+        Date: '2026-03-15',
+        Start_Time: '23:00',
+        End_Time: '07:00',
+        Status_Code: '1',
         SQ: 8,
         R: 7,
-        L: 6,
-        Remarks: 'Felt good'
-      },
-      {
-        Date: '2024-03-11',
-        Start_Time: '23:15',
-        End_Time: '07:30',
-        Status_Code: 'SLEEP',
-        SQ: 5,
-        R: 4,
-        L: 5,
-        Remarks: 'Interrupted sleep'
-      },
-      {
-        Date: '2024-03-11',
-        Start_Time: '07:30',
-        End_Time: '08:00',
-        Status_Code: 'AWAKE IN BED',
-        SQ: '',
-        R: '',
-        L: '',
-        Remarks: 'Scrolling phone'
+        L: 7,
+        Remarks: 'Sample entry - please delete me'
       }
     ];
 

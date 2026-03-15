@@ -12,7 +12,8 @@ import {
   X,
   BookOpen,
   Brain,
-  Sparkles
+  Sparkles,
+  Loader2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { DailyLog } from '../types';
@@ -38,6 +39,8 @@ interface DashboardProps {
   onViewChange: (view: any) => void;
   onOpenPersonalization: () => void;
   onOpenSleepGuide: () => void;
+  refreshAllData: () => void;
+  isRefreshing: boolean;
 }
 
 export default function Dashboard({ 
@@ -49,7 +52,9 @@ export default function Dashboard({
   onLogClick, 
   onViewChange,
   onOpenPersonalization,
-  onOpenSleepGuide
+  onOpenSleepGuide,
+  refreshAllData,
+  isRefreshing
 }: DashboardProps) {
   const [aiInsight, setAiInsight] = useState<string | null>(null);
   const [isAiLoading, setIsAiLoading] = useState(false);
@@ -266,7 +271,27 @@ export default function Dashboard({
   const isEnhanced = !!personalizationProfile;
 
   return (
-    <div className="space-y-8 pb-12">
+    <div className="space-y-8 pb-12 relative">
+      {/* Refresh Overlay */}
+      <AnimatePresence>
+        {isRefreshing && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[60] bg-clinical-bg/60 backdrop-blur-sm flex items-center justify-center"
+          >
+            <div className="bg-zinc-900/90 border border-indigo-500/30 p-8 rounded-[2.5rem] flex flex-col items-center gap-4 shadow-2xl">
+              <Loader2 className="animate-spin text-indigo-500" size={40} />
+              <div className="text-center">
+                <p className="text-white font-bold">Syncing SIA Intelligence...</p>
+                <p className="text-[10px] text-zinc-500 uppercase tracking-widest mt-1">Updating your recovery trends</p>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Import Alert */}
       {logs[selectedDate]?.source === 'import' && (
         <motion.div 

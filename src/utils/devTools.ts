@@ -19,7 +19,7 @@ const REMARKS = [
 /**
  * Seeds 60 days of realistic sleep data for testing.
  */
-export const seedTestData = async (userId: string) => {
+export const seedTestData = async (userId: string, onComplete?: () => void) => {
   const batch = writeBatch(db);
   const today = new Date();
 
@@ -68,9 +68,10 @@ export const seedTestData = async (userId: string) => {
     const logRef = doc(db, 'users', userId, 'sleep_logs', dateStr);
     const metricsRef = doc(db, 'users', userId, 'daily_metrics', dateStr);
 
-    batch.set(logRef, { ...log, updatedAt: serverTimestamp() });
+    batch.set(logRef, { ...log, type: 'log', updatedAt: serverTimestamp() });
     batch.set(metricsRef, {
       date: dateStr,
+      type: 'log',
       sleep_quality: log.sleepQuality,
       morning_alertness: log.restedness,
       daytime_energy: log.energyLevel,
@@ -81,4 +82,5 @@ export const seedTestData = async (userId: string) => {
   }
 
   await batch.commit();
+  if (onComplete) onComplete();
 };
