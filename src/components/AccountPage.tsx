@@ -1,6 +1,7 @@
 import React from 'react';
 import { User, signOut } from 'firebase/auth';
-import { auth } from '../lib/firebase';
+import { auth, db } from '../lib/firebase';
+import { doc, setDoc } from 'firebase/firestore';
 import { motion } from 'motion/react';
 import { 
   LogOut, 
@@ -10,10 +11,14 @@ import {
   ChevronRight, 
   Sparkles,
   Target,
-  Calendar
+  Calendar,
+  Globe,
+  Shield
 } from 'lucide-react';
 import { PersonalizationProfile } from '../types';
 import { Card, AvatarFrame } from './UI';
+import EthicalDataPledge from './EthicalDataPledge';
+import { seedTestData } from '../utils/devTools';
 
 interface AccountPageProps {
   user: User;
@@ -31,6 +36,31 @@ export default function AccountPage({ user, personalizationProfile, onModifyAsse
   };
 
   const isEnhanced = !!personalizationProfile;
+
+  const toggleSharing = async () => {
+    if (!user) return;
+    
+    const profileRef = doc(db, 'users', user.uid, 'personalization', 'profile');
+    try {
+      await setDoc(profileRef, {
+        allowsAnonymizedSharing: !personalizationProfile?.allowsAnonymizedSharing
+      }, { merge: true });
+    } catch (error) {
+      console.error('Error updating sharing preference:', error);
+    }
+  };
+
+  const handleSeedData = async () => {
+    if (window.confirm("This will populate 60 days of logs. Continue?")) {
+      try {
+        await seedTestData(user.uid);
+        window.location.reload();
+      } catch (error) {
+        console.error("Seeding error:", error);
+        alert("Failed to seed data.");
+      }
+    }
+  };
 
   return (
     <motion.div 
@@ -83,6 +113,14 @@ export default function AccountPage({ user, personalizationProfile, onModifyAsse
 
       {/* Data Overview */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="md:col-span-2">
+          <EthicalDataPledge 
+            agreed={!!personalizationProfile?.allowsAnonymizedSharing}
+            onToggle={toggleSharing}
+            isEnhanced={isEnhanced}
+          />
+        </div>
+
         <Card className="bg-zinc-900/50 border-zinc-800">
           <div className="flex items-center gap-3 mb-6">
             <Target className="text-clinical-primary" size={20} />
@@ -161,6 +199,21 @@ export default function AccountPage({ user, personalizationProfile, onModifyAsse
           <ChevronRight size={20} className="text-zinc-700 group-hover:text-white transition-colors" />
         </button>
       </div>
+
+      {/* Developer Tools */}
+      {import.meta.env.DEV && (
+        <div className="pt-8 border-t border-zinc-800">
+          <div className="mb-4">
+            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 ml-1">Developer Tools</h3>
+          </div>
+          <button 
+            onClick={handleSeedData}
+            className="w-full p-4 bg-indigo-600/10 hover:bg-indigo-600/20 border border-indigo-500/30 rounded-2xl flex items-center justify-center gap-3 group transition-all"
+          >
+            <span className="text-sm font-black text-indigo-400 uppercase tracking-widest">🚀 SEED 60 DAYS OF DATA</span>
+          </button>
+        </div>
+      )}
     </motion.div>
   );
 }

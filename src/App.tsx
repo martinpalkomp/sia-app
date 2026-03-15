@@ -150,11 +150,6 @@ export default function App() {
     setSelectedDate(d.toISOString().split('T')[0]);
   };
 
-  const swipeConfidenceThreshold = 10000;
-  const swipePower = (offset: number, velocity: number) => {
-    return Math.abs(offset) * velocity;
-  };
-
   const slideVariants = {
     enter: (direction: number) => ({
       x: direction > 0 ? 500 : -500,
@@ -489,24 +484,26 @@ export default function App() {
     );
     
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const fetchedLogs: Record<string, DailyLog> = { ...logs }; // Keep existing to avoid flickering
-      snapshot.forEach((doc) => {
-        const data = doc.data() as DailyLog;
-        // Ensure timeline exists
-        if (!data.timeline) {
-          data.timeline = Array(TOTAL_SLOTS).fill('awake-out');
-        }
-        // Normalize logs to ensure correct timeline length
-        if (data.timeline.length !== TOTAL_SLOTS) {
-          if (data.timeline.length < TOTAL_SLOTS) {
-            data.timeline = [...data.timeline, ...Array(TOTAL_SLOTS - data.timeline.length).fill('awake-out')];
-          } else {
-            data.timeline = data.timeline.slice(0, TOTAL_SLOTS);
+      setLogs(prevLogs => {
+        const fetchedLogs: Record<string, DailyLog> = { ...prevLogs };
+        snapshot.forEach((doc) => {
+          const data = doc.data() as DailyLog;
+          // Ensure timeline exists
+          if (!data.timeline) {
+            data.timeline = Array(TOTAL_SLOTS).fill('awake-out');
           }
-        }
-        fetchedLogs[doc.id] = data;
+          // Normalize logs to ensure correct timeline length
+          if (data.timeline.length !== TOTAL_SLOTS) {
+            if (data.timeline.length < TOTAL_SLOTS) {
+              data.timeline = [...data.timeline, ...Array(TOTAL_SLOTS - data.timeline.length).fill('awake-out')];
+            } else {
+              data.timeline = data.timeline.slice(0, TOTAL_SLOTS);
+            }
+          }
+          fetchedLogs[doc.id] = data;
+        });
+        return fetchedLogs;
       });
-      setLogs(fetchedLogs);
     });
 
     return () => unsubscribe();
@@ -850,7 +847,7 @@ export default function App() {
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto p-4 pb-24 pt-24 md:pt-28">
+      <main className="max-w-4xl mx-auto p-4 pb-24 pt-24 md:pt-28 touch-pan-y">
         <AnimatePresence mode="wait">
           {view === 'dashboard' ? (
             <motion.div
@@ -858,8 +855,40 @@ export default function App() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              className="relative overflow-hidden"
+              className="relative overflow-hidden space-y-6"
             >
+              {/* Date Selector for Dashboard */}
+              <div className="flex items-center justify-between bg-zinc-900/50 p-4 rounded-2xl border border-zinc-800">
+                <button 
+                  onClick={() => changeDate(-1)}
+                  className="p-2 hover:bg-zinc-800 rounded-full transition-colors text-zinc-400"
+                >
+                  <ChevronLeft size={20} />
+                </button>
+                
+                <div className="text-center relative group">
+                  <input 
+                    type="date" 
+                    className="absolute inset-0 opacity-0 cursor-pointer z-10" 
+                    value={selectedDate}
+                    onChange={(e) => setSelectedDate(e.target.value)}
+                  />
+                  <h2 className="text-lg font-bold text-white tracking-tight group-hover:text-indigo-400 transition-colors">
+                    {formatDisplayDate(selectedDate)}
+                  </h2>
+                  <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">
+                    {selectedDate === getTodayDate() ? 'TODAY' : 'HISTORICAL VIEW'}
+                  </p>
+                </div>
+
+                <button 
+                  onClick={() => changeDate(1)}
+                  className="p-2 hover:bg-zinc-800 rounded-full transition-colors text-zinc-400"
+                >
+                  <ChevronRight size={20} />
+                </button>
+              </div>
+
               <AnimatePresence initial={false} custom={direction}>
                 <motion.div
                   key={selectedDate}
@@ -871,17 +900,6 @@ export default function App() {
                   transition={{
                     x: { type: "spring", stiffness: 300, damping: 30 },
                     opacity: { duration: 0.2 }
-                  }}
-                  drag="x"
-                  dragConstraints={{ left: 0, right: 0 }}
-                  dragElastic={1}
-                  onDragEnd={(e, { offset, velocity }) => {
-                    const swipe = swipePower(offset.x, velocity.x);
-                    if (swipe < -swipeConfidenceThreshold) {
-                      changeDate(1);
-                    } else if (swipe > swipeConfidenceThreshold) {
-                      changeDate(-1);
-                    }
                   }}
                 >
                   <Dashboard 
@@ -940,17 +958,6 @@ export default function App() {
                     x: { type: "spring", stiffness: 300, damping: 30 },
                     opacity: { duration: 0.2 }
                   }}
-                  drag={isEditing ? false : "x"}
-                  dragConstraints={{ left: 0, right: 0 }}
-                  dragElastic={1}
-                  onDragEnd={(e, { offset, velocity }) => {
-                    const swipe = swipePower(offset.x, velocity.x);
-                    if (swipe < -swipeConfidenceThreshold) {
-                      changeDate(1);
-                    } else if (swipe > swipeConfidenceThreshold) {
-                      changeDate(-1);
-                    }
-                  }}
                   className="space-y-8"
                 >
                   {/* Date Selector */}
@@ -961,10 +968,22 @@ export default function App() {
                     >
                       <ChevronLeft size={20} />
                     </button>
-                    <div className="text-center">
-                      <div className="text-sm font-semibold">{formatDisplayDate(selectedDate)}</div>
-                      <div className="text-[10px] text-zinc-500 uppercase tracking-widest">Selected Entry</div>
+                    
+                    <div className="text-center relative group">
+                      <input 
+                        type="date" 
+                        className="absolute inset-0 opacity-0 cursor-pointer z-10" 
+                        value={selectedDate}
+                        onChange={(e) => setSelectedDate(e.target.value)}
+                      />
+                      <h2 className="text-lg font-bold text-white tracking-tight group-hover:text-indigo-400 transition-colors">
+                        {formatDisplayDate(selectedDate)}
+                      </h2>
+                      <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">
+                        {selectedDate === getTodayDate() ? 'TODAY' : 'HISTORICAL LOG'}
+                      </p>
                     </div>
+
                     <button 
                       onClick={() => changeDate(1)}
                       className="p-2 hover:bg-zinc-800 rounded-full transition-colors text-zinc-400"
@@ -1333,7 +1352,12 @@ export default function App() {
               </section>
 
               <React.Suspense fallback={<div className="p-4 text-center text-zinc-500 text-xs">Loading Importer...</div>}>
-                <DataImporter user={user} onImportComplete={() => {}} />
+                <DataImporter 
+                  user={user} 
+                  onImportComplete={() => {
+                    setToast({ message: 'Data imported and synced successfully', type: 'success' });
+                  }} 
+                />
               </React.Suspense>
 
               <div className="flex gap-4">

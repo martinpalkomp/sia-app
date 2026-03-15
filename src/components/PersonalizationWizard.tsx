@@ -21,6 +21,7 @@ import { User } from 'firebase/auth';
 import { db } from '../lib/firebase';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { PersonalizationProfile } from '../types';
+import EthicalDataPledge from './EthicalDataPledge';
 
 interface PersonalizationWizardProps {
   user: User;
@@ -74,11 +75,12 @@ export default function PersonalizationWizard({ user, onComplete, onClose }: Per
         avgSleepingHR: 60,
       },
       notes: '',
-    }
+    },
+    allowsAnonymizedSharing: true
   });
   const [isSaving, setIsSaving] = useState(false);
 
-  const totalSteps = 4;
+  const totalSteps = 5;
 
   const handleGoalToggle = (goalId: string) => {
     setData(prev => ({
@@ -473,6 +475,32 @@ export default function PersonalizationWizard({ user, onComplete, onClose }: Per
                       placeholder="Paste findings from your sleep report here..."
                       className="w-full bg-zinc-900 border border-zinc-800 rounded-2xl p-4 text-sm text-white h-24 resize-none focus:border-indigo-500 outline-none transition-colors"
                     />
+                  </div>
+                </motion.div>
+              )}
+
+              {step === 4 && (
+                <motion.div
+                  key="step-pledge"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  className="space-y-6"
+                >
+                  <div className="space-y-2">
+                    <h3 className="text-lg font-bold text-white">Ethical Data Contribution</h3>
+                    <p className="text-sm text-zinc-400">Help us advance sleep science while keeping SIA free for everyone.</p>
+                  </div>
+
+                  <EthicalDataPledge 
+                    agreed={!!data.allowsAnonymizedSharing}
+                    onToggle={(val) => setData(prev => ({ ...prev, allowsAnonymizedSharing: val }))}
+                  />
+
+                  <div className="p-4 bg-zinc-900/50 border border-zinc-800 rounded-2xl">
+                    <p className="text-[11px] text-zinc-500 leading-relaxed italic">
+                      * By contributing anonymized data, you are helping fund the research that powers our AI models. This allows us to offer advanced sleep analysis at no cost to our basic users.
+                    </p>
                   </div>
                 </motion.div>
               )}

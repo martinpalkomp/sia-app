@@ -154,16 +154,23 @@ export default function AIInsightsAgent({ logs, user, personalizationProfile, is
       const historicalLogs: any[] = [];
       logsSnap.forEach(doc => {
         const data = doc.data() as DailyLog;
-        // Condensed JSON format for efficiency
+        // Condensed JSON format for efficiency - ensure no circular refs or complex objects
         historicalLogs.push({
-          d: data.date,
-          dur: data.timeline ? (data.timeline.filter(s => s === 'sleep').length * 0.25) : (data.summaryMetrics?.importedDuration || 0),
-          q: data.sleepQuality,
-          r: data.restedness,
-          txt: data.remarks?.substring(0, 50) // Keep remarks short
+          d: String(data.date || ''),
+          dur: Number(data.timeline ? (data.timeline.filter(s => s === 'sleep').length * 0.25) : (data.summaryMetrics?.importedDuration || 0)),
+          q: Number(data.sleepQuality ?? 5),
+          r: Number(data.restedness ?? 5),
+          txt: String(data.remarks || '').substring(0, 50) // Keep remarks short
         });
       });
+      
       const profile = profileSnap.exists() ? profileSnap.data() : personalizationProfile;
+      
+      // Clean stringification for context
+      const profileContext = profile ? JSON.stringify(profile) : "No personalization profile set yet.";
+      const logsContext = historicalLogs.length > 0 
+        ? JSON.stringify(historicalLogs) 
+        : "User has no sleep logs for this period. Greet them and encourage them to start logging or importing data.";
 
       const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
       
@@ -173,8 +180,8 @@ export default function AIInsightsAgent({ logs, user, personalizationProfile, is
         Always use bolding for metrics, bullet points for advice, and never return a wall of unformatted text.
         
         USER CONTEXT:
-        - Personalization Profile: ${profile ? JSON.stringify(profile) : "No personalization profile set yet."}
-        - Historical Sleep Logs (${daysCount} days): ${JSON.stringify(historicalLogs)}
+        - Personalization Profile: ${profileContext}
+        - Historical Sleep Logs (${daysCount} days): ${logsContext}
         
         INSTRUCTIONS:
         1. Use the provided data to find correlations, patterns, and triggers.
@@ -190,7 +197,12 @@ export default function AIInsightsAgent({ logs, user, personalizationProfile, is
         - Use data-backed observations (e.g., "On **80%** of your best nights...").
       `;
 
-      const response = await ai.models.generateContent({
+      // 15-second timeout guard
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('TIMEOUT')), 15000)
+      );
+
+      const apiCallPromise = ai.models.generateContent({
         model: "gemini-3-flash-preview",
         contents: [
           { role: "user", parts: [{ text: text }] }
@@ -199,6 +211,8 @@ export default function AIInsightsAgent({ logs, user, personalizationProfile, is
           systemInstruction: systemInstruction
         }
       });
+
+      const response = await Promise.race([apiCallPromise, timeoutPromise]) as any;
 
       const assistantMessage: Message = { 
         role: 'assistant', 
@@ -210,17 +224,24 @@ export default function AIInsightsAgent({ logs, user, personalizationProfile, is
         ...assistantMessage,
       });
     } catch (error: any) {
+      setIsAnalyzing(false);
+      setIsLoading(false);
+      setIsTyping(false);
+
       console.error("AI Error:", error);
       let friendlyMessage = "I encountered an error while analyzing your data. Please check your connection and try again.";
       
-      // Handle specific error codes if possible
-      const errorStr = String(error);
-      if (errorStr.includes('429')) {
-        friendlyMessage = "SIA is currently resting (Rate Limit). Please try again in a moment.";
-      } else if (errorStr.includes('400')) {
-        friendlyMessage = "I had trouble understanding that request. Could you try rephrasing it?";
-      } else if (errorStr.includes('500')) {
-        friendlyMessage = "My analytical systems are temporarily offline. Please try again later.";
+      if (error.message === 'TIMEOUT') {
+        friendlyMessage = "SIA is taking longer than usual. Please try a shorter question.";
+      } else {
+        const errorStr = String(error);
+        if (errorStr.includes('429')) {
+          friendlyMessage = "SIA is currently resting (Rate Limit). Please try again in a moment.";
+        } else if (errorStr.includes('400')) {
+          friendlyMessage = "I had trouble understanding that request. Could you try rephrasing it?";
+        } else if (errorStr.includes('500')) {
+          friendlyMessage = "My analytical systems are temporarily offline. Please try again later.";
+        }
       }
 
       setErrorMsg(friendlyMessage);

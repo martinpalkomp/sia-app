@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
+import { parse, format, isValid } from 'date-fns';
 import { 
   Upload, 
   FileText, 
@@ -135,7 +136,7 @@ export default function DataImporter({ user, onImportComplete }: DataImporterPro
           }
         });
 
-        const date = mappedRow.Date;
+        let date = mappedRow.Date;
         const start = mappedRow.Start_Time;
         const end = mappedRow.End_Time;
         const status = mappedRow.Status_Code;
@@ -150,10 +151,34 @@ export default function DataImporter({ user, onImportComplete }: DataImporterPro
           return false;
         }
 
-        if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-          skippedRows.push(`Row ${idx + 1}: Invalid date format (${date})`);
+        // Robust Date Parsing
+        let parsedDate: Date | null = null;
+        const dateStr = date.toString().trim();
+        
+        // Try YYYY-MM-DD
+        if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+          parsedDate = parse(dateStr, 'yyyy-MM-dd', new Date());
+        } 
+        // Try MM/DD/YYYY
+        else if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(dateStr)) {
+          parsedDate = parse(dateStr, 'M/d/yyyy', new Date());
+        }
+        // Try DD.MM.YYYY
+        else if (/^\d{1,2}\.\d{1,2}\.\d{4}$/.test(dateStr)) {
+          parsedDate = parse(dateStr, 'd.M.yyyy', new Date());
+        }
+        // Fallback to native Date if XLSX already parsed it
+        else if (date instanceof Date) {
+          parsedDate = date;
+        }
+
+        if (!parsedDate || !isValid(parsedDate)) {
+          skippedRows.push(`Row ${idx + 1}: Invalid date format (${dateStr})`);
           return false;
         }
+
+        const formattedDate = format(parsedDate, 'yyyy-MM-dd');
+        mappedRow.Date = formattedDate;
 
         // Attach mapped row for later processing
         (row as any)._mapped = mappedRow;
@@ -200,8 +225,15 @@ export default function DataImporter({ user, onImportComplete }: DataImporterPro
         const statusVal = row.Status_Code?.toString().toUpperCase();
         
         let state: SleepState = 'awake-out';
-        if (statusVal === '1' || statusVal.includes('SLEEP')) state = 'sleep';
-        else if (statusVal === '2' || statusVal.includes('AWAKE')) state = 'awake-in';
+        const statusStr = statusVal.toString().toUpperCase();
+        
+        if (statusStr === '1' || statusStr.includes('SLEEP')) {
+          state = 'sleep';
+        } else if (statusStr === '2' || statusStr.includes('AWAKE IN') || statusStr === 'AWAKE') {
+          state = 'awake-in';
+        } else if (statusStr === '0' || statusStr.includes('AWAKE OUT')) {
+          state = 'awake-out';
+        }
 
         if (!logsToSave[date]) {
           logsToSave[date] = defaultLog(date);

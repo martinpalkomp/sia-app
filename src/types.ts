@@ -60,6 +60,7 @@ export interface PersonalizationProfile {
     };
     notes: string;
   };
+  allowsAnonymizedSharing?: boolean;
   updatedAt?: any;
 }
 

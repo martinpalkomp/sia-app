@@ -296,7 +296,7 @@ export default function Dashboard({
         <motion.div 
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="relative order-2 md:order-1"
+          className="relative order-1 md:order-1"
         >
           <AvatarFrame 
             src="https://i.imgur.com/MnI5hn3.png" 
@@ -306,7 +306,7 @@ export default function Dashboard({
           />
         </motion.div>
 
-        <div className="space-y-2 order-3 md:order-2 flex-1">
+        <div className="space-y-2 order-2 md:order-2 flex-1">
           <motion.h1 
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -325,15 +325,71 @@ export default function Dashboard({
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
           onClick={() => handleOpenFact(siaFact.id)}
-          className="order-1 md:order-3 flex items-center gap-2 text-clinical-primary text-[10px] font-black uppercase tracking-widest bg-clinical-primary/5 px-3 py-1.5 rounded-full border border-clinical-primary/10 w-fit cursor-pointer hover:bg-clinical-primary/10 transition-colors animate-sia-pulse"
+          className="order-3 md:order-3 flex items-center gap-2 text-clinical-primary text-[10px] font-black uppercase tracking-widest bg-clinical-primary/5 px-3 py-1.5 rounded-full border border-clinical-primary/10 w-fit cursor-pointer hover:bg-clinical-primary/10 transition-colors animate-sia-pulse"
         >
           <Sparkles size={12} />
           <span>SIA Fact: {siaFact.title}</span>
         </motion.div>
       </section>
 
+      {/* Primary Actions & Fact */}
+      <section className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card 
+          onClick={onLogClick}
+          className="bg-indigo-600 border-none hover:bg-indigo-500 flex items-center justify-between group shadow-lg shadow-indigo-600/20"
+        >
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center text-white">
+              <Plus size={24} />
+            </div>
+            <div className="text-left">
+              <p className="text-[10px] font-black text-white/60 uppercase tracking-[0.2em]">Quick Action</p>
+              <p className="text-xl text-white font-black tracking-tight mt-0.5">Log Last Night</p>
+              {correctionsCount > 0 && (
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onViewChange('corrections');
+                  }}
+                  className="mt-2 text-[10px] font-bold text-white uppercase tracking-widest hover:underline bg-white/10 px-2 py-1 rounded-lg border border-white/20"
+                >
+                  FIX MISSING DATA ({correctionsCount})
+                </button>
+              )}
+            </div>
+          </div>
+          <ChevronRight size={24} className="text-white group-hover:translate-x-1 transition-transform" />
+        </Card>
+
+        <Card 
+          onClick={() => handleOpenFact(siaFact.id)}
+          className="flex flex-col justify-between cursor-pointer hover:bg-zinc-800/50 transition-colors group bg-zinc-900 border-zinc-800"
+        >
+          <div className="flex items-start gap-4">
+            <div className="w-10 h-10 bg-indigo-500/10 rounded-xl flex items-center justify-center text-xl border border-indigo-500/20 group-hover:border-indigo-500/40 transition-colors">
+              {siaFact.icon}
+            </div>
+            <div>
+              <p className="metric-title">SIA Fact • {siaFact.category}</p>
+              <h4 className="text-sm font-bold text-white mt-0.5 group-hover:text-indigo-400 transition-colors">{siaFact.title}</h4>
+              <p className="text-xs text-zinc-400 mt-2 leading-relaxed font-medium line-clamp-2">{siaFact.description}</p>
+            </div>
+          </div>
+          <button 
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowAllFacts(true);
+            }}
+            className="mt-4 flex items-center gap-2 text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] hover:text-white transition-colors self-end"
+          >
+            <BookOpen size={14} />
+            View All
+          </button>
+        </Card>
+      </section>
+
       {/* Bento Grid Overview */}
-      <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className={`flex flex-col justify-between hover:border-indigo-500/50 group hover:-translate-y-1 hover:shadow-indigo-500/10 transition-all duration-300 min-h-[160px] animate-sia-pulse ${isEnhanced ? 'bg-gradient-to-br from-zinc-900 to-indigo-950/30 border-indigo-500/10' : ''}`}>
           <div className="flex justify-between items-start">
             <div className="w-10 h-10 bg-indigo-500/10 rounded-xl flex items-center justify-center text-indigo-400 border border-indigo-500/20 aspect-square object-cover">
@@ -470,72 +526,6 @@ export default function Dashboard({
         </section>
       )}
 
-      {/* Secondary Row: SIA Fact & Log Action */}
-      <section className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card 
-          onClick={() => handleOpenFact(siaFact.id)}
-          className="flex flex-col justify-between cursor-pointer hover:bg-zinc-800/50 transition-colors group"
-        >
-          <div className="flex items-start gap-4">
-            <div className="w-10 h-10 bg-zinc-800 rounded-xl flex items-center justify-center text-xl border border-white/5 group-hover:border-indigo-500/30 transition-colors">
-              {siaFact.icon}
-            </div>
-            <div>
-              <p className="metric-title">SIA Fact • {siaFact.category}</p>
-              <h4 className="text-sm font-bold text-white mt-0.5 group-hover:text-indigo-400 transition-colors">{siaFact.title}</h4>
-              <p className="text-xs text-zinc-400 mt-2 leading-relaxed font-medium">{siaFact.description}</p>
-            </div>
-          </div>
-          <button 
-            onClick={(e) => {
-              e.stopPropagation();
-              setShowAllFacts(true);
-            }}
-            className="mt-4 flex items-center gap-2 text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] hover:text-white transition-colors self-end"
-          >
-            <BookOpen size={14} />
-            View All Facts
-          </button>
-        </Card>
-
-        <Card 
-          onClick={onLogClick}
-          className="bg-zinc-900 border-zinc-800 hover:bg-zinc-800 flex items-center justify-between group"
-        >
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-600/20">
-              <Plus size={24} />
-            </div>
-            <div className="text-left">
-              <p className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em]">Action</p>
-              <p className="text-xl text-white font-black tracking-tight mt-0.5">Log Last Night</p>
-              {correctionsCount > 0 && (
-                <div className="flex flex-col gap-2 mt-2">
-                  <button 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onViewChange('corrections');
-                    }}
-                    className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest hover:text-indigo-300 bg-indigo-400/10 px-3 py-1.5 rounded-lg border border-indigo-400/20 transition-all block text-left w-fit"
-                  >
-                    FIX MISSING DATA ({correctionsCount})
-                  </button>
-                  <button 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onViewChange('corrections');
-                    }}
-                    className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest hover:text-zinc-600 underline underline-offset-4 transition-all block text-left"
-                  >
-                    View Correction Hub
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-          <ChevronRight size={24} className="text-zinc-300 group-hover:text-black transition-colors" />
-        </Card>
-      </section>
 
       {/* All Facts Modal */}
       <AnimatePresence>
