@@ -1,4 +1,4 @@
-import { writeBatch, doc, collection, serverTimestamp } from 'firebase/firestore';
+import { writeBatch, doc, collection, serverTimestamp, getDocs, query, limit } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { DailyLog, SleepState } from '../types';
 import { subDays, format } from 'date-fns';
@@ -82,5 +82,28 @@ export const seedTestData = async (userId: string, onComplete?: () => void) => {
   }
 
   await batch.commit();
+  if (onComplete) onComplete();
+};
+
+/**
+ * Purges all user data from sleep_logs, daily_metrics, and unstructured_data.
+ */
+export const purgeUserData = async (userId: string, onComplete?: () => void) => {
+  const collections = ['sleep_logs', 'daily_metrics', 'unstructured_data'];
+  
+  for (const colName of collections) {
+    const colRef = collection(db, 'users', userId, colName);
+    const snapshot = await getDocs(colRef);
+    
+    // Process in batches of 500
+    const docs = snapshot.docs;
+    for (let i = 0; i < docs.length; i += 500) {
+      const batch = writeBatch(db);
+      const chunk = docs.slice(i, i + 500);
+      chunk.forEach(d => batch.delete(d.ref));
+      await batch.commit();
+    }
+  }
+
   if (onComplete) onComplete();
 };

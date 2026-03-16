@@ -1,0 +1,42 @@
+{
+  "entities": {
+    "SleepLog": {
+      "title": "Sleep Log",
+      "description": "A structured sleep log entry for a specific date.",
+      "type": "object",
+      "properties": {
+        "date": { "type": "string", "format": "date" },
+        "timeline": { "type": "array", "items": { "type": "string" } },
+        "sleepQuality": { "type": "integer" },
+        "restedness": { "type": "integer" },
+        "energyLevel": { "type": "integer" },
+        "remarks": { "type": "string" },
+        "source": { "type": "string" }
+      },
+      "required": ["date", "timeline"]
+    },
+    "UnstructuredData": {
+      "title": "Unstructured Data",
+      "description": "Raw text or malformed data uploaded by the user.",
+      "type": "object",
+      "properties": {
+        "fileName": { "type": "string" },
+        "content": { "type": "string" },
+        "uploadDate": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["raw_text"] },
+        "source": { "type": "string" }
+      },
+      "required": ["fileName", "content", "uploadDate", "status"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/sleep_logs/{date}": {
+      "schema": "SleepLog",
+      "description": "Collection of structured sleep logs."
+    },
+    "/users/{userId}/unstructured_data/{docId}": {
+      "schema": "UnstructuredData",
+      "description": "Collection of raw, unstructured data uploads."
+    }
+  }
+}

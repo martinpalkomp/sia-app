@@ -13,12 +13,16 @@ import {
   Target,
   Calendar,
   Globe,
-  Shield
+  Shield,
+  Database,
+  ArrowLeft,
+  Trash2
 } from 'lucide-react';
 import { PersonalizationProfile } from '../types';
 import { Card, AvatarFrame } from './UI';
 import EthicalDataPledge from './EthicalDataPledge';
-import { seedTestData } from '../utils/devTools';
+import { seedTestData, purgeUserData } from '../utils/devTools';
+import DataManager from './DataManager';
 
 interface AccountPageProps {
   user: User;
@@ -28,6 +32,8 @@ interface AccountPageProps {
 }
 
 export default function AccountPage({ user, personalizationProfile, onModifyAssessment, onRefresh }: AccountPageProps) {
+  const [view, setView] = React.useState<'main' | 'data-ledger'>('main');
+
   const handleLogout = async () => {
     try {
       await signOut(auth);
@@ -61,6 +67,38 @@ export default function AccountPage({ user, personalizationProfile, onModifyAsse
       }
     }
   };
+
+  const handlePurgeData = async () => {
+    if (window.confirm("WARNING: This will permanently delete ALL your sleep history and raw data. This cannot be undone. Proceed?")) {
+      try {
+        await purgeUserData(user.uid, onRefresh);
+        alert("Database Cleared. You are starting with a clean slate.");
+      } catch (error) {
+        console.error("Purge error:", error);
+        alert("Failed to purge data.");
+      }
+    }
+  };
+
+  if (view === 'data-ledger') {
+    return (
+      <motion.div
+        initial={{ opacity: 0, x: 20 }}
+        animate={{ opacity: 1, x: 0 }}
+        exit={{ opacity: 0, x: -20 }}
+        className="space-y-6"
+      >
+        <button 
+          onClick={() => setView('main')}
+          className="flex items-center gap-2 text-zinc-500 hover:text-white transition-colors group"
+        >
+          <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
+          <span className="text-xs font-black uppercase tracking-widest">Back to Account</span>
+        </button>
+        <DataManager user={user} onRefresh={onRefresh} />
+      </motion.div>
+    );
+  }
 
   return (
     <motion.div 
@@ -168,6 +206,22 @@ export default function AccountPage({ user, personalizationProfile, onModifyAsse
       {/* Actions */}
       <div className="flex flex-col gap-3">
         <button 
+          onClick={() => setView('data-ledger')}
+          className="w-full p-4 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-2xl flex items-center justify-between group transition-all"
+        >
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 rounded-xl bg-zinc-800 flex items-center justify-center text-zinc-400 group-hover:text-clinical-primary transition-colors">
+              <Database size={20} />
+            </div>
+            <div className="text-left">
+              <div className="text-sm font-black text-white">Data Ledger</div>
+              <div className="text-[10px] text-zinc-500 uppercase tracking-widest">Manage your imported files and logs</div>
+            </div>
+          </div>
+          <ChevronRight size={20} className="text-zinc-700 group-hover:text-white transition-colors" />
+        </button>
+
+        <button 
           onClick={onModifyAssessment}
           className="w-full p-4 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-2xl flex items-center justify-between group transition-all"
         >
@@ -201,17 +255,26 @@ export default function AccountPage({ user, personalizationProfile, onModifyAsse
       </div>
 
       {/* Developer Tools */}
-      {import.meta.env.DEV && (
+      {(import.meta.env.DEV || user.email === 'martinpalko.mp@gmail.com') && (
         <div className="pt-8 border-t border-zinc-800">
           <div className="mb-4">
             <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 ml-1">Developer Tools</h3>
           </div>
-          <button 
-            onClick={handleSeedData}
-            className="w-full p-4 bg-indigo-600/10 hover:bg-indigo-600/20 border border-indigo-500/30 rounded-2xl flex items-center justify-center gap-3 group transition-all"
-          >
-            <span className="text-sm font-black text-indigo-400 uppercase tracking-widest">🚀 SEED 60 DAYS OF DATA</span>
-          </button>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <button 
+              onClick={handleSeedData}
+              className="w-full p-4 bg-indigo-600/10 hover:bg-indigo-600/20 border border-indigo-500/30 rounded-2xl flex items-center justify-center gap-3 group transition-all"
+            >
+              <span className="text-sm font-black text-indigo-400 uppercase tracking-widest">🚀 SEED DATA</span>
+            </button>
+            <button 
+              onClick={handlePurgeData}
+              className="w-full p-4 bg-red-600/10 hover:bg-red-600/20 border border-red-500/30 rounded-2xl flex items-center justify-center gap-3 group transition-all"
+            >
+              <Trash2 size={18} className="text-red-400" />
+              <span className="text-sm font-black text-red-400 uppercase tracking-widest">PURGE ALL DATA</span>
+            </button>
+          </div>
         </div>
       )}
     </motion.div>

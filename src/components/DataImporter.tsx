@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { User } from 'firebase/auth';
-import { writeBatch, doc, serverTimestamp, getDoc } from 'firebase/firestore';
+import { writeBatch, doc, serverTimestamp, getDoc, runTransaction, addDoc, collection } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { DailyLog, SleepState } from '../types';
 import { TOTAL_SLOTS } from '../constants';
@@ -26,11 +26,13 @@ interface DataImporterProps {
   user: User;
   onImportComplete: () => void;
   onRefresh?: () => void;
+  isImporting?: boolean;
+  setIsImporting?: (val: boolean) => void;
 }
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
-export default function DataImporter({ user, onImportComplete, onRefresh }: DataImporterProps) {
+export default function DataImporter({ user, onImportComplete, onRefresh, isImporting, setIsImporting }: DataImporterProps) {
   const [isCollapsed, setIsCollapsed] = useState(true);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isPasteOpen, setIsPasteOpen] = useState(false);
@@ -38,12 +40,32 @@ export default function DataImporter({ user, onImportComplete, onRefresh }: Data
   const [isUploading, setIsUploading] = useState(false);
   const [processedCount, setProcessedCount] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
-  const [uploadStatus, setUploadStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [uploadStatus, setUploadStatus] = useState<'idle' | 'success' | 'error' | 'unstructured'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
   const [showConflictModal, setShowConflictModal] = useState(false);
   const [pendingData, setPendingData] = useState<any[] | null>(null);
   const [cleaningReport, setCleaningReport] = useState<{ skipped: number; cleaned: number; metrics: string[] } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const saveUnstructuredData = async (content: string, fileName: string) => {
+    try {
+      await addDoc(collection(db, 'users', user.uid, 'unstructured_data'), {
+        fileName,
+        content,
+        uploadDate: new Date().toISOString(),
+        status: 'raw_text',
+        source: 'import',
+        updatedAt: serverTimestamp()
+      });
+      setUploadStatus('unstructured');
+      setErrorMessage("This data format doesn't fit the sleep grid, so you won't see indigo bars. However, SIA has indexed this text and will use it for your AI Analysis.");
+      if (onImportComplete) onImportComplete();
+    } catch (error: any) {
+      console.error("Failed to save unstructured data:", error);
+      setUploadStatus('error');
+      setErrorMessage("Failed to save raw data.");
+    }
+  };
 
   const fuzzyMapHeader = (header: string): string | null => {
     const h = header.toLowerCase().trim();
@@ -84,13 +106,13 @@ export default function DataImporter({ user, onImportComplete, onRefresh }: Data
       return false;
     }
 
-    const allowedExtensions = ['.csv', '.xls', '.xlsx'];
+    const allowedExtensions = ['.csv', '.xls', '.xlsx', '.txt'];
     const fileName = file.name.toLowerCase();
     const isValidExtension = allowedExtensions.some(ext => fileName.endsWith(ext));
 
     if (!isValidExtension) {
       setUploadStatus('error');
-      setErrorMessage("Invalid file type. Only .csv, .xls, and .xlsx are accepted.");
+      setErrorMessage("Invalid file type. Only .csv, .xls, .xlsx, and .txt are accepted.");
       return false;
     }
 
@@ -115,6 +137,7 @@ export default function DataImporter({ user, onImportComplete, onRefresh }: Data
     setUploadStatus('idle');
     setErrorMessage('');
     setCleaningReport(null);
+    if (setIsImporting) setIsImporting(true);
     
     try {
       const cleanedData = cleanData(data);
@@ -188,7 +211,10 @@ export default function DataImporter({ user, onImportComplete, onRefresh }: Data
       });
 
       if (validRows.length === 0) {
-        throw new Error("No valid data found after sanitization.");
+        // Path B: Save as unstructured data if no valid rows found in CSV/XLS
+        const rawContent = JSON.stringify(data.slice(0, 100)); // Sample content
+        await saveUnstructuredData(rawContent, "Malformed_Import_" + format(new Date(), 'yyyyMMdd_HHmm') + ".txt");
+        return;
       }
 
       setTotalCount(validRows.length);
@@ -299,30 +325,41 @@ export default function DataImporter({ user, onImportComplete, onRefresh }: Data
         cleanedCount++;
       }
 
-      // 4. Batch Write to sleep_logs and daily_metrics
-      const batch = writeBatch(db);
-      const logEntries = Object.entries(logsToSave);
-      for (const [date, log] of logEntries) {
-        // Write to sleep_logs
-        const logRef = doc(db, 'users', user.uid, 'sleep_logs', date);
-        batch.set(logRef, {
-          ...log,
-          updatedAt: serverTimestamp(),
-        }, { merge: true });
+      // Pre-flight Check: 500ms delay to let listeners settle
+      await new Promise(resolve => setTimeout(resolve, 500));
 
-        // Write to daily_metrics
-        const metricsRef = doc(db, 'users', user.uid, 'daily_metrics', date);
-        batch.set(metricsRef, {
-          date,
-          sleep_quality: log.sleep_quality || log.sleepQuality,
-          morning_alertness: log.morning_alertness || log.restedness,
-          daytime_energy: log.daytime_energy || log.energyLevel,
-          daily_remarks: log.daily_remarks || log.remarks,
-          source: 'import',
-          updatedAt: serverTimestamp(),
-        }, { merge: true });
+      // 4. Chunked Transaction Writes (10 days per batch)
+      const logEntries = Object.entries(logsToSave);
+      const chunkSize = 10;
+      
+      for (let i = 0; i < logEntries.length; i += chunkSize) {
+        const chunk = logEntries.slice(i, i + chunkSize);
+        
+        await runTransaction(db, async (transaction) => {
+          for (const [date, log] of chunk) {
+            // Write to sleep_logs
+            const logRef = doc(db, 'users', user.uid, 'sleep_logs', date);
+            transaction.set(logRef, {
+              ...log,
+              updatedAt: serverTimestamp(),
+            }, { merge: true });
+
+            // Write to daily_metrics
+            const metricsRef = doc(db, 'users', user.uid, 'daily_metrics', date);
+            transaction.set(metricsRef, {
+              date,
+              sleep_quality: log.sleep_quality || log.sleepQuality,
+              morning_alertness: log.morning_alertness || log.restedness,
+              daytime_energy: log.daytime_energy || log.energyLevel,
+              daily_remarks: log.daily_remarks || log.remarks,
+              source: 'import',
+              updatedAt: serverTimestamp(),
+            }, { merge: true });
+          }
+        });
+        
+        setProcessedCount(Math.min(i + chunkSize, logEntries.length));
       }
-      await batch.commit();
 
       setCleaningReport({ 
         skipped: skippedRows.length, 
@@ -343,6 +380,7 @@ export default function DataImporter({ user, onImportComplete, onRefresh }: Data
       setErrorMessage(error.message || "An unexpected error occurred.");
     } finally {
       setIsUploading(false);
+      if (setIsImporting) setIsImporting(false);
     }
   };
 
@@ -437,7 +475,10 @@ export default function DataImporter({ user, onImportComplete, onRefresh }: Data
       const fileName = selectedFile.name.toLowerCase();
       let data: any[] = [];
 
-      if (fileName.endsWith('.csv')) {
+      if (fileName.endsWith('.txt')) {
+        const content = await selectedFile.text();
+        await saveUnstructuredData(content, selectedFile.name);
+      } else if (fileName.endsWith('.csv')) {
         data = await new Promise((resolve, reject) => {
           Papa.parse(selectedFile, {
             header: true,
@@ -446,6 +487,7 @@ export default function DataImporter({ user, onImportComplete, onRefresh }: Data
             error: (error) => reject(error)
           });
         });
+        await processImportedData(data);
       } else {
         data = await new Promise((resolve, reject) => {
           const reader = new FileReader();
@@ -461,9 +503,8 @@ export default function DataImporter({ user, onImportComplete, onRefresh }: Data
           reader.onerror = (err) => reject(err);
           reader.readAsArrayBuffer(selectedFile);
         });
+        await processImportedData(data);
       }
-
-      await processImportedData(data);
     } catch (error: any) {
       console.error("Upload Submit Error:", error);
       setUploadStatus('error');
@@ -680,7 +721,21 @@ export default function DataImporter({ user, onImportComplete, onRefresh }: Data
                 )}
 
                 <AnimatePresence>
-                  {uploadStatus === 'success' && (
+                  {uploadStatus === 'unstructured' && (
+                  <motion.div 
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    className="p-4 bg-indigo-500/10 border border-indigo-500/30 rounded-2xl flex items-start gap-3"
+                  >
+                    <FileText className="text-indigo-400 mt-0.5 flex-shrink-0" size={18} />
+                    <div className="space-y-1">
+                      <p className="text-xs font-bold text-indigo-300 uppercase tracking-widest">Raw Insight Indexed</p>
+                      <p className="text-[11px] text-indigo-200 leading-relaxed">{errorMessage}</p>
+                    </div>
+                  </motion.div>
+                )}
+
+                {uploadStatus === 'success' && (
                     <motion.div 
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}

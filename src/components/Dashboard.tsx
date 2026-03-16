@@ -13,7 +13,8 @@ import {
   BookOpen,
   Brain,
   Sparkles,
-  Loader2
+  Loader2,
+  Settings
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { DailyLog } from '../types';
@@ -136,6 +137,7 @@ export default function Dashboard({
     return {
       avgSq: calculateSafeAverage(periodLogs, 'sleepQuality').average.toFixed(1),
       avgR: calculateSafeAverage(periodLogs, 'restedness').average.toFixed(1),
+      avgL: calculateSafeAverage(periodLogs, 'energyLevel').average.toFixed(1),
       avgDuration: formatDuration(calculateSafeAverage(periodLogs, 'sleepDuration').average),
       avgEfficiency: calculateSafeAverage(periodLogs, 'efficiency').average.toFixed(1)
     };
@@ -344,77 +346,10 @@ export default function Dashboard({
             <p className="text-zinc-500 text-sm font-medium">I've analyzed your sleep intelligence for the last 7 days.</p>
           </div>
         </div>
-
-        <motion.div 
-          initial={{ opacity: 0, y: 5 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          onClick={() => handleOpenFact(siaFact.id)}
-          className="order-3 md:order-3 flex items-center gap-2 text-clinical-primary text-[10px] font-black uppercase tracking-widest bg-clinical-primary/5 px-3 py-1.5 rounded-full border border-clinical-primary/10 w-fit cursor-pointer hover:bg-clinical-primary/10 transition-colors animate-sia-pulse"
-        >
-          <Sparkles size={12} />
-          <span>SIA Fact: {siaFact.title}</span>
-        </motion.div>
       </section>
 
-      {/* Primary Actions & Fact */}
-      <section className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card 
-          onClick={onLogClick}
-          className="bg-indigo-600 border-none hover:bg-indigo-500 flex items-center justify-between group shadow-lg shadow-indigo-600/20"
-        >
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center text-white">
-              <Plus size={24} />
-            </div>
-            <div className="text-left">
-              <p className="text-[10px] font-black text-white/60 uppercase tracking-[0.2em]">Quick Action</p>
-              <p className="text-xl text-white font-black tracking-tight mt-0.5">Log Last Night</p>
-              {correctionsCount > 0 && (
-                <button 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onViewChange('corrections');
-                  }}
-                  className="mt-2 text-[10px] font-bold text-white uppercase tracking-widest hover:underline bg-white/10 px-2 py-1 rounded-lg border border-white/20"
-                >
-                  FIX MISSING DATA ({correctionsCount})
-                </button>
-              )}
-            </div>
-          </div>
-          <ChevronRight size={24} className="text-white group-hover:translate-x-1 transition-transform" />
-        </Card>
-
-        <Card 
-          onClick={() => handleOpenFact(siaFact.id)}
-          className="flex flex-col justify-between cursor-pointer hover:bg-zinc-800/50 transition-colors group bg-zinc-900 border-zinc-800"
-        >
-          <div className="flex items-start gap-4">
-            <div className="w-10 h-10 bg-indigo-500/10 rounded-xl flex items-center justify-center text-xl border border-indigo-500/20 group-hover:border-indigo-500/40 transition-colors">
-              {siaFact.icon}
-            </div>
-            <div>
-              <p className="metric-title">SIA Fact • {siaFact.category}</p>
-              <h4 className="text-sm font-bold text-white mt-0.5 group-hover:text-indigo-400 transition-colors">{siaFact.title}</h4>
-              <p className="text-xs text-zinc-400 mt-2 leading-relaxed font-medium line-clamp-2">{siaFact.description}</p>
-            </div>
-          </div>
-          <button 
-            onClick={(e) => {
-              e.stopPropagation();
-              setShowAllFacts(true);
-            }}
-            className="mt-4 flex items-center gap-2 text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] hover:text-white transition-colors self-end"
-          >
-            <BookOpen size={14} />
-            View All
-          </button>
-        </Card>
-      </section>
-
-      {/* Bento Grid Overview */}
-      <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Section 1: The Vital Signs (Metrics) */}
+      <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className={`flex flex-col justify-between hover:border-indigo-500/50 group hover:-translate-y-1 hover:shadow-indigo-500/10 transition-all duration-300 min-h-[160px] animate-sia-pulse ${isEnhanced ? 'bg-gradient-to-br from-zinc-900 to-indigo-950/30 border-indigo-500/10' : ''}`}>
           <div className="flex justify-between items-start">
             <div className="w-10 h-10 bg-indigo-500/10 rounded-xl flex items-center justify-center text-indigo-400 border border-indigo-500/20 aspect-square object-cover">
@@ -423,8 +358,23 @@ export default function Dashboard({
             <TrendingUp size={16} className="text-zinc-700 group-hover:text-indigo-400 transition-colors" />
           </div>
           <MetricDisplay 
-            title="Avg Quality" 
+            title="Avg Quality (SQ)" 
             value={stats?.avgSq || '--'} 
+            unit="/10" 
+            className="mt-8 text-left"
+          />
+        </Card>
+
+        <Card className={`flex flex-col justify-between hover:border-amber-500/50 group hover:-translate-y-1 hover:shadow-amber-500/10 transition-all duration-300 min-h-[160px] animate-sia-pulse ${isEnhanced ? 'bg-gradient-to-br from-zinc-900 to-amber-950/20 border-amber-500/10' : ''}`}>
+          <div className="flex justify-between items-start">
+            <div className="w-10 h-10 bg-amber-500/10 rounded-xl flex items-center justify-center text-amber-400 border border-amber-500/20 aspect-square object-cover">
+              <Moon size={20} />
+            </div>
+            <TrendingUp size={16} className="text-zinc-700 group-hover:text-amber-400 transition-colors" />
+          </div>
+          <MetricDisplay 
+            title="Restedness (R)" 
+            value={stats?.avgR || '--'} 
             unit="/10" 
             className="mt-8 text-left"
           />
@@ -433,56 +383,27 @@ export default function Dashboard({
         <Card className={`flex flex-col justify-between hover:border-emerald-500/50 group hover:-translate-y-1 hover:shadow-emerald-500/10 transition-all duration-300 min-h-[160px] animate-sia-pulse ${isEnhanced ? 'bg-gradient-to-br from-zinc-900 to-emerald-950/20 border-emerald-500/10' : ''}`}>
           <div className="flex justify-between items-start">
             <div className="w-10 h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center text-emerald-400 border border-emerald-500/20 aspect-square object-cover">
-              <Clock size={20} />
+              <Zap size={20} />
             </div>
             <TrendingUp size={16} className="text-zinc-700 group-hover:text-emerald-400 transition-colors" />
           </div>
           <MetricDisplay 
-            title="Avg Duration" 
-            value={stats?.avgDuration || '--'} 
-            className="mt-8 text-left"
-          />
-        </Card>
-
-        <Card className={`flex flex-col justify-between hover:border-purple-500/50 group hover:-translate-y-1 hover:shadow-purple-500/10 transition-all duration-300 min-h-[160px] animate-sia-pulse ${isEnhanced ? 'bg-gradient-to-br from-zinc-900 to-purple-950/20 border-purple-500/10' : ''}`}>
-          <div className="flex justify-between items-start">
-            <div className="w-10 h-10 bg-purple-500/10 rounded-xl flex items-center justify-center text-purple-400 border border-purple-500/20 aspect-square object-cover">
-              <Zap size={20} />
-            </div>
-            <TrendingUp size={16} className="text-zinc-700 group-hover:text-purple-400 transition-colors" />
-          </div>
-          <MetricDisplay 
-            title="Avg Efficiency" 
-            value={stats?.avgEfficiency || '--'} 
-            unit="%" 
-            className="mt-8 text-left"
-          />
-        </Card>
-
-        <Card className={`flex flex-col justify-between hover:border-amber-500/50 group hover:-translate-y-1 hover:shadow-amber-500/10 transition-all duration-300 min-h-[160px] animate-sia-pulse ${isEnhanced ? 'bg-gradient-to-br from-zinc-900 to-amber-950/20 border-amber-500/10' : ''}`}>
-          <div className="flex justify-between items-start">
-            <div className="w-10 h-10 bg-amber-500/10 rounded-xl flex items-center justify-center text-amber-400 border border-amber-500/20 aspect-square object-cover">
-              <Sun size={20} />
-            </div>
-            <TrendingUp size={16} className="text-zinc-700 group-hover:text-amber-400 transition-colors" />
-          </div>
-          <MetricDisplay 
-            title="Morning Readiness" 
-            value={stats?.avgR || '--'} 
+            title="Energy Level (L)" 
+            value={stats?.avgL || '--'} 
             unit="/10" 
             className="mt-8 text-left"
           />
         </Card>
       </section>
 
-      {/* AI Insight Strip */}
+      {/* Section 2: SIA Quick Insight */}
       <section>
         <Card 
-          className="bg-indigo-600/10 border-indigo-500/20 relative overflow-hidden group hover:bg-indigo-600/15" 
+          className="bg-indigo-600/20 border-indigo-500/30 relative overflow-hidden group hover:bg-indigo-600/25 cursor-pointer" 
           onClick={() => onViewChange('ai')}
         >
           <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:opacity-20 transition-opacity">
-            <Zap size={80} className="text-indigo-400" />
+            <Brain size={80} className="text-indigo-400" />
           </div>
           <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-center gap-4">
@@ -494,7 +415,7 @@ export default function Dashboard({
               />
               <div>
                 <h3 className="text-[10px] font-black text-indigo-300 uppercase tracking-[0.2em]">
-                  {isDeepAnalysis ? "SIA Deep Intelligence" : "SIA Quick Insight"}
+                  {isDeepAnalysis ? "SIA Deep Intelligence" : "SIA Voice"}
                 </h3>
                 <p className="text-white font-bold mt-1 leading-tight">
                   {isAiLoading ? (isDeepAnalysis ? "Analyzing long-term trends..." : "Scanning recent logs...") : (aiInsight || "Log more nights to unlock my personalized insights.")}
@@ -520,36 +441,158 @@ export default function Dashboard({
         </Card>
       </section>
 
-      {/* Sleep Guide Card */}
-      <section>
-        <SleepGuideCard onClick={onOpenSleepGuide} />
+      {/* Section 3: Engagement & Actions */}
+      <section className="space-y-6">
+        <Card 
+          onClick={() => handleOpenFact(siaFact.id)}
+          className="flex flex-col justify-between cursor-pointer hover:bg-zinc-800/50 transition-colors group bg-zinc-900 border-zinc-800"
+        >
+          <div className="flex items-start gap-4">
+            <div className="w-10 h-10 bg-indigo-500/10 rounded-xl flex items-center justify-center text-xl border border-indigo-500/20 group-hover:border-indigo-500/40 transition-colors">
+              {siaFact.icon}
+            </div>
+            <div>
+              <p className="metric-title">SIA Fact of the Day • {siaFact.category}</p>
+              <h4 className="text-sm font-bold text-white mt-0.5 group-hover:text-indigo-400 transition-colors">{siaFact.title}</h4>
+              <p className="text-xs text-zinc-400 mt-2 leading-relaxed font-medium line-clamp-2">{siaFact.description}</p>
+            </div>
+          </div>
+          <button 
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowAllFacts(true);
+            }}
+            className="mt-4 flex items-center gap-2 text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] hover:text-white transition-colors self-end"
+          >
+            <BookOpen size={14} />
+            View All Facts
+          </button>
+        </Card>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Card 
+            onClick={onLogClick}
+            className="bg-indigo-600 border-none hover:bg-indigo-500 flex items-center justify-between group shadow-lg shadow-indigo-600/20"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center text-white">
+                <Plus size={24} />
+              </div>
+              <div className="text-left">
+                <p className="text-[10px] font-black text-white/60 uppercase tracking-[0.2em]">Quick Action</p>
+                <p className="text-xl text-white font-black tracking-tight mt-0.5">Log Last Night</p>
+                {correctionsCount > 0 && (
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onViewChange('corrections');
+                    }}
+                    className="mt-2 text-[10px] font-bold text-white uppercase tracking-widest hover:underline bg-white/10 px-2 py-1 rounded-lg border border-white/20"
+                  >
+                    FIX MISSING DATA ({correctionsCount})
+                  </button>
+                )}
+              </div>
+            </div>
+            <ChevronRight size={24} className="text-white group-hover:translate-x-1 transition-transform" />
+          </Card>
+
+          <Card 
+            onClick={() => onViewChange('ai')}
+            className="bg-zinc-900 border-zinc-800 hover:bg-zinc-800 flex items-center justify-between group"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-zinc-800 rounded-xl flex items-center justify-center text-zinc-400 group-hover:text-indigo-400 transition-colors">
+                <Sparkles size={24} />
+              </div>
+              <div className="text-left">
+                <p className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em]">Deep Dive</p>
+                <p className="text-xl text-white font-black tracking-tight mt-0.5">AI Analysis</p>
+              </div>
+            </div>
+            <ChevronRight size={24} className="text-zinc-500 group-hover:text-white group-hover:translate-x-1 transition-transform" />
+          </Card>
+        </div>
       </section>
 
-      {/* Personalization Level Up Card */}
-      {!personalizationProfile && (
-        <section>
-          <Card 
-            className="bg-gradient-to-r from-indigo-600 to-violet-600 border-none relative overflow-hidden group cursor-pointer"
-            onClick={onOpenPersonalization}
-          >
-            <div className="absolute top-0 right-0 p-8 opacity-20 group-hover:scale-110 transition-transform">
-              <Sparkles size={100} className="text-white" />
-            </div>
-            <div className="relative z-10 flex items-center gap-6">
-              <div className="w-16 h-16 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center text-white shadow-xl">
-                <Brain size={32} />
+      {/* Section 4: The Growth Hub */}
+      <section className="space-y-6 pt-6 border-t border-zinc-800">
+        <div className="flex items-center justify-between">
+          <h3 className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em]">Growth Hub</h3>
+        </div>
+        
+        <div className="grid grid-cols-1 gap-6">
+          <SleepGuideCard onClick={onOpenSleepGuide} />
+          
+          {!personalizationProfile && (
+            <Card 
+              className="bg-gradient-to-r from-indigo-600 to-violet-600 border-none relative overflow-hidden group cursor-pointer p-0"
+              onClick={onOpenPersonalization}
+            >
+              <div className="absolute top-0 right-0 p-12 opacity-10 group-hover:opacity-20 transition-opacity pointer-events-none">
+                <Brain size={120} className="text-white rotate-12" />
               </div>
-              <div>
-                <h3 className="text-xl font-black text-white tracking-tight">Unlock Deep Sleep Intelligence</h3>
-                <p className="text-white/80 text-sm font-medium mt-1">Personalize SIA with your goals and clinical data for better insights.</p>
-                <div className="flex items-center gap-2 text-[10px] font-black text-white uppercase tracking-[0.2em] mt-4 bg-white/10 w-fit px-3 py-1.5 rounded-lg border border-white/20">
-                  Level Up Now <ChevronRight size={14} />
+              
+              <div className="relative z-10 p-8 flex flex-col md:flex-row md:items-center justify-between gap-8">
+                <div className="flex items-start gap-6">
+                  <div className="w-16 h-16 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center text-white shadow-xl group-hover:scale-110 transition-transform">
+                    <Brain size={32} />
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-white/80">
+                      <span className="text-[10px] font-black uppercase tracking-[0.2em]">Clinical Intelligence</span>
+                    </div>
+                    <h3 className="text-2xl font-black text-white tracking-tight">Personalize Your Experience</h3>
+                    <p className="text-white/80 text-sm font-medium leading-relaxed max-w-md">
+                      Provide your clinical parameters and goals to help SIA generate more accurate, medically-informed recovery insights tailored to your unique physiology.
+                    </p>
+                  </div>
                 </div>
+
+                <button 
+                  className="px-8 py-4 bg-white text-indigo-600 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-zinc-100 transition-all shadow-xl flex items-center justify-center gap-3 whitespace-nowrap"
+                >
+                  Level Up <ChevronRight size={18} />
+                </button>
               </div>
-            </div>
-          </Card>
-        </section>
-      )}
+            </Card>
+          )}
+          
+          {personalizationProfile && (
+            <Card 
+              className="bg-zinc-900 border-zinc-800 hover:bg-zinc-800 relative overflow-hidden group cursor-pointer p-0"
+              onClick={onOpenPersonalization}
+            >
+              <div className="absolute top-0 right-0 p-12 opacity-5 group-hover:opacity-10 transition-opacity pointer-events-none">
+                <Settings size={120} className="text-white rotate-12" />
+              </div>
+              
+              <div className="relative z-10 p-8 flex flex-col md:flex-row md:items-center justify-between gap-8">
+                <div className="flex items-start gap-6">
+                  <div className="w-16 h-16 bg-indigo-500/10 rounded-2xl flex items-center justify-center text-indigo-400 shadow-xl border border-indigo-500/20 group-hover:scale-110 transition-transform">
+                    <Settings size={32} />
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-zinc-500">
+                      <span className="text-[10px] font-black uppercase tracking-[0.2em]">Profile Management</span>
+                    </div>
+                    <h3 className="text-2xl font-black text-white tracking-tight">Refine Your Parameters</h3>
+                    <p className="text-zinc-400 text-sm font-medium leading-relaxed max-w-md">
+                      Your body and goals change. Keep your clinical profile updated to ensure SIA's analysis remains precise and relevant to your current lifestyle.
+                    </p>
+                  </div>
+                </div>
+
+                <button 
+                  className="px-8 py-4 bg-zinc-800 text-white border border-zinc-700 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-zinc-700 transition-all shadow-xl flex items-center justify-center gap-3 whitespace-nowrap"
+                >
+                  Update Profile <ChevronRight size={18} />
+                </button>
+              </div>
+            </Card>
+          )}
+        </div>
+      </section>
 
 
       {/* All Facts Modal */}

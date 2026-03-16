@@ -26,15 +26,16 @@ export const calculateSleepEfficiency = (timeline: SleepState[]): string => {
 };
 
 /**
- * Maps HH:mm time to the 0-95 index array (15-min slots from 00:00 to 00:00).
- * Formula: (Hours * 4) + Math.floor(Minutes / 15).
- * Standardized to 00:00 origin.
+ * Maps HH:mm time to the 0-95 index array (15-min slots from 20:00 to 20:00).
+ * Formula: (((Hours + 24 - 20) % 24) * 4) + Math.floor(Minutes / 15).
  */
+// CRITICAL: 0 = 20:00, 48 = 08:00, 95 = 19:45
 export const timeToIndex = (time: string): number => {
   if (!time || !time.includes(':')) return 0;
   const [hours, minutes] = time.split(':').map(Number);
   
-  const index = (hours * 4) + Math.floor(minutes / 15);
+  // Apply -20 hour offset logic
+  const index = (((hours + 24 - 20) % 24) * 4) + Math.floor(minutes / 15);
   
   // Boundary guard: 0-95
   return Math.max(0, Math.min(95, index));

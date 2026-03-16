@@ -146,9 +146,10 @@ export default function AIInsightsAgent({ logs, user, personalizationProfile, is
         limit(daysCount)
       );
       
-      const [logsSnap, profileSnap] = await Promise.all([
+      const [logsSnap, profileSnap, unstructuredSnap] = await Promise.all([
         getDocs(logsQuery),
-        getDoc(doc(db, 'users', user.uid, 'personalization', 'profile'))
+        getDoc(doc(db, 'users', user.uid, 'personalization', 'profile')),
+        getDocs(query(collection(db, 'users', user.uid, 'unstructured_data'), orderBy('uploadDate', 'desc'), limit(5)))
       ]);
 
       const historicalLogs: any[] = [];
@@ -163,6 +164,16 @@ export default function AIInsightsAgent({ logs, user, personalizationProfile, is
           txt: String(data.remarks || '').substring(0, 50) // Keep remarks short
         });
       });
+
+      const unstructuredData: any[] = [];
+      unstructuredSnap.forEach(doc => {
+        const data = doc.data();
+        unstructuredData.push({
+          name: data.fileName,
+          content: data.content.substring(0, 500),
+          date: data.uploadDate
+        });
+      });
       
       const profile = profileSnap.exists() ? profileSnap.data() : personalizationProfile;
       
@@ -171,6 +182,7 @@ export default function AIInsightsAgent({ logs, user, personalizationProfile, is
       const logsContext = historicalLogs.length > 0 
         ? JSON.stringify(historicalLogs) 
         : "EMPTY_HISTORY";
+      const unstructuredContext = unstructuredData.length > 0 ? JSON.stringify(unstructuredData) : "No unstructured notes found.";
 
       if (logsContext === "EMPTY_HISTORY") {
         const assistantMessage: Message = { 
@@ -195,14 +207,16 @@ export default function AIInsightsAgent({ logs, user, personalizationProfile, is
         USER CONTEXT:
         - Personalization Profile: ${profileContext}
         - Historical Sleep Logs (${daysCount} days): ${logsContext}
+        - Unstructured Data (Raw Notes/Files): ${unstructuredContext}
         
         INSTRUCTIONS:
         1. Use the provided data to find correlations, patterns, and triggers.
         2. Deliver insights in a conversational, supportive, and professional tone.
         3. Use Markdown formatting (bolding, bullet points, and headers) to make insights easy to read.
         4. If the user asks about specific keywords like "Lormazepam", "Nightmares", "Night Terrors", or "Bathroom", perform a targeted correlation scan.
-        5. AGE-ADJUSTED NORMS: If age is > 60, be more permissive of early waking and shorter total duration (6-7h can be normal).
-        6. OXYGEN WARNING: If SpO2 (Avg or Min) is below 92%, strongly suggest the user shares this with a doctor to screen for Sleep Disordered Breathing/Sleep Apnea.
+        5. Use the unstructured data to provide context that might not be in the grid (e.g., "I see you mentioned caffeine in your notes...").
+        6. AGE-ADJUSTED NORMS: If age is > 60, be more permissive of early waking and shorter total duration (6-7h can be normal).
+        7. OXYGEN WARNING: If SpO2 (Avg or Min) is below 92%, strongly suggest the user shares this with a doctor to screen for Sleep Disordered Breathing/Sleep Apnea.
         
         STYLE:
         - Refer to yourself as SIA.

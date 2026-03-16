@@ -30,7 +30,10 @@ import {
   Loader2,
   CheckCircle2,
   AlertCircle,
-  Save
+  Save,
+  Wand2,
+  Lightbulb,
+  Rocket
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { GoogleGenAI } from "@google/genai";
@@ -62,6 +65,7 @@ import AccountPage from './components/AccountPage';
 import { AvatarFrame } from './components/UI';
 
 import { saveLog, validateLogMetrics } from './services/sleepService';
+import { getSuggestedLog, AICorrection, SuggestionResult } from './utils/patternEngine';
 
 import { auth, googleProvider, db, isFirebaseConfigured } from './lib/firebase';
 import { onAuthStateChanged, signInWithPopup, signOut, User } from 'firebase/auth';
@@ -71,7 +75,11 @@ import {
   query, 
   where, 
   deleteDoc,
-  onSnapshot
+  onSnapshot,
+  addDoc,
+  serverTimestamp,
+  orderBy,
+  limit
 } from 'firebase/firestore';
 
 // Lazy load heavy components
@@ -140,10 +148,16 @@ export default function App() {
   const [isEditing, setIsEditing] = useState(false);
   const [dragAction, setDragAction] = useState<'paint' | 'erase'>('paint');
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   const [showSleepGuide, setShowSleepGuide] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [aiCorrections, setAiCorrections] = useState<AICorrection[]>([]);
+  const [activeSuggestion, setActiveSuggestion] = useState<SuggestionResult | null>(null);
+  const [prefillUsed, setPrefillUsed] = useState(false);
+  const [originalSuggestion, setOriginalSuggestion] = useState<Partial<DailyLog> | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
+  const [showPrefillConfirm, setShowPrefillConfirm] = useState(false);
 
   const refreshAllData = async () => {
     setIsRefreshing(true);
@@ -162,6 +176,34 @@ export default function App() {
     const d = new Date(selectedDate);
     d.setDate(d.getDate() + days);
     setSelectedDate(d.toISOString().split('T')[0]);
+    // Reset prefill state when changing date
+    setPrefillUsed(false);
+    setOriginalSuggestion(null);
+  };
+
+  const applySuggestion = () => {
+    if (!activeSuggestion) return;
+    
+    const suggestion = activeSuggestion.suggestion;
+    setOriginalSuggestion(suggestion);
+    setPrefillUsed(true);
+    
+    // Apply suggested factors
+    if (suggestion.factors) {
+      updateFactors(suggestion.factors);
+    }
+    
+    // Apply predicted sleep range if available
+    if ((suggestion as any).predictedSleepRange) {
+      const { start, end } = (suggestion as any).predictedSleepRange;
+      const newTimeline = Array(TOTAL_SLOTS).fill('awake-out');
+      for (let i = start; i <= end; i++) {
+        newTimeline[i] = 'sleep';
+      }
+      updateLog({ timeline: newTimeline });
+    }
+    
+    setToast({ message: 'Routine applied! You can still make adjustments.', type: 'success' });
   };
 
   const slideVariants = {
@@ -306,6 +348,50 @@ export default function App() {
         };
 
         try {
+          // Learning Trigger: Detect corrections if prefill was used
+          if (prefillUsed && originalSuggestion) {
+            const correctionsToLog: any[] = [];
+            
+            // Check caffeine amount
+            if (log.factors.caffeine.amount !== originalSuggestion.factors?.caffeine?.amount) {
+              correctionsToLog.push({
+                field: 'factors.caffeine.amount',
+                suggestedValue: originalSuggestion.factors?.caffeine?.amount,
+                actualValue: log.factors.caffeine.amount
+              });
+            }
+            
+            // Check caffeine time
+            if (log.factors.caffeine.lastIntake !== originalSuggestion.factors?.caffeine?.lastIntake) {
+              correctionsToLog.push({
+                field: 'factors.caffeine.lastIntake',
+                suggestedValue: originalSuggestion.factors?.caffeine?.lastIntake,
+                actualValue: log.factors.caffeine.lastIntake
+              });
+            }
+
+            // Check exercise
+            if (log.factors.exercise.completed !== originalSuggestion.factors?.exercise?.completed) {
+              correctionsToLog.push({
+                field: 'factors.exercise.completed',
+                suggestedValue: originalSuggestion.factors?.exercise?.completed,
+                actualValue: log.factors.exercise.completed
+              });
+            }
+
+            if (correctionsToLog.length > 0) {
+              const correctionsRef = collection(db, 'users', user.uid, 'ai_corrections');
+              for (const corr of correctionsToLog) {
+                await addDoc(correctionsRef, {
+                  ...corr,
+                  date: selectedDate,
+                  timestamp: serverTimestamp()
+                });
+              }
+              console.log(`Logged ${correctionsToLog.length} AI corrections.`);
+            }
+          }
+
           if (validateLogMetrics(summaryMetrics)) {
             await saveLog(user.uid, {
               ...log,
@@ -498,6 +584,9 @@ export default function App() {
     );
     
     const unsubscribe = onSnapshot(q, (snapshot) => {
+      // Disable Persistence Sync during import to prevent network/CORS timeouts
+      if (isImporting) return;
+
       setLogs(prevLogs => {
         const fetchedLogs: Record<string, DailyLog> = { ...prevLogs };
         snapshot.forEach((doc) => {
@@ -522,6 +611,57 @@ export default function App() {
 
     return () => unsubscribe();
   }, [user, activeDates, refreshKey]);
+
+  // Fetch AI Corrections
+  useEffect(() => {
+    if (!user) {
+      setAiCorrections([]);
+      return;
+    }
+
+    const q = query(
+      collection(db, 'users', user.uid, 'ai_corrections'),
+      orderBy('date', 'desc'),
+      limit(50)
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const fetchedCorrections: AICorrection[] = [];
+      snapshot.forEach((doc) => {
+        fetchedCorrections.push(doc.data() as AICorrection);
+      });
+      setAiCorrections(fetchedCorrections);
+    });
+
+    return () => unsubscribe();
+  }, [user]);
+
+  // Calculate Intelligent Prefill Suggestion
+  useEffect(() => {
+    if (view !== 'log' || !user) {
+      setActiveSuggestion(null);
+      return;
+    }
+
+    // Only suggest if the current log is "empty" (default values)
+    const log = logs[selectedDate];
+    const isEmpty = !log || (
+      log.remarks === '' && 
+      log.timeline.every(s => s === 'awake-out') &&
+      !log.factors.caffeine.consumed &&
+      !log.factors.alcohol.consumed &&
+      !log.factors.medication.taken &&
+      !log.factors.exercise.completed
+    );
+
+    if (isEmpty) {
+      const result = getSuggestedLog(Object.values(logs), selectedDate, aiCorrections);
+      // Always set suggestion now, but UI will handle state based on confidence/history
+      setActiveSuggestion(result);
+    } else {
+      setActiveSuggestion(null);
+    }
+  }, [view, selectedDate, logs, aiCorrections, user]);
 
   const averageStats = useMemo(() => {
     const periodLogs = activeDates.map(d => logs[d]).filter(Boolean);
@@ -1008,6 +1148,82 @@ export default function App() {
                     </button>
                   </div>
 
+                  {/* Intelligent Prefill Button */}
+                  <AnimatePresence>
+                    {activeSuggestion && !prefillUsed && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        className="relative"
+                      >
+                        {(() => {
+                          const historyCount = Object.keys(logs).length;
+                          const confidence = activeSuggestion.confidence;
+                          
+                          if (historyCount === 0) {
+                            return (
+                              <button
+                                onClick={() => setToast({ message: 'Start by logging your first night manually!', type: 'info' })}
+                                className="w-full py-4 bg-zinc-900 border border-zinc-800 rounded-2xl flex items-center justify-center gap-3 group hover:bg-zinc-800 transition-all"
+                              >
+                                <Rocket className="text-zinc-500" size={20} />
+                                <div className="text-left">
+                                  <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">SIA Onboarding</p>
+                                  <p className="text-sm font-bold text-white">Start Your Journey</p>
+                                </div>
+                              </button>
+                            );
+                          }
+
+                          if (historyCount < 3) {
+                            return (
+                              <button
+                                onClick={() => setToast({ message: `SIA needs ${3 - historyCount} more days of data to recognize your patterns.`, type: 'info' })}
+                                className="w-full py-4 bg-zinc-900/50 border border-zinc-800/50 rounded-2xl flex items-center justify-center gap-3 grayscale opacity-50 cursor-not-allowed"
+                              >
+                                <Wand2 className="text-zinc-600" size={20} />
+                                <div className="text-left">
+                                  <p className="text-[10px] font-black text-zinc-600 uppercase tracking-widest">SIA Learning</p>
+                                  <p className="text-sm font-bold text-zinc-500">Log {3 - historyCount} more days to unlock</p>
+                                </div>
+                              </button>
+                            );
+                          }
+
+                          if (confidence < 0.8) {
+                            return (
+                              <button
+                                onClick={() => setShowPrefillConfirm(true)}
+                                className="w-full py-4 bg-zinc-900 border border-zinc-800 rounded-2xl flex items-center justify-center gap-3 group hover:bg-zinc-800 transition-all"
+                              >
+                                <Lightbulb className="text-amber-400" size={20} />
+                                <div className="text-left">
+                                  <p className="text-[10px] font-black text-amber-500 uppercase tracking-widest">SIA Draft</p>
+                                  <p className="text-sm font-bold text-white">Suggested Fill ({Math.round(confidence * 100)}% match)</p>
+                                </div>
+                              </button>
+                            );
+                          }
+
+                          return (
+                            <button
+                              onClick={applySuggestion}
+                              className="w-full py-4 bg-gradient-to-r from-indigo-600/20 to-violet-600/20 border border-indigo-500/30 rounded-2xl flex items-center justify-center gap-3 group hover:from-indigo-600/30 hover:to-violet-600/30 transition-all relative overflow-hidden shadow-lg shadow-indigo-500/10"
+                            >
+                              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+                              <Wand2 className="text-indigo-400 group-hover:rotate-12 transition-transform" size={20} />
+                              <div className="text-left">
+                                <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">SIA Master</p>
+                                <p className="text-sm font-bold text-white">Apply Routine</p>
+                              </div>
+                            </button>
+                          );
+                        })()}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
               {/* Timeline Section */}
               <section className="space-y-4">
                 <div className="flex justify-between items-end">
@@ -1370,8 +1586,11 @@ export default function App() {
               <React.Suspense fallback={<div className="p-4 text-center text-zinc-500 text-xs">Loading Importer...</div>}>
                 <DataImporter 
                   user={user} 
+                  isImporting={isImporting}
+                  setIsImporting={setIsImporting}
                   onImportComplete={() => {
                     setToast({ message: 'Data imported and synced successfully', type: 'success' });
+                    setIsImporting(false);
                   }} 
                   onRefresh={refreshAllData}
                 />
@@ -1643,15 +1862,78 @@ export default function App() {
             animate={{ opacity: 1, y: 0, x: '-50%' }}
             exit={{ opacity: 0, y: 50, x: '-50%' }}
             className={`fixed bottom-24 left-1/2 px-6 py-3 rounded-2xl shadow-2xl z-[100] flex items-center gap-3 border ${
-              toast.type === 'success' ? 'bg-emerald-900/90 border-emerald-500 text-emerald-100' : 'bg-red-900/90 border-red-500 text-red-100'
+              toast.type === 'success' ? 'bg-emerald-900/90 border-emerald-500 text-emerald-100' : 
+              toast.type === 'info' ? 'bg-zinc-900/90 border-zinc-700 text-zinc-100' :
+              'bg-red-900/90 border-red-500 text-red-100'
             }`}
           >
-            {toast.type === 'success' ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
+            {toast.type === 'success' ? <CheckCircle2 size={18} /> : 
+             toast.type === 'info' ? <Info size={18} className="text-indigo-400" /> :
+             <AlertCircle size={18} />}
             <span className="text-sm font-bold">{toast.message}</span>
             <button onClick={() => setToast(null)} className="ml-2 hover:opacity-70">
               <X size={16} />
             </button>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Prefill Confirmation Modal */}
+      <AnimatePresence>
+        {showPrefillConfirm && activeSuggestion && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowPrefillConfirm(false)}
+              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative w-full max-w-md bg-zinc-900 border border-zinc-800 rounded-[2.5rem] shadow-2xl overflow-hidden p-8"
+            >
+              <div className="flex flex-col items-center text-center gap-6">
+                <div className="w-16 h-16 bg-amber-500/20 rounded-2xl flex items-center justify-center text-amber-500">
+                  <Lightbulb size={32} />
+                </div>
+                
+                <div className="space-y-2">
+                  <h3 className="text-xl font-bold text-white">SIA Noticed Patterns</h3>
+                  <p className="text-sm text-zinc-400">I'm still learning your routine, but I've noticed these recurring habits. Apply them to today's log?</p>
+                </div>
+
+                <div className="w-full bg-zinc-800/50 rounded-2xl p-4 space-y-3">
+                  {activeSuggestion.reasons.map((reason, i) => (
+                    <div key={i} className="flex items-center gap-3 text-left">
+                      <div className="w-1.5 h-1.5 bg-amber-500 rounded-full" />
+                      <span className="text-xs text-zinc-300 font-medium">{reason}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex gap-3 w-full">
+                  <button 
+                    onClick={() => setShowPrefillConfirm(false)}
+                    className="flex-1 py-3 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl font-bold text-xs transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    onClick={() => {
+                      applySuggestion();
+                      setShowPrefillConfirm(false);
+                    }}
+                    className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold text-xs transition-colors shadow-lg shadow-indigo-600/20"
+                  >
+                    Apply These
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
 

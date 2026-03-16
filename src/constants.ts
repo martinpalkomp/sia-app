@@ -1,6 +1,6 @@
 import { SleepState } from './types';
 
-export const TIMELINE_START_HOUR = 0; // Midnight
+export const TIMELINE_START_HOUR = 20; // 8 PM
 export const SLOTS_PER_HOUR = 4; // 15-min intervals
 export const TOTAL_HOURS = 24; // 
 export const TOTAL_SLOTS = TOTAL_HOURS * SLOTS_PER_HOUR; // 96 slots
