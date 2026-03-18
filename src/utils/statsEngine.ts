@@ -1,4 +1,5 @@
 import { DailyLog } from '../types';
+import { calculateSleepDuration, calculateSleepEfficiency, calculateTimeInBed } from './sleepUtils';
 import { MIN_METRIC, MAX_METRIC } from '../constants';
 
 export interface AverageResult {
@@ -44,16 +45,17 @@ export const calculateSafeAverage = (
     if (metricName === 'restedness' && typeof log.restedness === 'number') value = log.restedness;
     if (metricName === 'energyLevel' && typeof log.energyLevel === 'number') value = log.energyLevel;
 
-    // 2. Prioritize timeline for sleepDuration and efficiency if available
+    // 2. Prioritize events/timeline for sleepDuration and efficiency if available
     if (value === undefined) {
-      if (metricName === 'sleepDuration' && log.timeline && log.timeline.some(s => s === 'sleep')) {
-        const sleepSlots = log.timeline.filter(s => s === 'sleep').length;
-        value = sleepSlots * 0.25;
-      }
-      else if (metricName === 'efficiency' && log.timeline && log.timeline.some(s => s === 'sleep' || s === 'awake-in')) {
-        const sleepSlots = log.timeline.filter(s => s === 'sleep').length;
-        const inBedSlots = log.timeline.filter(s => s === 'sleep' || s === 'awake-in').length;
-        if (inBedSlots > 0) value = (sleepSlots / inBedSlots) * 100;
+      const sleepData = log.sleepEvents || log.timeline;
+      if (sleepData && sleepData.length > 0) {
+        if (metricName === 'sleepDuration') {
+          value = calculateSleepDuration(sleepData);
+        } else if (metricName === 'efficiency') {
+          value = Number(calculateSleepEfficiency(sleepData));
+        } else if (metricName === 'timeInBed') {
+          value = calculateTimeInBed(sleepData);
+        }
       }
     }
 

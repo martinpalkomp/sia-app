@@ -27,6 +27,22 @@
         "source": { "type": "string" }
       },
       "required": ["fileName", "content", "uploadDate", "status"]
+    },
+    "Feedback": {
+      "title": "Feedback",
+      "description": "User feedback or bug reports.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "category": { "type": "string", "enum": ["Bug Report", "Feature Request", "Data Issue", "UI/UX", "Other"] },
+        "message": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["open", "resolved"] },
+        "version": { "type": "string" },
+        "attachedLogs": { "type": "object" }
+      },
+      "required": ["userId", "userName", "category", "message", "timestamp", "status", "version"]
     }
   },
   "firestore": {
@@ -37,6 +53,10 @@
     "/users/{userId}/unstructured_data/{docId}": {
       "schema": "UnstructuredData",
       "description": "Collection of raw, unstructured data uploads."
+    },
+    "/feedback/{feedbackId}": {
+      "schema": "Feedback",
+      "description": "Global collection of user feedback."
     }
   }
 }

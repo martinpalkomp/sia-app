@@ -1,5 +1,6 @@
 import { DailyLog, SleepState } from '../types';
 import { parse, getDay, subDays, format } from 'date-fns';
+import { getGridFromEvents } from './sleepUtils';
 
 export interface SuggestionResult {
   suggestion: Partial<DailyLog>;
@@ -137,8 +138,9 @@ export const getSuggestedLog = (
 
     // Typical Bedtime/Wake time
     const sleepRanges = sameDayOfWeekLogs.map(l => {
-      const firstSleep = l.timeline?.indexOf('sleep');
-      const lastSleep = l.timeline?.lastIndexOf('sleep');
+      const timeline = l.sleepEvents ? getGridFromEvents(l.sleepEvents) : (l.timeline || []);
+      const firstSleep = timeline.indexOf('sleep');
+      const lastSleep = timeline.lastIndexOf('sleep');
       return { start: firstSleep, end: lastSleep };
     }).filter(r => r.start !== -1);
 

@@ -41,14 +41,17 @@ const CorrectionHub: React.FC<CorrectionHubProps> = ({ user, logs, onUpdate, onG
         const isAfterStart = isAfter(logDate, start) || log.date === trackingStartDate;
         const isNotIgnored = !log.isIgnored;
         
-        // Criteria: Missing timeline OR missing summaryMetrics
+        // Criteria: Missing sleepEvents/timeline OR missing summaryMetrics
+        const hasEvents = log.sleepEvents && log.sleepEvents.length > 0;
         const hasTimeline = log.timeline && log.timeline.length > 0 && !log.timeline.every(s => s === 'awake-out');
+        const hasData = hasEvents || hasTimeline;
+        
         const hasSummaryMetrics = !!log.summaryMetrics && 
                                   typeof log.summaryMetrics.sleepQuality === 'number' &&
                                   typeof log.summaryMetrics.restedness === 'number' &&
                                   typeof log.summaryMetrics.energyLevel === 'number';
         
-        return isAfterStart && isNotIgnored && (!hasTimeline || !hasSummaryMetrics);
+        return isAfterStart && isNotIgnored && (!hasData || !hasSummaryMetrics);
       })
       .sort((a, b) => b.date.localeCompare(a.date));
   }, [logs, trackingStartDate]);
@@ -138,7 +141,7 @@ const CorrectionHub: React.FC<CorrectionHubProps> = ({ user, logs, onUpdate, onG
                           Missing Metrics
                         </span>
                       )}
-                      {(!log.timeline || log.timeline.every(s => s === 'awake-out')) && (
+                      {(!log.sleepEvents || log.sleepEvents.length === 0) && (!log.timeline || log.timeline.every(s => s === 'awake-out')) && (
                         <span className="flex items-center gap-1 text-[9px] font-black uppercase tracking-[0.15em] text-indigo-400 bg-indigo-400/10 px-2.5 py-1 rounded-lg border border-indigo-400/20">
                           Missing Timeline
                         </span>

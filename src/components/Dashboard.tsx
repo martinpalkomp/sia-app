@@ -17,12 +17,12 @@ import {
   Settings
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { DailyLog } from '../types';
+import { DailyLog, SleepState, SleepEvent } from '../types';
 import { GoogleGenAI } from "@google/genai";
 import { SLEEP_FACTS } from '../data/sleepFacts';
 import { Card, AvatarFrame, MetricDisplay } from './UI';
 import SleepGuideCard from './SleepGuideCard';
-import { calculateSleepDuration, calculateSleepEfficiency, formatDuration } from '../utils/sleepUtils';
+import { calculateSleepDuration, calculateSleepEfficiency, formatDuration, getGridFromEvents, getMinutesFrom2000 } from '../utils/sleepUtils';
 import { calculateSafeAverage } from '../utils/statsEngine';
 import { getSlotLabel } from '../constants';
 import { PersonalizationProfile } from '../types';
@@ -63,6 +63,7 @@ export default function Dashboard({
   const [showAllFacts, setShowAllFacts] = useState(false);
   const [isFirstVisit, setIsFirstVisit] = useState(false);
   const [factAnchor, setFactAnchor] = useState<string | null>(null);
+  const [period, setPeriod] = useState<7 | 30>(7);
 
   // Check for first visit
   useEffect(() => {
@@ -75,12 +76,25 @@ export default function Dashboard({
 
   // Calculate average bedtime
   const averageBedtime = useMemo(() => {
-    const sleepLogs = Object.values(logs).filter(log => log.timeline && log.timeline.some(s => s === 'sleep'));
+    const sleepLogs = Object.values(logs).filter(log => {
+      const sleepData = log.sleepEvents || log.timeline || [];
+      if (Array.isArray(sleepData) && sleepData.length > 0 && typeof sleepData[0] === 'string') {
+        return (sleepData as SleepState[]).some(s => s === 'sleep');
+      }
+      return (sleepData as SleepEvent[]).some(e => e.type === 'sleep');
+    });
     if (sleepLogs.length === 0) return "22:00";
 
     const relativeMinutesArray = sleepLogs.map(log => {
-      const firstSleepIndex = log.timeline.findIndex(s => s === 'sleep');
-      return firstSleepIndex * 15; // Minutes after 20:00 (TIMELINE_START_HOUR)
+      if (log.sleepEvents && log.sleepEvents.length > 0) {
+        const firstSleepEvent = log.sleepEvents.find(e => e.type === 'sleep');
+        if (firstSleepEvent) {
+          return getMinutesFrom2000(firstSleepEvent.start);
+        }
+      }
+      const timeline = log.timeline || [];
+      const firstSleepIndex = timeline.findIndex(s => s === 'sleep');
+      return firstSleepIndex !== -1 ? firstSleepIndex * 15 : 0;
     });
 
     const avgRelativeMinutes = relativeMinutesArray.reduce((a, b) => a + b, 0) / relativeMinutesArray.length;
@@ -118,20 +132,20 @@ export default function Dashboard({
     }
   }, [showAllFacts, factAnchor]);
 
-  // Get last 7 days of logs relative to selectedDate
-  const last7Days = useMemo(() => {
+  // Get last N days of logs relative to selectedDate
+  const periodDates = useMemo(() => {
     const dates = [];
     const baseDate = new Date(selectedDate);
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < period; i++) {
       const d = new Date(baseDate);
       d.setDate(d.getDate() - i);
       dates.push(d.toISOString().split('T')[0]);
     }
     return dates;
-  }, [selectedDate]);
+  }, [selectedDate, period]);
 
   const stats = useMemo(() => {
-    const periodLogs = last7Days.map(d => logs[d]).filter(Boolean);
+    const periodLogs = periodDates.map(d => logs[d]).filter(Boolean);
     if (periodLogs.length === 0) return null;
 
     return {
@@ -141,7 +155,7 @@ export default function Dashboard({
       avgDuration: formatDuration(calculateSafeAverage(periodLogs, 'sleepDuration').average),
       avgEfficiency: calculateSafeAverage(periodLogs, 'efficiency').average.toFixed(1)
     };
-  }, [logs, last7Days]);
+  }, [logs, periodDates]);
 
   const latestLog = useMemo(() => {
     const sortedDates = Object.keys(logs).sort((a, b) => b.localeCompare(a));
@@ -181,9 +195,8 @@ export default function Dashboard({
       try {
         const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
         const historyContext = Object.values(logs).map(log => {
-          const sleepSlots = log.timeline.filter(s => s === 'sleep').length;
-          const inBedSlots = log.timeline.filter(s => s === 'sleep' || s === 'awake-in').length;
-          const efficiency = inBedSlots > 0 ? ((sleepSlots / inBedSlots) * 100).toFixed(1) : "0";
+          const sleepData = log.sleepEvents || log.timeline || [];
+          const efficiency = calculateSleepEfficiency(sleepData);
           
           return {
             date: log.date,
@@ -196,15 +209,16 @@ export default function Dashboard({
 
         const prompt = `
           Analyze these recent sleep logs (last 7 days): ${JSON.stringify(historyContext)}
-          Provide ONE brief, proactive "SIA Insight" (max 15 words).
-          Format: "💡 SIA Insight: [Your insight here]"
+          Provide a concise, data-backed "SIA Weekly Insight" (max 25 words). 
+          Focus on consistency, timing, and immediate recovery improvements.
+          Format: "💡 SIA Weekly Insight: [Your insight here]"
         `;
 
         const response = await ai.models.generateContent({
           model: "gemini-3-flash-preview",
           contents: [{ role: "user", parts: [{ text: prompt }] }],
           config: {
-            systemInstruction: "You are 'SIA', a Sleep Intelligence Agent. Provide very brief, data-backed sleep insights."
+            systemInstruction: "You are 'SIA', a Sleep Intelligence Agent. Provide punchy, clinical, data-backed weekly sleep insights."
           }
         });
 
@@ -238,27 +252,30 @@ export default function Dashboard({
       const historicalLogs: any[] = [];
       querySnapshot.forEach(doc => {
         const data = doc.data() as DailyLog;
+        const sleepData = data.sleepEvents || data.timeline || [];
+        
         historicalLogs.push({
           d: data.date,
-          dur: data.timeline ? (data.timeline.filter(s => s === 'sleep').length * 0.25) : (data.summaryMetrics?.importedDuration || 0),
+          dur: calculateSleepDuration(sleepData),
           q: data.sleepQuality,
           r: data.restedness,
-          eff: data.timeline ? ((data.timeline.filter(s => s === 'sleep').length / data.timeline.filter(s => s === 'sleep' || s === 'awake-in').length) * 100).toFixed(1) : "0"
+          eff: calculateSleepEfficiency(sleepData)
         });
       });
 
       const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
       const prompt = `
         Analyze ${daysCount} days of sleep history: ${JSON.stringify(historicalLogs)}
-        Provide a deep, proactive "SIA Long-term Insight" (max 2 sentences).
-        Focus on trends and correlations.
+        Provide a structured "SIA Monthly Analysis" (max 3 sentences).
+        Identify the single most significant trend and offer a specific, actionable clinical recommendation.
+        Format: "📊 SIA Monthly Analysis: [Your analysis here]"
       `;
 
       const response = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
         contents: [{ role: "user", parts: [{ text: prompt }] }],
         config: {
-          systemInstruction: "You are 'SIA', a Sleep Intelligence Agent. Provide deep, data-backed long-term sleep insights."
+          systemInstruction: "You are 'SIA', a Sleep Intelligence Agent. Provide deep, structured, data-backed long-term sleep analysis."
         }
       });
 
@@ -343,7 +360,7 @@ export default function Dashboard({
             {greeting}
           </motion.h1>
           <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4">
-            <p className="text-zinc-500 text-sm font-medium">I've analyzed your sleep intelligence for the last 7 days.</p>
+            <p className="text-zinc-500 text-sm font-medium">I've analyzed your sleep intelligence for the last {period} days.</p>
           </div>
         </div>
       </section>
@@ -358,7 +375,7 @@ export default function Dashboard({
             <TrendingUp size={16} className="text-zinc-700 group-hover:text-indigo-400 transition-colors" />
           </div>
           <MetricDisplay 
-            title="Avg Quality (SQ)" 
+            title={`Avg Quality (${period}d)`} 
             value={stats?.avgSq || '--'} 
             unit="/10" 
             className="mt-8 text-left"
@@ -373,7 +390,7 @@ export default function Dashboard({
             <TrendingUp size={16} className="text-zinc-700 group-hover:text-amber-400 transition-colors" />
           </div>
           <MetricDisplay 
-            title="Restedness (R)" 
+            title={`Restedness (${period}d)`} 
             value={stats?.avgR || '--'} 
             unit="/10" 
             className="mt-8 text-left"
@@ -388,7 +405,7 @@ export default function Dashboard({
             <TrendingUp size={16} className="text-zinc-700 group-hover:text-emerald-400 transition-colors" />
           </div>
           <MetricDisplay 
-            title="Energy Level (L)" 
+            title={`Energy Level (${period}d)`} 
             value={stats?.avgL || '--'} 
             unit="/10" 
             className="mt-8 text-left"
@@ -415,7 +432,7 @@ export default function Dashboard({
               />
               <div>
                 <h3 className="text-[10px] font-black text-indigo-300 uppercase tracking-[0.2em]">
-                  {isDeepAnalysis ? "SIA Deep Intelligence" : "SIA Voice"}
+                  {isDeepAnalysis ? `SIA ${personalizationProfile ? '180' : '30'}-Day Analysis` : "SIA 7-Day Insight"}
                 </h3>
                 <p className="text-white font-bold mt-1 leading-tight">
                   {isAiLoading ? (isDeepAnalysis ? "Analyzing long-term trends..." : "Scanning recent logs...") : (aiInsight || "Log more nights to unlock my personalized insights.")}

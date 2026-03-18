@@ -44,7 +44,7 @@ import {
   getSlotLabel
 } from './constants';
 
-import { format, isAfter, parseISO, startOfDay, startOfWeek, startOfMonth, eachDayOfInterval, endOfDay } from 'date-fns';
+import { format, isAfter, parseISO, startOfDay, startOfWeek, startOfMonth, eachDayOfInterval, endOfDay, subDays } from 'date-fns';
 
 import { 
   getTodayDate, 
@@ -53,7 +53,16 @@ import {
   getRangeDates, 
   formatDisplayDate 
 } from './utils/dateUtils';
-import { calculateSleepDuration, calculateSleepEfficiency, formatDuration, snapTo15Min } from './utils/sleepUtils';
+import { 
+  calculateSleepDuration, 
+  calculateSleepEfficiency, 
+  calculateTimeInBed,
+  formatDuration, 
+  snapTo15Min,
+  getGridFromEvents,
+  convertGridToEvents,
+  migrateTimelineToEvents
+} from './utils/sleepUtils';
 import { calculateSafeAverage } from './utils/statsEngine';
 
 import AIInsightsAgent from './components/AIInsightsAgent';
@@ -62,6 +71,8 @@ import Legal from './components/Legal';
 import CorrectionHub from './components/CorrectionHub';
 import PersonalizationWizard from './components/PersonalizationWizard';
 import AccountPage from './components/AccountPage';
+import SleepRibbon from './components/SleepRibbon';
+import DataImporter from './components/DataImporter';
 import { AvatarFrame } from './components/UI';
 
 import { saveLog, validateLogMetrics } from './services/sleepService';
@@ -84,7 +95,6 @@ import {
 
 // Lazy load heavy components
 const SleepGuideInteractive = React.lazy(() => import('./components/SleepGuideInteractive'));
-const DataImporter = React.lazy(() => import('./components/DataImporter'));
 
 // --- Components ---
 
@@ -333,18 +343,20 @@ export default function App() {
     if (dateToUpdate) {
       const log = newLogs[dateToUpdate];
       if (log) {
-        // Calculate durations from timeline
-        const sleepDuration = calculateSleepDuration(log.timeline);
-        const inBedSlots = log.timeline.filter(s => s === 'sleep' || s === 'awake-in').length;
-        const timeInBed = inBedSlots * 0.25;
+        // Generate visual timeline for duration calculations
+        const visualTimeline = getGridFromEvents(log.sleepEvents || []);
+        
+        // Calculate durations from events/timeline
+        const sleepDuration = calculateSleepDuration(log.sleepEvents || log.timeline || []);
+        const timeInBed = calculateTimeInBed(log.sleepEvents || log.timeline || []);
 
         // Populate summaryMetrics before saving
         const summaryMetrics = {
           sleepQuality: log.sleepQuality,
           restedness: log.restedness,
           energyLevel: log.energyLevel,
-          importedDuration: snapTo15Min(sleepDuration),
-          importedInBed: snapTo15Min(timeInBed),
+          importedDuration: sleepDuration,
+          importedInBed: timeInBed,
         };
 
         try {
@@ -436,7 +448,7 @@ export default function App() {
       sleepQuality: 5,
       restedness: 5,
       energyLevel: 5,
-      timeline: Array(TOTAL_SLOTS).fill('awake-out'),
+      sleepEvents: [],
       remarks: '',
       isIgnored: false,
       source: 'manual',
@@ -455,15 +467,19 @@ export default function App() {
       log.factors = defaultFactors;
     }
     
-    // Ensure timeline is always the correct length
-    if (log.timeline.length < TOTAL_SLOTS) {
-      const padding = Array(TOTAL_SLOTS - log.timeline.length).fill('awake-out');
-      log.timeline = [...log.timeline, ...padding];
-    } else if (log.timeline.length > TOTAL_SLOTS) {
-      log.timeline = log.timeline.slice(0, TOTAL_SLOTS);
+    // Migration: If log has timeline but no sleepEvents, migrate it
+    if (!log.sleepEvents || log.sleepEvents.length === 0) {
+      if (log.timeline && log.timeline.length > 0 && !log.timeline.every(s => s === 'awake-out')) {
+        log.sleepEvents = migrateTimelineToEvents(log.timeline);
+      } else {
+        log.sleepEvents = [];
+      }
     }
+
+    // Generate visual timeline for UI
+    const visualTimeline = getGridFromEvents(log.sleepEvents);
     
-    return log;
+    return { ...log, visualTimeline };
   }, [logs, selectedDate]);
 
   const updateLog = (updates: Partial<DailyLog>) => {
@@ -483,15 +499,16 @@ export default function App() {
   };
 
   const setSlotState = (index: number, state: SleepState) => {
-    const newTimeline = [...currentLog.timeline];
-    newTimeline[index] = state;
-    updateLog({ timeline: newTimeline });
+    const newVisualTimeline = [...currentLog.visualTimeline];
+    newVisualTimeline[index] = state;
+    const newEvents = convertGridToEvents(newVisualTimeline);
+    updateLog({ sleepEvents: newEvents });
   };
 
   const handleMouseDown = (index: number) => {
     if (!isEditing) return;
     setIsDragging(true);
-    const currentState = currentLog.timeline[index];
+    const currentState = currentLog.visualTimeline[index];
     const nextState = currentState === activeState ? 'awake-out' : activeState;
     setDragAction(nextState === 'awake-out' ? 'erase' : 'paint');
     setSlotState(index, nextState);
@@ -500,7 +517,7 @@ export default function App() {
   const handleMouseEnter = (index: number) => {
     if (!isDragging || !isEditing) return;
     const nextState = dragAction === 'erase' ? 'awake-out' : activeState;
-    if (currentLog.timeline[index] !== nextState) {
+    if (currentLog.visualTimeline[index] !== nextState) {
       setSlotState(index, nextState);
     }
   };
@@ -535,13 +552,13 @@ export default function App() {
 
   const weekDates = useMemo(() => {
     const today = new Date();
-    const start = startOfWeek(today, { weekStartsOn: 1 }); // Monday
+    const start = subDays(today, 6); // Last 7 days including today
     return eachDayOfInterval({ start, end: today }).map(d => format(d, 'yyyy-MM-dd'));
   }, []);
 
   const monthDates = useMemo(() => {
     const today = new Date();
-    const start = startOfMonth(today);
+    const start = subDays(today, 29); // Last 30 days including today
     return eachDayOfInterval({ start, end: today }).map(d => format(d, 'yyyy-MM-dd'));
   }, []);
   const customDates = useMemo(() => getRangeDates(customRange.start, customRange.end), [customRange]);
@@ -647,7 +664,8 @@ export default function App() {
     const log = logs[selectedDate];
     const isEmpty = !log || (
       log.remarks === '' && 
-      log.timeline.every(s => s === 'awake-out') &&
+      (!log.sleepEvents || log.sleepEvents.length === 0) &&
+      (!log.timeline || log.timeline.every(s => s === 'awake-out')) &&
       !log.factors.caffeine.consumed &&
       !log.factors.alcohol.consumed &&
       !log.factors.medication.taken &&
@@ -1011,38 +1029,6 @@ export default function App() {
               exit={{ opacity: 0, y: -10 }}
               className="relative overflow-hidden space-y-6"
             >
-              {/* Date Selector for Dashboard */}
-              <div className="flex items-center justify-between bg-zinc-900/50 p-4 rounded-2xl border border-zinc-800">
-                <button 
-                  onClick={() => changeDate(-1)}
-                  className="p-2 hover:bg-zinc-800 rounded-full transition-colors text-zinc-400"
-                >
-                  <ChevronLeft size={20} />
-                </button>
-                
-                <div className="text-center relative group">
-                  <input 
-                    type="date" 
-                    className="absolute inset-0 opacity-0 cursor-pointer z-10" 
-                    value={selectedDate}
-                    onChange={(e) => setSelectedDate(e.target.value)}
-                  />
-                  <h2 className="text-lg font-bold text-white tracking-tight group-hover:text-indigo-400 transition-colors">
-                    {formatDisplayDate(selectedDate)}
-                  </h2>
-                  <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">
-                    {selectedDate === getTodayDate() ? 'TODAY' : 'HISTORICAL VIEW'}
-                  </p>
-                </div>
-
-                <button 
-                  onClick={() => changeDate(1)}
-                  className="p-2 hover:bg-zinc-800 rounded-full transition-colors text-zinc-400"
-                >
-                  <ChevronRight size={20} />
-                </button>
-              </div>
-
               <AnimatePresence initial={false} custom={direction}>
                 <motion.div
                   key={selectedDate}
@@ -1100,8 +1086,41 @@ export default function App() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              className="space-y-8 relative overflow-hidden"
+              className="space-y-6 relative overflow-hidden"
             >
+              {/* Date Selector - Now outside sliding area to stay visible */}
+              <div className="flex items-center justify-between bg-zinc-900/50 p-4 rounded-2xl border border-zinc-800">
+                <button 
+                  onClick={() => changeDate(-1)}
+                  className="p-2 hover:bg-zinc-800 rounded-full transition-colors text-zinc-400"
+                >
+                  <ChevronLeft size={20} />
+                </button>
+                
+                <div className="text-center relative group">
+                  <input 
+                    type="date" 
+                    className="absolute inset-0 opacity-0 cursor-pointer z-10" 
+                    value={selectedDate}
+                    onChange={(e) => setSelectedDate(e.target.value)}
+                  />
+                  <h2 className="text-lg font-bold text-white tracking-tight group-hover:text-indigo-400 transition-colors">
+                    {formatDisplayDate(selectedDate)}
+                  </h2>
+                  <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">
+                    {selectedDate === getTodayDate() ? 'TODAY' : 'HISTORICAL LOG'}
+                  </p>
+                </div>
+
+                <button 
+                  onClick={() => changeDate(1)}
+                  className="p-2 hover:bg-zinc-800 rounded-full transition-colors text-zinc-400"
+                >
+                  <ChevronRight size={20} />
+                </button>
+              </div>
+
+
               <AnimatePresence initial={false} custom={direction}>
                 <motion.div
                   key={selectedDate}
@@ -1116,113 +1135,6 @@ export default function App() {
                   }}
                   className="space-y-8"
                 >
-                  {/* Date Selector */}
-                  <div className="flex items-center justify-between bg-zinc-900/50 p-4 rounded-2xl border border-zinc-800">
-                    <button 
-                      onClick={() => changeDate(-1)}
-                      className="p-2 hover:bg-zinc-800 rounded-full transition-colors text-zinc-400"
-                    >
-                      <ChevronLeft size={20} />
-                    </button>
-                    
-                    <div className="text-center relative group">
-                      <input 
-                        type="date" 
-                        className="absolute inset-0 opacity-0 cursor-pointer z-10" 
-                        value={selectedDate}
-                        onChange={(e) => setSelectedDate(e.target.value)}
-                      />
-                      <h2 className="text-lg font-bold text-white tracking-tight group-hover:text-indigo-400 transition-colors">
-                        {formatDisplayDate(selectedDate)}
-                      </h2>
-                      <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">
-                        {selectedDate === getTodayDate() ? 'TODAY' : 'HISTORICAL LOG'}
-                      </p>
-                    </div>
-
-                    <button 
-                      onClick={() => changeDate(1)}
-                      className="p-2 hover:bg-zinc-800 rounded-full transition-colors text-zinc-400"
-                    >
-                      <ChevronRight size={20} />
-                    </button>
-                  </div>
-
-                  {/* Intelligent Prefill Button */}
-                  <AnimatePresence>
-                    {activeSuggestion && !prefillUsed && (
-                      <motion.div
-                        initial={{ opacity: 0, y: -10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        className="relative"
-                      >
-                        {(() => {
-                          const historyCount = Object.keys(logs).length;
-                          const confidence = activeSuggestion.confidence;
-                          
-                          if (historyCount === 0) {
-                            return (
-                              <button
-                                onClick={() => setToast({ message: 'Start by logging your first night manually!', type: 'info' })}
-                                className="w-full py-4 bg-zinc-900 border border-zinc-800 rounded-2xl flex items-center justify-center gap-3 group hover:bg-zinc-800 transition-all"
-                              >
-                                <Rocket className="text-zinc-500" size={20} />
-                                <div className="text-left">
-                                  <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">SIA Onboarding</p>
-                                  <p className="text-sm font-bold text-white">Start Your Journey</p>
-                                </div>
-                              </button>
-                            );
-                          }
-
-                          if (historyCount < 3) {
-                            return (
-                              <button
-                                onClick={() => setToast({ message: `SIA needs ${3 - historyCount} more days of data to recognize your patterns.`, type: 'info' })}
-                                className="w-full py-4 bg-zinc-900/50 border border-zinc-800/50 rounded-2xl flex items-center justify-center gap-3 grayscale opacity-50 cursor-not-allowed"
-                              >
-                                <Wand2 className="text-zinc-600" size={20} />
-                                <div className="text-left">
-                                  <p className="text-[10px] font-black text-zinc-600 uppercase tracking-widest">SIA Learning</p>
-                                  <p className="text-sm font-bold text-zinc-500">Log {3 - historyCount} more days to unlock</p>
-                                </div>
-                              </button>
-                            );
-                          }
-
-                          if (confidence < 0.8) {
-                            return (
-                              <button
-                                onClick={() => setShowPrefillConfirm(true)}
-                                className="w-full py-4 bg-zinc-900 border border-zinc-800 rounded-2xl flex items-center justify-center gap-3 group hover:bg-zinc-800 transition-all"
-                              >
-                                <Lightbulb className="text-amber-400" size={20} />
-                                <div className="text-left">
-                                  <p className="text-[10px] font-black text-amber-500 uppercase tracking-widest">SIA Draft</p>
-                                  <p className="text-sm font-bold text-white">Suggested Fill ({Math.round(confidence * 100)}% match)</p>
-                                </div>
-                              </button>
-                            );
-                          }
-
-                          return (
-                            <button
-                              onClick={applySuggestion}
-                              className="w-full py-4 bg-gradient-to-r from-indigo-600/20 to-violet-600/20 border border-indigo-500/30 rounded-2xl flex items-center justify-center gap-3 group hover:from-indigo-600/30 hover:to-violet-600/30 transition-all relative overflow-hidden shadow-lg shadow-indigo-500/10"
-                            >
-                              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
-                              <Wand2 className="text-indigo-400 group-hover:rotate-12 transition-transform" size={20} />
-                              <div className="text-left">
-                                <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">SIA Master</p>
-                                <p className="text-sm font-bold text-white">Apply Routine</p>
-                              </div>
-                            </button>
-                          );
-                        })()}
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
 
               {/* Timeline Section */}
               <section className="space-y-4">
@@ -1253,6 +1165,69 @@ export default function App() {
                     isEditing ? 'border-indigo-500 ring-2 ring-indigo-500/20 touch-none' : 'border-zinc-800 touch-pan-y'
                   }`}
                 >
+                  {/* SIA Learning Bar */}
+                  <AnimatePresence mode="wait">
+                    {activeSuggestion && !prefillUsed && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        className="overflow-hidden z-30 relative"
+                      >
+                        {(() => {
+                          const historyCount = Object.keys(logs).length;
+                          const confidence = activeSuggestion.confidence;
+                          
+                          if (historyCount === 0) {
+                            return (
+                              <button
+                                onClick={() => setToast({ message: 'Start by logging your first night manually!', type: 'info' })}
+                                className="w-full py-3 bg-zinc-900 hover:bg-zinc-800 transition-all flex items-center justify-center gap-3 group"
+                              >
+                                <Rocket className="text-zinc-500 group-hover:scale-110 transition-transform" size={14} />
+                                <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">SIA Learning: Start Your Journey</p>
+                              </button>
+                            );
+                          }
+
+                          if (historyCount < 3) {
+                            return (
+                              <button
+                                onClick={() => setToast({ message: `SIA needs ${3 - historyCount} more days of data to recognize your patterns.`, type: 'info' })}
+                                className="w-full py-3 bg-zinc-900/50 flex items-center justify-center gap-3 grayscale opacity-50 cursor-not-allowed"
+                              >
+                                <Wand2 className="text-zinc-600" size={14} />
+                                <p className="text-[10px] font-black text-zinc-600 uppercase tracking-widest">SIA Learning: Log {3 - historyCount} more days to unlock</p>
+                              </button>
+                            );
+                          }
+
+                          if (confidence < 0.8) {
+                            return (
+                              <button
+                                onClick={() => setShowPrefillConfirm(true)}
+                                className="w-full py-3 bg-zinc-900 hover:bg-zinc-800 transition-all flex items-center justify-center gap-3 group"
+                              >
+                                <Lightbulb className="text-amber-400 group-hover:scale-110 transition-transform" size={14} />
+                                <p className="text-[10px] font-black text-amber-500 uppercase tracking-widest">SIA Draft: Suggested Fill Available</p>
+                              </button>
+                            );
+                          }
+
+                          return (
+                            <button
+                              onClick={applySuggestion}
+                              className="w-full py-3 bg-indigo-600/10 hover:bg-indigo-600/20 transition-all flex items-center justify-center gap-3 group relative overflow-hidden"
+                            >
+                              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+                              <Wand2 className="text-indigo-400 group-hover:rotate-12 transition-transform" size={14} />
+                              <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">SIA Master: Apply Routine</p>
+                            </button>
+                          );
+                        })()}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                   <AnimatePresence>
                     {!isEditing && (
                       <motion.div 
@@ -1288,11 +1263,11 @@ export default function App() {
                         </span>
                       </div>
                       <div className="grid grid-cols-16 gap-0 flex-1">
-                        {currentLog.timeline.slice(rowIdx * 16, (rowIdx + 1) * 16).map((state, localIdx) => {
+                        {currentLog.visualTimeline.slice(rowIdx * 16, (rowIdx + 1) * 16).map((state, localIdx) => {
                           const idx = rowIdx * 16 + localIdx;
                           const stateInfo = SLEEP_STATES.find(s => s.value === state);
                           const isHourStart = idx % 4 === 0;
-                          const isImported = currentLog.modifiedBySync?.[idx];
+                          const isImported = (currentLog as any).modifiedBySync?.[idx];
                           
                           return (
                             <button
@@ -1323,7 +1298,7 @@ export default function App() {
                 
                 <div className="flex justify-between text-[10px] text-zinc-500 px-1 italic">
                   <span>Start: 20:00</span>
-                  <span>Duration: {formatDuration(calculateSleepDuration(currentLog.timeline))}</span>
+                  <span>Duration: {formatDuration(calculateSleepDuration(currentLog.visualTimeline))}</span>
                   <span>End: {getSlotLabel(TOTAL_SLOTS)}</span>
                 </div>
                 
@@ -1583,18 +1558,16 @@ export default function App() {
                 />
               </section>
 
-              <React.Suspense fallback={<div className="p-4 text-center text-zinc-500 text-xs">Loading Importer...</div>}>
-                <DataImporter 
-                  user={user} 
-                  isImporting={isImporting}
-                  setIsImporting={setIsImporting}
-                  onImportComplete={() => {
-                    setToast({ message: 'Data imported and synced successfully', type: 'success' });
-                    setIsImporting(false);
-                  }} 
-                  onRefresh={refreshAllData}
-                />
-              </React.Suspense>
+              <DataImporter 
+                user={user} 
+                isImporting={isImporting}
+                setIsImporting={setIsImporting}
+                onImportComplete={() => {
+                  setToast({ message: 'Data imported and synced successfully', type: 'success' });
+                  setIsImporting(false);
+                }} 
+                onRefresh={refreshAllData}
+              />
 
               <div className="flex gap-4">
                 <button 
@@ -1688,6 +1661,7 @@ export default function App() {
               personalizationProfile={personalizationProfile} 
               onModifyAssessment={() => setShowPersonalizationWizard(true)}
               onRefresh={refreshAllData}
+              logs={logs}
             />
           ) : (
             <motion.div 
@@ -1700,7 +1674,9 @@ export default function App() {
               {/* Insights Header */}
               <div className="space-y-6">
                 <div className="text-center space-y-2">
-                  <h2 className="text-2xl font-bold tracking-tight capitalize">Insights</h2>
+                  <h2 className="text-2xl font-bold tracking-tight capitalize">
+                    {view === 'weekly' ? 'Last 7 Days' : view === 'monthly' ? 'Last 30 Days' : 'Insights'}
+                  </h2>
                   <p className="text-sm text-zinc-500">
                     {formatDisplayDate(activeDates[0])} — {formatDisplayDate(activeDates[activeDates.length - 1])}
                   </p>
@@ -1719,7 +1695,7 @@ export default function App() {
                             : 'text-zinc-500 hover:text-zinc-300'
                         }`}
                       >
-                        {sub}
+                        {sub === 'weekly' ? '7 Days' : sub === 'monthly' ? '30 Days' : sub}
                       </button>
                     ))}
                   </div>
@@ -1806,6 +1782,9 @@ export default function App() {
                 {activeDates.slice().reverse().map(date => {
                   const log = logs[date];
                   const isToday = date === getTodayDate();
+                  const sleepData = log ? (log.sleepEvents || log.timeline || []) : [];
+                  const events = log ? (log.sleepEvents || (log.timeline ? migrateTimelineToEvents(log.timeline) : [])) : [];
+
                   return (
                     <button 
                       key={date}
@@ -1813,29 +1792,41 @@ export default function App() {
                         setSelectedDate(date);
                         setView('log');
                       }}
-                      className={`w-full flex items-center justify-between p-4 rounded-2xl border transition-all ${
+                      className={`w-full flex flex-col gap-4 p-5 rounded-[2rem] border transition-all min-h-[100px] ${
                         log 
                           ? 'bg-zinc-900 border-zinc-800 hover:border-zinc-700' 
                           : 'bg-transparent border-zinc-900 hover:bg-zinc-900/30'
                       } ${isToday ? 'ring-1 ring-indigo-500/50' : ''}`}
                     >
-                      <div className="flex items-center gap-4">
-                        <div className={`w-2 h-2 rounded-full ${log ? 'bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.5)]' : 'bg-zinc-800'}`} />
-                        <div className="text-left">
-                          <p className="text-sm font-bold">{formatDisplayDate(date)}</p>
-                          <p className="text-[10px] text-zinc-500 uppercase tracking-wider">
-                            {log ? `${formatDuration(calculateSleepDuration(log.timeline))} sleep` : 'No entry'}
-                          </p>
+                      <div className="w-full flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <div className={`w-2 h-2 rounded-full ${log ? 'bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.5)]' : 'bg-zinc-800'}`} />
+                          <div className="text-left">
+                            <p className="text-sm font-bold">{formatDisplayDate(date)}</p>
+                            <p className="text-[10px] text-zinc-500 uppercase tracking-wider">
+                              {log ? `${formatDuration(calculateSleepDuration(sleepData))} sleep` : 'No entry'}
+                            </p>
+                          </div>
                         </div>
+                        {log ? (
+                          <div className="flex gap-3 text-[10px] font-black uppercase tracking-widest">
+                            <span className="text-indigo-400">Q:{log.sleepQuality}</span>
+                            <span className="text-emerald-400">R:{log.restedness}</span>
+                            <span className="text-purple-400">E:{calculateSleepEfficiency(sleepData)}%</span>
+                          </div>
+                        ) : (
+                          <Plus size={16} className="text-zinc-700" />
+                        )}
                       </div>
+                      
                       {log && (
-                        <div className="flex gap-3 text-xs font-mono">
-                          <span className="text-indigo-400">Q:{log.sleepQuality}</span>
-                          <span className="text-emerald-400">R:{log.restedness}</span>
-                          <span className="text-purple-400">E:{calculateSleepEfficiency(log.timeline)}%</span>
+                        <div className="w-full">
+                          <SleepRibbon 
+                            sleepEvents={events} 
+                            height="h-1.5"
+                          />
                         </div>
                       )}
-                      {!log && <Plus size={16} className="text-zinc-700" />}
                     </button>
                   );
                 })}

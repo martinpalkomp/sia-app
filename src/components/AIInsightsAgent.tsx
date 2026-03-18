@@ -31,6 +31,7 @@ import {
 } from 'firebase/firestore';
 
 import { AvatarFrame } from './UI';
+import { getGridFromEvents } from '../utils/sleepUtils';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -141,9 +142,8 @@ export default function AIInsightsAgent({ logs, user, personalizationProfile, is
       const logsRef = collection(db, 'users', user.uid, 'sleep_logs');
       const logsQuery = query(
         logsRef,
-        where('type', '==', 'log'),
         orderBy('date', 'desc'),
-        limit(daysCount)
+        limit(60)
       );
       
       const [logsSnap, profileSnap, unstructuredSnap] = await Promise.all([
@@ -155,13 +155,15 @@ export default function AIInsightsAgent({ logs, user, personalizationProfile, is
       const historicalLogs: any[] = [];
       logsSnap.forEach(doc => {
         const data = doc.data() as DailyLog;
-        // Condensed JSON format for efficiency - ensure no circular refs or complex objects
+        
+        // Send sleepEvents instead of 96 slots
         historicalLogs.push({
           d: String(data.date || ''),
-          dur: Number(data.timeline ? (data.timeline.filter(s => s === 'sleep').length * 0.25) : (data.summaryMetrics?.importedDuration || 0)),
-          q: Number(data.sleepQuality ?? 5),
+          events: data.sleepEvents || [],
+          sq: Number(data.sleepQuality ?? 5),
           r: Number(data.restedness ?? 5),
-          txt: String(data.remarks || '').substring(0, 50) // Keep remarks short
+          l: Number(data.energyLevel ?? 5),
+          txt: String(data.remarks || '').substring(0, 50)
         });
       });
 
@@ -211,12 +213,14 @@ export default function AIInsightsAgent({ logs, user, personalizationProfile, is
         
         INSTRUCTIONS:
         1. Use the provided data to find correlations, patterns, and triggers.
-        2. Deliver insights in a conversational, supportive, and professional tone.
-        3. Use Markdown formatting (bolding, bullet points, and headers) to make insights easy to read.
-        4. If the user asks about specific keywords like "Lormazepam", "Nightmares", "Night Terrors", or "Bathroom", perform a targeted correlation scan.
-        5. Use the unstructured data to provide context that might not be in the grid (e.g., "I see you mentioned caffeine in your notes...").
-        6. AGE-ADJUSTED NORMS: If age is > 60, be more permissive of early waking and shorter total duration (6-7h can be normal).
-        7. OXYGEN WARNING: If SpO2 (Avg or Min) is below 92%, strongly suggest the user shares this with a doctor to screen for Sleep Disordered Breathing/Sleep Apnea.
+        2. Look at the 'start' and 'end' strings in 'sleepEvents' to determine the user's 'Usual Bedtime' and 'Circadian Rhythm'.
+        3. You can be very precise with times (e.g., "You usually fall asleep at 22:42").
+        4. Deliver insights in a conversational, supportive, and professional tone.
+        5. Use Markdown formatting (bolding, bullet points, and headers) to make insights easy to read.
+        6. If the user asks about specific keywords like "Lormazepam", "Nightmares", "Night Terrors", or "Bathroom", perform a targeted correlation scan.
+        7. Use the unstructured data to provide context that might not be in the grid (e.g., "I see you mentioned caffeine in your notes...").
+        8. AGE-ADJUSTED NORMS: If age is > 60, be more permissive of early waking and shorter total duration (6-7h can be normal).
+        9. OXYGEN WARNING: If SpO2 (Avg or Min) is below 92%, strongly suggest the user shares this with a doctor to screen for Sleep Disordered Breathing/Sleep Apnea.
         
         STYLE:
         - Refer to yourself as SIA.
@@ -255,7 +259,7 @@ export default function AIInsightsAgent({ logs, user, personalizationProfile, is
       setIsLoading(false);
       setIsTyping(false);
 
-      console.error("AI Error:", error);
+      console.error('SIA Chat Error:', error);
       let friendlyMessage = "I encountered an error while analyzing your data. Please check your connection and try again.";
       
       if (error.message === 'TIMEOUT') {

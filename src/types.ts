@@ -1,5 +1,12 @@
 export type SleepState = 'awake-out' | 'awake-in' | 'sleep';
 
+export interface SleepEvent {
+  id: string;
+  type: SleepState;
+  start: string; // HH:mm
+  end: string;   // HH:mm
+}
+
 export interface BaseLog {
   date: string; // ISO date string (YYYY-MM-DD)
   type?: 'log'; // Firestore type discriminator
@@ -11,7 +18,8 @@ export interface BaseLog {
 }
 
 export interface FullLog extends BaseLog {
-  timeline: SleepState[]; // 96 slots for 15-min intervals (20:00 to 20:00)
+  timeline?: SleepState[]; // 96 slots for 15-min intervals (20:00 to 20:00) - Deprecated
+  sleepEvents: SleepEvent[];    // New event-based ledger
   factors: {
     caffeine: { consumed: boolean; amount: number; lastIntake: string };
     alcohol: { consumed: boolean; drinks: number; lastIntake: string };
@@ -72,7 +80,8 @@ export interface DailyLog extends Partial<FullLog>, Partial<SummaryLog> {
   restedness: number;
   energyLevel: number;
   remarks: string;
-  timeline: SleepState[];
+  timeline?: SleepState[]; // Deprecated
+  sleepEvents?: SleepEvent[];   // New event-based ledger
   factors: {
     caffeine: { consumed: boolean; amount: number; lastIntake: string };
     alcohol: { consumed: boolean; drinks: number; lastIntake: string };

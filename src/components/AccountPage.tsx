@@ -16,23 +16,52 @@ import {
   Shield,
   Database,
   ArrowLeft,
-  Trash2
+  Trash2,
+  MessageSquare,
+  Rocket
 } from 'lucide-react';
-import { PersonalizationProfile } from '../types';
+import { PersonalizationProfile, DailyLog } from '../types';
 import { Card, AvatarFrame } from './UI';
 import EthicalDataPledge from './EthicalDataPledge';
 import { seedTestData, purgeUserData } from '../utils/devTools';
 import DataManager from './DataManager';
+import FeedbackForm from './FeedbackForm';
+import AdminFeedback from './AdminFeedback';
+import { onSnapshot } from 'firebase/firestore';
 
 interface AccountPageProps {
   user: User;
   personalizationProfile: PersonalizationProfile | null;
   onModifyAssessment: () => void;
   onRefresh?: () => void;
+  logs?: Record<string, DailyLog>;
 }
 
-export default function AccountPage({ user, personalizationProfile, onModifyAssessment, onRefresh }: AccountPageProps) {
-  const [view, setView] = React.useState<'main' | 'data-ledger'>('main');
+export default function AccountPage({ user, personalizationProfile, onModifyAssessment, onRefresh, logs }: AccountPageProps) {
+  const [view, setView] = React.useState<'main' | 'data-ledger' | 'feedback' | 'admin-feedback'>('main');
+  const [userData, setUserData] = React.useState<any>(null);
+
+  React.useEffect(() => {
+    if (!user) return;
+    const userRef = doc(db, 'users', user.uid);
+    const unsubscribe = onSnapshot(userRef, (doc) => {
+      if (doc.exists()) {
+        setUserData(doc.data());
+      }
+    });
+    return () => unsubscribe();
+  }, [user]);
+
+  const isAdmin = userData?.role === 'admin' || user.email === 'martinpalko.mp@gmail.com';
+
+  /**
+   * MANUAL ADMIN SETUP:
+   * To promote a user to 'admin' manually:
+   * 1. Go to Firebase Console -> Firestore Database
+   * 2. Find the user's document in the 'users' collection (ID is their UID)
+   * 3. Add a field 'role' with string value 'admin'
+   * 4. The app will automatically pick up the change via onSnapshot
+   */
 
   const handleLogout = async () => {
     try {
@@ -97,6 +126,29 @@ export default function AccountPage({ user, personalizationProfile, onModifyAsse
         </button>
         <DataManager user={user} onRefresh={onRefresh} />
       </motion.div>
+    );
+  }
+
+  if (view === 'feedback') {
+    return (
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        className="flex justify-center items-center min-h-[400px]"
+      >
+        <FeedbackForm 
+          user={user} 
+          recentLogs={logs} 
+          onClose={() => setView('main')} 
+        />
+      </motion.div>
+    );
+  }
+
+  if (view === 'admin-feedback') {
+    return (
+      <AdminFeedback onBack={() => setView('main')} />
     );
   }
 
@@ -252,6 +304,40 @@ export default function AccountPage({ user, personalizationProfile, onModifyAsse
           </div>
           <ChevronRight size={20} className="text-zinc-700 group-hover:text-white transition-colors" />
         </button>
+
+        <button 
+          onClick={() => setView('feedback')}
+          className="w-full p-4 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-2xl flex items-center justify-between group transition-all"
+        >
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 rounded-xl bg-zinc-800 flex items-center justify-center text-zinc-400 group-hover:text-clinical-primary transition-colors">
+              <MessageSquare size={20} />
+            </div>
+            <div className="text-left">
+              <div className="text-sm font-black text-white">Submit Feedback</div>
+              <div className="text-[10px] text-zinc-500 uppercase tracking-widest">Help SIA learn from your input</div>
+            </div>
+          </div>
+          <ChevronRight size={20} className="text-zinc-700 group-hover:text-white transition-colors" />
+        </button>
+
+        {isAdmin && (
+          <button 
+            onClick={() => setView('admin-feedback')}
+            className="w-full p-4 bg-indigo-600/10 hover:bg-indigo-600/20 border border-indigo-500/30 rounded-2xl flex items-center justify-between group transition-all"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 rounded-xl bg-indigo-500/20 flex items-center justify-center text-indigo-400">
+                <Rocket size={20} />
+              </div>
+              <div className="text-left">
+                <div className="text-sm font-black text-white">🚀 Admin: Review Feedback</div>
+                <div className="text-[10px] text-indigo-400 uppercase tracking-widest font-bold">Manage incoming requests</div>
+              </div>
+            </div>
+            <ChevronRight size={20} className="text-indigo-400 group-hover:translate-x-1 transition-transform" />
+          </button>
+        )}
       </div>
 
       {/* Developer Tools */}

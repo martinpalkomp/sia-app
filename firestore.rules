@@ -2,14 +2,59 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+         (request.auth.token.email == "martinpalko.mp@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isValidFeedback(data) {
+      return data.userId is string && data.userId == request.auth.uid &&
+             data.userName is string && data.userName.size() < 100 &&
+             data.category in ['Bug Report', 'Feature Request', 'Data Issue', 'UI/UX', 'Other'] &&
+             data.message is string && data.message.size() > 0 && data.message.size() < 5000 &&
+             data.status in ['open', 'resolved'] &&
+             data.version is string;
+    }
+
     // Default deny
     match /{document=**} {
       allow read, write: if false;
     }
 
-    // User data isolation
+    // User profiles
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      // Only allow creation of basic user profile, role must be 'user' or omitted (defaulting to user)
+      allow create: if isOwner(userId) && 
+        (!('role' in request.resource.data) || request.resource.data.role == 'user');
+      // Prevent users from changing their own role
+      allow update: if isOwner(userId) && 
+        (!('role' in request.resource.data) || request.resource.data.role == resource.data.role);
+      // Admin can do anything
+      allow write: if isAdmin();
+    }
+
+    // User subcollections (logs, data)
     match /users/{userId}/{document=**} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if isOwner(userId) || isAdmin();
+    }
+
+    // Feedback collection
+    match /feedback/{feedbackId} {
+      allow create: if isAuthenticated() && isValidFeedback(request.resource.data);
+      allow read, update, delete: if isAdmin();
     }
   }
 }

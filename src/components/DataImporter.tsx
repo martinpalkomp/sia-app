@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import Papa from 'papaparse';
-import * as XLSX from 'xlsx';
+import { read, utils } from 'xlsx';
 import { parse, format, isValid, addDays } from 'date-fns';
 import { 
   Upload, 
@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { User } from 'firebase/auth';
-import { writeBatch, doc, serverTimestamp, getDoc, runTransaction, addDoc, collection } from 'firebase/firestore';
+import { doc, serverTimestamp, getDoc, runTransaction, addDoc, collection } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { DailyLog, SleepState } from '../types';
 import { TOTAL_SLOTS } from '../constants';
@@ -45,6 +45,7 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
   const [showConflictModal, setShowConflictModal] = useState(false);
   const [pendingData, setPendingData] = useState<any[] | null>(null);
   const [cleaningReport, setCleaningReport] = useState<{ skipped: number; cleaned: number; metrics: string[] } | null>(null);
+  const [showLegacyToast, setShowLegacyToast] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const saveUnstructuredData = async (content: string, fileName: string) => {
@@ -70,8 +71,8 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
   const fuzzyMapHeader = (header: string): string | null => {
     const h = header.toLowerCase().trim();
     if (h === 'date') return 'Date';
-    if (h.includes('start') || h.includes('begin')) return 'Start_Time';
-    if (h.includes('end') || h.includes('finish')) return 'End_Time';
+    if (h.includes('start') || h.includes('begin') || h === 'bedtime') return 'Start_Time';
+    if (h.includes('end') || h.includes('finish') || h === 'waketime') return 'End_Time';
     if (h.includes('status') || h.includes('type') || h.includes('code')) return 'Status_Code';
     if (h === 'sq' || h.includes('quality')) return 'SQ';
     if (h === 'r' || h.includes('rest') || h.includes('awakening')) return 'R';
@@ -86,7 +87,7 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
     sleepQuality: 5,
     restedness: 5,
     energyLevel: 5,
-    timeline: Array(TOTAL_SLOTS).fill('awake-out'),
+    sleepEvents: [],
     remarks: '',
     source: 'import',
     factors: {
@@ -137,6 +138,7 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
     setUploadStatus('idle');
     setErrorMessage('');
     setCleaningReport(null);
+    setShowLegacyToast(false);
     if (setIsImporting) setIsImporting(true);
     
     try {
@@ -165,8 +167,13 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
         const end = mappedRow.End_Time;
         const status = mappedRow.Status_Code;
 
-        if (!date || !start || !end || !status) {
-          skippedRows.push(`Row ${idx + 1}: Missing required fields (Date, Start, End, Status)`);
+        // Check for legacy format
+        if (status && !showLegacyToast) {
+          setShowLegacyToast(true);
+        }
+
+        if (!date || !start || !end) {
+          skippedRows.push(`Row ${idx + 1}: Missing required fields (Date, Bedtime, Waketime)`);
           return false;
         }
 
@@ -228,7 +235,9 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
           const docSnap = await getDoc(docRef);
           if (docSnap.exists()) {
             const existingData = docSnap.data() as DailyLog;
-            if (existingData.timeline && !existingData.timeline.every(s => s === 'awake-out')) {
+            const hasEvents = existingData.sleepEvents && existingData.sleepEvents.length > 0;
+            const hasTimeline = existingData.timeline && !existingData.timeline.every(s => s === 'awake-out');
+            if (hasEvents || hasTimeline) {
               hasConflict = true;
               break;
             }
@@ -242,7 +251,7 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
         }
       }
 
-      // 3. Translation Engine (Timestamp to Index)
+      // 3. Translation Engine (Timestamp to Events)
       for (const rawRow of validRows) {
         const row = (rawRow as any)._mapped;
         const unmapped = (rawRow as any)._unmapped;
@@ -251,24 +260,25 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
         const end = row.End_Time;
         const statusVal = row.Status_Code?.toString().toUpperCase();
         
-        let state: SleepState = 'awake-out';
-        const statusStr = statusVal.toString().toUpperCase();
-        
-        if (statusStr === '1' || statusStr.includes('SLEEP')) {
-          state = 'sleep';
-        } else if (statusStr === '2' || statusStr.includes('AWAKE IN') || statusStr === 'AWAKE') {
-          state = 'awake-in';
-        } else if (statusStr === '0' || statusStr.includes('AWAKE OUT')) {
-          state = 'awake-out';
+        let state: SleepState = 'sleep'; // Default to sleep for new format
+        if (statusVal) {
+          const statusStr = statusVal.toString().toUpperCase();
+          if (statusStr === '1' || statusStr.includes('SLEEP')) {
+            state = 'sleep';
+          } else if (statusStr === '2' || statusStr.includes('AWAKE IN') || statusStr === 'AWAKE') {
+            state = 'awake-in';
+          } else if (statusStr === '0' || statusStr.includes('AWAKE OUT')) {
+            state = 'awake-out';
+          }
         }
+
+        if (state === 'awake-out') continue; // Don't log awake-out events
 
         if (!logsToSave[date]) {
           logsToSave[date] = defaultLog(date);
-          logsToSave[date].modifiedBySync = Array(TOTAL_SLOTS).fill(false);
         }
 
-        // Map Clinical Metrics (SQ -> sleep_quality, R -> morning_alertness, L -> daytime_energy)
-        // Default to 5 if blank or invalid
+        // Map Clinical Metrics
         const sqVal = parseInt(row.SQ);
         logsToSave[date].sleepQuality = !isNaN(sqVal) ? sqVal : 5;
         logsToSave[date].sleep_quality = !isNaN(sqVal) ? sqVal : 5;
@@ -298,29 +308,35 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
         const endIndex = timeToIndex(end);
 
         if (endIndex < startIndex) {
-          // Midnight Crossover Logic (Timezone-agnostic)
-          for (let i = startIndex; i < TOTAL_SLOTS; i++) {
-            logsToSave[date].timeline[i] = state;
-            logsToSave[date].modifiedBySync![i] = true;
-          }
+          // Midnight Crossover Logic: Split into two events
+          // Event A: Start to 20:00 (End of Day 1)
+          logsToSave[date].sleepEvents!.push({
+            id: crypto.randomUUID(),
+            type: state,
+            start: start,
+            end: '20:00'
+          });
           
-          // Use addDays for robust date math
+          // Event B: 20:00 to End (Start of Day 2)
           const nextDateObj = addDays(parse(date, 'yyyy-MM-dd', new Date()), 1);
           const nextDateStr = format(nextDateObj, 'yyyy-MM-dd');
           
           if (!logsToSave[nextDateStr]) {
             logsToSave[nextDateStr] = defaultLog(nextDateStr);
-            logsToSave[nextDateStr].modifiedBySync = Array(TOTAL_SLOTS).fill(false);
           }
-          for (let i = 0; i < endIndex; i++) {
-            logsToSave[nextDateStr].timeline[i] = state;
-            logsToSave[nextDateStr].modifiedBySync![i] = true;
-          }
+          logsToSave[nextDateStr].sleepEvents!.push({
+            id: crypto.randomUUID(),
+            type: state,
+            start: '20:00',
+            end: end
+          });
         } else {
-          for (let i = startIndex; i < endIndex; i++) {
-            logsToSave[date].timeline[i] = state;
-            logsToSave[date].modifiedBySync![i] = true;
-          }
+          logsToSave[date].sleepEvents!.push({
+            id: crypto.randomUUID(),
+            type: state,
+            start: start,
+            end: end
+          });
         }
         cleanedCount++;
       }
@@ -494,9 +510,9 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
           reader.onload = (e) => {
             try {
               const buffer = new Uint8Array(e.target?.result as ArrayBuffer);
-              const workbook = XLSX.read(buffer, { type: 'array', cellDates: true });
+              const workbook = read(buffer, { type: 'array', cellDates: true });
               const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-              const json = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+              const json = utils.sheet_to_json(worksheet, { defval: "" });
               resolve(json);
             } catch (err) { reject(err); }
           };
@@ -515,17 +531,16 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
   };
 
   const downloadTemplate = () => {
-    const headers = ['Date', 'Start_Time', 'End_Time', 'Status_Code', 'SQ', 'R', 'L', 'Remarks'];
+    const headers = ['Date', 'Bedtime', 'Waketime', 'SQ', 'R', 'L', 'Remarks'];
     const sampleData = [
       {
-        Date: '2026-03-15',
-        Start_Time: '23:00',
-        End_Time: '07:00',
-        Status_Code: '1',
+        Date: '2026-03-20',
+        Bedtime: '23:15',
+        Waketime: '07:30',
         SQ: 8,
         R: 7,
         L: 7,
-        Remarks: 'Sample entry - please delete me'
+        Remarks: 'Slept well.'
       }
     ];
 
@@ -721,7 +736,23 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
                 )}
 
                 <AnimatePresence>
-                  {uploadStatus === 'unstructured' && (
+                  {showLegacyToast && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-2xl flex items-start gap-3"
+                  >
+                    <AlertCircle className="text-amber-400 mt-0.5 flex-shrink-0" size={18} />
+                    <div className="space-y-1">
+                      <p className="text-xs font-bold text-amber-300 uppercase tracking-widest">Data Integrity Check</p>
+                      <p className="text-[11px] text-amber-200 leading-relaxed">
+                        Legacy format detected. SIA is auto-converting your data to the new High-Precision format.
+                      </p>
+                    </div>
+                  </motion.div>
+                )}
+
+                {uploadStatus === 'unstructured' && (
                   <motion.div 
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: 'auto' }}
