@@ -78,9 +78,15 @@ import { AvatarFrame } from './components/UI';
 import { saveLog, validateLogMetrics } from './services/sleepService';
 import { getSuggestedLog, AICorrection, SuggestionResult } from './utils/patternEngine';
 
-import { auth, googleProvider, db, isFirebaseConfigured } from './lib/firebase';
-import { onAuthStateChanged, signInWithPopup, signOut, User } from 'firebase/auth';
 import { 
+  auth, 
+  googleProvider, 
+  db, 
+  isFirebaseConfigured,
+  onAuthStateChanged, 
+  signInWithPopup, 
+  signOut, 
+  User,
   collection, 
   doc, 
   query, 
@@ -91,7 +97,7 @@ import {
   serverTimestamp,
   orderBy,
   limit
-} from 'firebase/firestore';
+} from './lib/firebase';
 
 // Lazy load heavy components
 const SleepGuideInteractive = React.lazy(() => import('./components/SleepGuideInteractive'));
@@ -156,6 +162,7 @@ export default function App() {
   const reportRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [initialTimeline, setInitialTimeline] = useState<SleepState[] | null>(null);
   const [dragAction, setDragAction] = useState<'paint' | 'erase'>('paint');
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
@@ -268,9 +275,9 @@ export default function App() {
         
         const hasTimeline = log.timeline && log.timeline.length > 0 && !log.timeline.every(s => s === 'awake-out');
         const hasSummaryMetrics = !!log.summaryMetrics && 
-                                  typeof log.summaryMetrics.sleepQuality === 'number' &&
-                                  typeof log.summaryMetrics.restedness === 'number' &&
-                                  typeof log.summaryMetrics.energyLevel === 'number';
+                                  typeof log.summaryMetrics.sleep_quality === 'number' &&
+                                  typeof log.summaryMetrics.morning_alertness === 'number' &&
+                                  typeof log.summaryMetrics.daytime_energy === 'number';
         
         return isAfterStart && isNotIgnored && (!hasTimeline || !hasSummaryMetrics);
       }).length;
@@ -352,9 +359,9 @@ export default function App() {
 
         // Populate summaryMetrics before saving
         const summaryMetrics = {
-          sleepQuality: log.sleepQuality,
-          restedness: log.restedness,
-          energyLevel: log.energyLevel,
+          sleep_quality: log.sleep_quality,
+          morning_alertness: log.morning_alertness,
+          daytime_energy: log.daytime_energy,
           importedDuration: sleepDuration,
           importedInBed: timeInBed,
         };
@@ -445,17 +452,17 @@ export default function App() {
     const log = (logs[selectedDate] || {
       date: selectedDate,
       type: 'log',
-      sleepQuality: 5,
-      restedness: 5,
-      energyLevel: 5,
+      sleep_quality: 5,
+      morning_alertness: 5,
+      daytime_energy: 5,
       sleepEvents: [],
-      remarks: '',
+      daily_remarks: '',
       isIgnored: false,
       source: 'manual',
       summaryMetrics: {
-        sleepQuality: 5,
-        restedness: 5,
-        energyLevel: 5,
+        sleep_quality: 5,
+        morning_alertness: 5,
+        daytime_energy: 5,
         importedDuration: 0,
         importedInBed: 0,
       },
@@ -522,22 +529,36 @@ export default function App() {
     }
   };
 
-  const handleTouchStart = (index: number) => {
+  const handleTouchStart = (e: React.TouchEvent) => {
     if (!isEditing) return;
-    handleMouseDown(index);
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (!isDragging) return;
+    e.preventDefault();
     const touch = e.touches[0];
     const element = document.elementFromPoint(touch.clientX, touch.clientY);
     if (element) {
-      const indexAttr = element.getAttribute('data-index');
+      const indexAttr = element.getAttribute('data-slot-index');
+      if (indexAttr !== null) {
+        const index = parseInt(indexAttr);
+        handleMouseDown(index);
+      }
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isDragging || !isEditing) return;
+    e.preventDefault();
+    const touch = e.touches[0];
+    const element = document.elementFromPoint(touch.clientX, touch.clientY);
+    if (element) {
+      const indexAttr = element.getAttribute('data-slot-index');
       if (indexAttr !== null) {
         const index = parseInt(indexAttr);
         handleMouseEnter(index);
       }
     }
+  };
+
+  const handleTouchEnd = () => {
+    setIsDragging(false);
   };
 
   const handleMouseUp = () => {
@@ -663,7 +684,7 @@ export default function App() {
     // Only suggest if the current log is "empty" (default values)
     const log = logs[selectedDate];
     const isEmpty = !log || (
-      log.remarks === '' && 
+      log.daily_remarks === '' && 
       (!log.sleepEvents || log.sleepEvents.length === 0) &&
       (!log.timeline || log.timeline.every(s => s === 'awake-out')) &&
       !log.factors.caffeine.consumed &&
@@ -686,9 +707,9 @@ export default function App() {
     if (periodLogs.length === 0) return null;
 
     return {
-      sq: calculateSafeAverage(periodLogs, 'sleepQuality').average.toFixed(1),
-      r: calculateSafeAverage(periodLogs, 'restedness').average.toFixed(1),
-      l: calculateSafeAverage(periodLogs, 'energyLevel').average.toFixed(1),
+      sq: calculateSafeAverage(periodLogs, 'sleep_quality').average.toFixed(1),
+      r: calculateSafeAverage(periodLogs, 'morning_alertness').average.toFixed(1),
+      l: calculateSafeAverage(periodLogs, 'daytime_energy').average.toFixed(1),
       duration: formatDuration(calculateSafeAverage(periodLogs, 'sleepDuration').average),
       efficiency: calculateSafeAverage(periodLogs, 'efficiency').average.toFixed(1)
     };
@@ -1160,19 +1181,72 @@ export default function App() {
                   </div>
                 </div>
 
-                <div 
-                  className={`relative bg-zinc-900 border rounded-2xl overflow-hidden select-none flex flex-col divide-y divide-zinc-800/50 transition-all ${
-                    isEditing ? 'border-indigo-500 ring-2 ring-indigo-500/20 touch-none' : 'border-zinc-800 touch-pan-y'
-                  }`}
-                >
-                  {/* SIA Learning Bar */}
+                {/* Anchor Container for SIA Learning & Editing Controls */}
+                <div className="h-[140px] flex items-center justify-center bg-zinc-900/50 border border-zinc-800 rounded-2xl overflow-hidden relative">
                   <AnimatePresence mode="wait">
-                    {activeSuggestion && !prefillUsed && (
+                    {isEditing ? (
                       <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        className="overflow-hidden z-30 relative"
+                        key="editing"
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        transition={{ duration: 0.2 }}
+                        className="w-full h-full flex flex-col items-center justify-center p-6 space-y-4"
+                      >
+                        <div className="flex items-center gap-3 text-indigo-400">
+                          <div className="p-2 bg-indigo-500/10 rounded-lg">
+                            <Wand2 size={20} className="animate-pulse" />
+                          </div>
+                          <div className="text-left">
+                            <h3 className="text-sm font-bold uppercase tracking-widest">Editing Mode</h3>
+                            <p className="text-[10px] text-zinc-500">Adjust your sleep window on the grid below</p>
+                          </div>
+                        </div>
+                        <div className="flex gap-3">
+                          {currentLog.modifiedBySync?.some(v => v) && (
+                            <button 
+                              onClick={() => {
+                                const { modifiedBySync, ...rest } = currentLog;
+                                updateLog({ modifiedBySync: undefined });
+                              }}
+                              className="px-6 py-2 bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/50 rounded-xl text-[10px] font-black uppercase tracking-widest text-indigo-400 transition-all flex items-center gap-2"
+                            >
+                              <Check size={14} />
+                              Confirm Sync
+                            </button>
+                          )}
+                          <div className="flex gap-2">
+                            <button 
+                              onClick={() => {
+                                if (initialTimeline) {
+                                  const newEvents = convertGridToEvents(initialTimeline);
+                                  updateLog({ sleepEvents: newEvents });
+                                }
+                                setIsEditing(false);
+                              }}
+                              className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-xl text-[10px] font-black uppercase tracking-widest text-zinc-400 transition-all flex items-center gap-2"
+                            >
+                              <X size={14} />
+                              Cancel
+                            </button>
+                            <button 
+                              onClick={() => setIsEditing(false)}
+                              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 border border-indigo-500 rounded-xl text-[10px] font-black uppercase tracking-widest text-white transition-all flex items-center gap-2"
+                            >
+                              <Check size={14} />
+                              Save Changes
+                            </button>
+                          </div>
+                        </div>
+                      </motion.div>
+                    ) : activeSuggestion && !prefillUsed ? (
+                      <motion.div
+                        key="learning"
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        transition={{ duration: 0.2 }}
+                        className="w-full h-full flex flex-col items-center justify-center"
                       >
                         {(() => {
                           const historyCount = Object.keys(logs).length;
@@ -1182,10 +1256,13 @@ export default function App() {
                             return (
                               <button
                                 onClick={() => setToast({ message: 'Start by logging your first night manually!', type: 'info' })}
-                                className="w-full py-3 bg-zinc-900 hover:bg-zinc-800 transition-all flex items-center justify-center gap-3 group"
+                                className="w-full h-full flex flex-col items-center justify-center gap-3 group p-6"
                               >
-                                <Rocket className="text-zinc-500 group-hover:scale-110 transition-transform" size={14} />
-                                <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">SIA Learning: Start Your Journey</p>
+                                <Rocket className="text-zinc-500 group-hover:scale-110 transition-transform" size={24} />
+                                <div className="text-center">
+                                  <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">SIA Learning: Start Your Journey</p>
+                                  <p className="text-[8px] text-zinc-600 mt-1 uppercase tracking-wider">Log your first night to begin pattern recognition</p>
+                                </div>
                               </button>
                             );
                           }
@@ -1194,10 +1271,13 @@ export default function App() {
                             return (
                               <button
                                 onClick={() => setToast({ message: `SIA needs ${3 - historyCount} more days of data to recognize your patterns.`, type: 'info' })}
-                                className="w-full py-3 bg-zinc-900/50 flex items-center justify-center gap-3 grayscale opacity-50 cursor-not-allowed"
+                                className="w-full h-full flex flex-col items-center justify-center gap-3 grayscale opacity-50 cursor-not-allowed p-6"
                               >
-                                <Wand2 className="text-zinc-600" size={14} />
-                                <p className="text-[10px] font-black text-zinc-600 uppercase tracking-widest">SIA Learning: Log {3 - historyCount} more days to unlock</p>
+                                <Wand2 className="text-zinc-600" size={24} />
+                                <div className="text-center">
+                                  <p className="text-[10px] font-black text-zinc-600 uppercase tracking-widest">SIA Learning: Log {3 - historyCount} more days to unlock</p>
+                                  <p className="text-[8px] text-zinc-700 mt-1 uppercase tracking-wider">Pattern recognition requires more data</p>
+                                </div>
                               </button>
                             );
                           }
@@ -1206,10 +1286,13 @@ export default function App() {
                             return (
                               <button
                                 onClick={() => setShowPrefillConfirm(true)}
-                                className="w-full py-3 bg-zinc-900 hover:bg-zinc-800 transition-all flex items-center justify-center gap-3 group"
+                                className="w-full h-full flex flex-col items-center justify-center gap-3 group p-6"
                               >
-                                <Lightbulb className="text-amber-400 group-hover:scale-110 transition-transform" size={14} />
-                                <p className="text-[10px] font-black text-amber-500 uppercase tracking-widest">SIA Draft: Suggested Fill Available</p>
+                                <Lightbulb className="text-amber-400 group-hover:scale-110 transition-transform" size={24} />
+                                <div className="text-center">
+                                  <p className="text-[10px] font-black text-amber-500 uppercase tracking-widest">SIA Draft: Suggested Fill Available</p>
+                                  <p className="text-[8px] text-amber-600/70 mt-1 uppercase tracking-wider">Click to preview your routine</p>
+                                </div>
                               </button>
                             );
                           }
@@ -1217,24 +1300,72 @@ export default function App() {
                           return (
                             <button
                               onClick={applySuggestion}
-                              className="w-full py-3 bg-indigo-600/10 hover:bg-indigo-600/20 transition-all flex items-center justify-center gap-3 group relative overflow-hidden"
+                              className="w-full h-full bg-indigo-600/5 hover:bg-indigo-600/10 transition-all flex flex-col items-center justify-center gap-3 group relative overflow-hidden p-6"
                             >
                               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
-                              <Wand2 className="text-indigo-400 group-hover:rotate-12 transition-transform" size={14} />
-                              <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">SIA Master: Apply Routine</p>
+                              <Wand2 className="text-indigo-400 group-hover:rotate-12 transition-transform" size={24} />
+                              <div className="text-center">
+                                <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">SIA Master: Apply Routine</p>
+                                <p className="text-[8px] text-indigo-500/70 mt-1 uppercase tracking-wider">High confidence pattern detected</p>
+                              </div>
                             </button>
                           );
                         })()}
                       </motion.div>
+                    ) : (
+                      <motion.div
+                        key="complete"
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        transition={{ duration: 0.2 }}
+                        className="w-full h-full flex flex-col items-center justify-center p-6 space-y-4"
+                      >
+                        <div className="flex items-center gap-8">
+                          <div className="text-center">
+                            <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Duration</p>
+                            <p className="text-xl font-mono font-bold text-white tracking-tight">
+                              {formatDuration(calculateSleepDuration(currentLog.visualTimeline))}
+                            </p>
+                          </div>
+                          <div className="w-px h-8 bg-zinc-800" />
+                          <div className="text-center">
+                            <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Efficiency</p>
+                            <p className="text-xl font-mono font-bold text-emerald-400 tracking-tight">
+                              {calculateSleepEfficiency(currentLog.visualTimeline)}%
+                            </p>
+                          </div>
+                        </div>
+                        <button 
+                          onClick={() => {
+                            setInitialTimeline([...currentLog.visualTimeline]);
+                            setIsEditing(true);
+                          }}
+                          className="px-4 py-1.5 bg-zinc-800/50 hover:bg-zinc-800 border border-zinc-700/50 rounded-lg text-[9px] font-bold text-zinc-400 hover:text-zinc-200 uppercase tracking-[0.2em] transition-all flex items-center gap-2"
+                        >
+                          <Plus size={12} />
+                          Edit Sleep Window
+                        </button>
+                      </motion.div>
                     )}
                   </AnimatePresence>
+                </div>
+
+                <div 
+                  className={`relative bg-zinc-900 border rounded-2xl overflow-hidden select-none flex flex-col divide-y divide-zinc-800/50 transition-all ${
+                    isEditing ? 'border-indigo-500 ring-2 ring-indigo-500/20 touch-none' : 'border-zinc-800 touch-pan-y'
+                  }`}
+                >
                   <AnimatePresence>
                     {!isEditing && (
                       <motion.div 
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        onClick={() => setIsEditing(true)}
+                        onClick={() => {
+                          setInitialTimeline([...currentLog.visualTimeline]);
+                          setIsEditing(true);
+                        }}
                         className="absolute inset-0 z-20 bg-black/20 backdrop-blur-[2px] flex flex-col items-center justify-center cursor-pointer group touch-pan-y"
                       >
                         <div className="bg-zinc-900/90 border border-zinc-700 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest text-zinc-300 group-hover:text-white transition-colors flex items-center gap-2">
@@ -1262,7 +1393,13 @@ export default function App() {
                           {getSlotLabel(rowIdx * 16).split(':')[0]}h
                         </span>
                       </div>
-                      <div className="grid grid-cols-16 gap-0 flex-1">
+                      <div 
+                        className="grid grid-cols-16 gap-0 flex-1"
+                        style={{ touchAction: 'none' }}
+                        onTouchStart={handleTouchStart}
+                        onTouchMove={handleTouchMove}
+                        onTouchEnd={handleTouchEnd}
+                      >
                         {currentLog.visualTimeline.slice(rowIdx * 16, (rowIdx + 1) * 16).map((state, localIdx) => {
                           const idx = rowIdx * 16 + localIdx;
                           const stateInfo = SLEEP_STATES.find(s => s.value === state);
@@ -1272,11 +1409,9 @@ export default function App() {
                           return (
                             <button
                               key={idx}
-                              data-index={idx}
+                              data-slot-index={idx}
                               onMouseDown={() => handleMouseDown(idx)}
                               onMouseEnter={() => handleMouseEnter(idx)}
-                              onTouchStart={() => handleTouchStart(idx)}
-                              onTouchMove={handleTouchMove}
                               className={`h-12 flex flex-col items-center justify-center relative group transition-all border-r border-zinc-800/30 last:border-r-0 ${stateInfo?.color} hover:brightness-125 cursor-crosshair ${isImported ? 'ring-1 ring-inset ring-indigo-400/50 animate-pulse' : ''}`}
                               title={getSlotLabel(idx)}
                             >
@@ -1301,29 +1436,6 @@ export default function App() {
                   <span>Duration: {formatDuration(calculateSleepDuration(currentLog.visualTimeline))}</span>
                   <span>End: {getSlotLabel(TOTAL_SLOTS)}</span>
                 </div>
-                
-                {isEditing && (
-                  <div className="flex justify-center gap-3">
-                    {currentLog.modifiedBySync?.some(v => v) && (
-                      <button 
-                        onClick={() => {
-                          const { modifiedBySync, ...rest } = currentLog;
-                          updateLog({ modifiedBySync: undefined });
-                        }}
-                        className="px-4 py-1.5 bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/50 rounded-xl text-[10px] font-black uppercase tracking-widest text-indigo-400 transition-all flex items-center gap-2"
-                      >
-                        <Check size={14} />
-                        Confirm Sync
-                      </button>
-                    )}
-                    <button 
-                      onClick={() => setIsEditing(false)}
-                      className="px-4 py-1.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-xl text-[10px] font-black uppercase tracking-widest text-zinc-400 transition-all"
-                    >
-                      Done Editing
-                    </button>
-                  </div>
-                )}
               </section>
 
               {/* Daily Factors & Disturbances Section */}
@@ -1528,20 +1640,20 @@ export default function App() {
                 <div className="grid gap-8">
                   <SliderInput 
                     label="Sleep Quality (SQ)" 
-                    value={currentLog.sleepQuality} 
-                    onChange={(val) => updateLog({ sleepQuality: val })}
+                    value={currentLog.sleep_quality} 
+                    onChange={(val) => updateLog({ sleep_quality: val })}
                     icon={Moon}
                   />
                   <SliderInput 
                     label="Restedness after Awakening (R)" 
-                    value={currentLog.restedness} 
-                    onChange={(val) => updateLog({ restedness: val })}
+                    value={currentLog.morning_alertness} 
+                    onChange={(val) => updateLog({ morning_alertness: val })}
                     icon={Sun}
                   />
                   <SliderInput 
                     label="Energy Level in the Morning (L)" 
-                    value={currentLog.energyLevel} 
-                    onChange={(val) => updateLog({ energyLevel: val })}
+                    value={currentLog.daytime_energy} 
+                    onChange={(val) => updateLog({ daytime_energy: val })}
                     icon={BarChart3}
                   />
                 </div>
@@ -1551,8 +1663,8 @@ export default function App() {
               <section className="space-y-3">
                 <label className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-500">Remarks & Notes</label>
                 <textarea
-                  value={currentLog.remarks}
-                  onChange={(e) => updateLog({ remarks: e.target.value })}
+                  value={currentLog.daily_remarks}
+                  onChange={(e) => updateLog({ daily_remarks: e.target.value })}
                   placeholder="Last night I went to bed at 23 pm. It took about 45 minutes to fall asleep. Around 2 am I woke up because I had to go to the bathroom. After 30 minutes of lying awake I came out of the bed and went back in around 4 am. Here I stayed awake until 5 am before falling asleep again. At 6.30 am I woke up to go to work...."
                   className="w-full h-32 bg-zinc-900 border border-zinc-800 rounded-2xl p-4 text-sm focus:outline-none focus:border-indigo-500 transition-colors resize-none placeholder:text-zinc-700"
                 />
@@ -1810,8 +1922,8 @@ export default function App() {
                         </div>
                         {log ? (
                           <div className="flex gap-3 text-[10px] font-black uppercase tracking-widest">
-                            <span className="text-indigo-400">Q:{log.sleepQuality}</span>
-                            <span className="text-emerald-400">R:{log.restedness}</span>
+                            <span className="text-indigo-400">Q:{log.sleep_quality}</span>
+                            <span className="text-emerald-400">R:{log.morning_alertness}</span>
                             <span className="text-purple-400">E:{calculateSleepEfficiency(sleepData)}%</span>
                           </div>
                         ) : (

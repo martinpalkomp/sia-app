@@ -22,7 +22,7 @@ export const isValidMetricRange = (value: number | undefined): boolean => {
  * Filters out ignored logs and logs where the metric is missing or invalid.
  * 
  * @param logs - An array of DailyLog objects or a record of logs.
- * @param metricName - The name of the metric to average (e.g., 'sleepQuality', 'sleepDuration').
+ * @param metricName - The name of the metric to average (e.g., 'sleep_quality', 'sleepDuration').
  * @returns {AverageResult} - An object containing the calculated average and the count of days used.
  */
 export const calculateSafeAverage = (
@@ -40,10 +40,10 @@ export const calculateSafeAverage = (
 
     let value: number | undefined;
 
-    // 1. Check top-level properties (sleepQuality, restedness, energyLevel)
-    if (metricName === 'sleepQuality' && typeof log.sleepQuality === 'number') value = log.sleepQuality;
-    if (metricName === 'restedness' && typeof log.restedness === 'number') value = log.restedness;
-    if (metricName === 'energyLevel' && typeof log.energyLevel === 'number') value = log.energyLevel;
+    // 1. Check top-level properties (sleep_quality, morning_alertness, daytime_energy)
+    if (metricName === 'sleep_quality' && typeof log.sleep_quality === 'number') value = log.sleep_quality;
+    if (metricName === 'morning_alertness' && typeof log.morning_alertness === 'number') value = log.morning_alertness;
+    if (metricName === 'daytime_energy' && typeof log.daytime_energy === 'number') value = log.daytime_energy;
 
     // 2. Prioritize events/timeline for sleepDuration and efficiency if available
     if (value === undefined) {
@@ -61,9 +61,9 @@ export const calculateSafeAverage = (
 
     // 3. Check summaryMetrics for clinical data points or imported values if not found/calculated
     if (value === undefined && log.summaryMetrics) {
-      if (metricName === 'sleepQuality' && typeof log.summaryMetrics.sleepQuality === 'number') value = log.summaryMetrics.sleepQuality;
-      if (metricName === 'restedness' && typeof log.summaryMetrics.restedness === 'number') value = log.summaryMetrics.restedness;
-      if (metricName === 'energyLevel' && typeof log.summaryMetrics.energyLevel === 'number') value = log.summaryMetrics.energyLevel;
+      if (metricName === 'sleep_quality' && typeof log.summaryMetrics.sleep_quality === 'number') value = log.summaryMetrics.sleep_quality;
+      if (metricName === 'morning_alertness' && typeof log.summaryMetrics.morning_alertness === 'number') value = log.summaryMetrics.morning_alertness;
+      if (metricName === 'daytime_energy' && typeof log.summaryMetrics.daytime_energy === 'number') value = log.summaryMetrics.daytime_energy;
       
       // Handle aliases/imported values
       if (metricName === 'sleepDuration' && typeof log.summaryMetrics.importedDuration === 'number') value = log.summaryMetrics.importedDuration;

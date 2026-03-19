@@ -17,9 +17,7 @@ import {
   Heart,
   Droplets
 } from 'lucide-react';
-import { User } from 'firebase/auth';
-import { db } from '../lib/firebase';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { User, db, doc, setDoc, serverTimestamp } from '../lib/firebase';
 import { PersonalizationProfile } from '../types';
 import EthicalDataPledge from './EthicalDataPledge';
 
@@ -57,9 +55,9 @@ export default function PersonalizationWizard({ user, onComplete, onClose }: Per
     },
     goals: [],
     psqi: {
-      timeToFallAsleep: 30,
-      sleepQuality: 5,
-      daytimeSleepiness: 5,
+      time_to_fall_asleep: 30,
+      sleep_quality: 5,
+      daytime_sleepiness: 5,
     },
     clinical: {
       n1: 5,
@@ -319,12 +317,12 @@ export default function PersonalizationWizard({ user, onComplete, onClose }: Per
                     <div className="space-y-4">
                       <div className="flex justify-between items-center">
                         <label className="text-sm font-medium text-zinc-300">Time to fall asleep (min)</label>
-                        <span className="text-indigo-400 font-bold">{data.psqi.timeToFallAsleep}m</span>
+                        <span className="text-indigo-400 font-bold">{data.psqi.time_to_fall_asleep}m</span>
                       </div>
                       <input 
                         type="range" min="0" max="120" step="5"
-                        value={data.psqi.timeToFallAsleep}
-                        onChange={(e) => setData(prev => ({ ...prev, psqi: { ...prev.psqi, timeToFallAsleep: parseInt(e.target.value) } }))}
+                        value={data.psqi.time_to_fall_asleep}
+                        onChange={(e) => setData(prev => ({ ...prev, psqi: { ...prev.psqi, time_to_fall_asleep: parseInt(e.target.value) } }))}
                         className="w-full h-2 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-indigo-500"
                       />
                     </div>
@@ -332,12 +330,12 @@ export default function PersonalizationWizard({ user, onComplete, onClose }: Per
                     <div className="space-y-4">
                       <div className="flex justify-between items-center">
                         <label className="text-sm font-medium text-zinc-300">Overall Sleep Quality</label>
-                        <span className="text-indigo-400 font-bold">{data.psqi.sleepQuality}/10</span>
+                        <span className="text-indigo-400 font-bold">{data.psqi.sleep_quality}/10</span>
                       </div>
                       <input 
                         type="range" min="1" max="10" step="1"
-                        value={data.psqi.sleepQuality}
-                        onChange={(e) => setData(prev => ({ ...prev, psqi: { ...prev.psqi, sleepQuality: parseInt(e.target.value) } }))}
+                        value={data.psqi.sleep_quality}
+                        onChange={(e) => setData(prev => ({ ...prev, psqi: { ...prev.psqi, sleep_quality: parseInt(e.target.value) } }))}
                         className="w-full h-2 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-indigo-500"
                       />
                     </div>
@@ -349,14 +347,14 @@ export default function PersonalizationWizard({ user, onComplete, onClose }: Per
                           <p className="text-[10px] text-zinc-500">1 (Wide Awake) to 10 (Involuntary Sleep)</p>
                         </div>
                         <div className="text-right">
-                          <span className="text-indigo-400 font-bold block leading-none">{data.psqi.daytimeSleepiness}/10</span>
-                          <span className="text-[10px] text-indigo-500/70 font-medium">{getSleepinessLabel(data.psqi.daytimeSleepiness)}</span>
+                          <span className="text-indigo-400 font-bold block leading-none">{data.psqi.daytime_sleepiness}/10</span>
+                          <span className="text-[10px] text-indigo-500/70 font-medium">{getSleepinessLabel(data.psqi.daytime_sleepiness)}</span>
                         </div>
                       </div>
                       <input 
                         type="range" min="1" max="10" step="1"
-                        value={data.psqi.daytimeSleepiness}
-                        onChange={(e) => setData(prev => ({ ...prev, psqi: { ...prev.psqi, daytimeSleepiness: parseInt(e.target.value) } }))}
+                        value={data.psqi.daytime_sleepiness}
+                        onChange={(e) => setData(prev => ({ ...prev, psqi: { ...prev.psqi, daytime_sleepiness: parseInt(e.target.value) } }))}
                         className="w-full h-2 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-indigo-500"
                       />
                     </div>

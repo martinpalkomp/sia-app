@@ -11,10 +11,10 @@ export interface BaseLog {
   date: string; // ISO date string (YYYY-MM-DD)
   type?: 'log'; // Firestore type discriminator
   isIgnored: boolean;
-  sleepQuality: number; // 0-10
-  restedness: number; // 0-10
-  energyLevel: number; // 0-10
-  remarks: string;
+  sleep_quality: number; // 0-10
+  morning_alertness: number; // 0-10
+  daytime_energy: number; // 0-10
+  daily_remarks: string;
 }
 
 export interface FullLog extends BaseLog {
@@ -32,9 +32,9 @@ export interface FullLog extends BaseLog {
 
 export interface SummaryLog extends BaseLog {
   summaryMetrics: {
-    sleepQuality: number;
-    restedness: number;
-    energyLevel: number;
+    sleep_quality: number;
+    morning_alertness: number;
+    daytime_energy: number;
     importedDuration: number;
     importedInBed: number;
   };
@@ -49,9 +49,9 @@ export interface PersonalizationProfile {
   };
   goals: string[];
   psqi: {
-    timeToFallAsleep: number;
-    sleepQuality: number;
-    daytimeSleepiness: number;
+    time_to_fall_asleep: number;
+    sleep_quality: number;
+    daytime_sleepiness: number;
   };
   clinical?: {
     n1: number;
@@ -76,10 +76,10 @@ export interface PersonalizationProfile {
 export interface DailyLog extends Partial<FullLog>, Partial<SummaryLog> {
   date: string;
   isIgnored: boolean;
-  sleepQuality: number;
-  restedness: number;
-  energyLevel: number;
-  remarks: string;
+  sleep_quality: number;
+  morning_alertness: number;
+  daytime_energy: number;
+  daily_remarks: string;
   timeline?: SleepState[]; // Deprecated
   sleepEvents?: SleepEvent[];   // New event-based ledger
   factors: {
@@ -92,8 +92,4 @@ export interface DailyLog extends Partial<FullLog>, Partial<SummaryLog> {
   };
   modifiedBySync?: boolean[];
   source?: 'manual' | 'import';
-  sleep_quality?: number;
-  morning_alertness?: number;
-  daytime_energy?: number;
-  daily_remarks?: string;
 }

@@ -1,5 +1,5 @@
-import { db } from '../lib/firebase';
 import { 
+  db, 
   collection, 
   addDoc, 
   query, 
@@ -9,7 +9,7 @@ import {
   doc, 
   deleteDoc,
   serverTimestamp 
-} from 'firebase/firestore';
+} from '../lib/firebase';
 
 export interface FeedbackData {
   userId: string;

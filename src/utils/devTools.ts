@@ -1,5 +1,11 @@
-import { writeBatch, doc, collection, serverTimestamp, getDocs, query, limit } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { 
+  db, 
+  writeBatch, 
+  doc, 
+  collection, 
+  serverTimestamp, 
+  getDocs 
+} from '../lib/firebase';
 import { DailyLog, SleepState } from '../types';
 import { subDays, format } from 'date-fns';
 
@@ -44,10 +50,10 @@ export const seedTestData = async (userId: string, onComplete?: () => void) => {
       date: dateStr,
       type: 'log',
       isIgnored: false,
-      sleepQuality: 6 + Math.floor(Math.random() * 4), // 6-9
-      restedness: 5 + Math.floor(Math.random() * 4),   // 5-8
-      energyLevel: 4 + Math.floor(Math.random() * 6),  // 4-9
-      remarks: REMARKS[Math.floor(Math.random() * REMARKS.length)],
+      sleep_quality: 6 + Math.floor(Math.random() * 4), // 6-9
+      morning_alertness: 5 + Math.floor(Math.random() * 4),   // 5-8
+      daytime_energy: 4 + Math.floor(Math.random() * 6),  // 4-9
+      daily_remarks: REMARKS[Math.floor(Math.random() * REMARKS.length)],
       sleepEvents,
       factors: {
         caffeine: { consumed: Math.random() > 0.3, amount: 1, lastIntake: '14:00' },
@@ -67,10 +73,10 @@ export const seedTestData = async (userId: string, onComplete?: () => void) => {
     batch.set(metricsRef, {
       date: dateStr,
       type: 'log',
-      sleep_quality: log.sleepQuality,
-      morning_alertness: log.restedness,
-      daytime_energy: log.energyLevel,
-      daily_remarks: log.remarks,
+      sleep_quality: log.sleep_quality,
+      morning_alertness: log.morning_alertness,
+      daytime_energy: log.daytime_energy,
+      daily_remarks: log.daily_remarks,
       source: 'manual',
       updatedAt: serverTimestamp()
     });

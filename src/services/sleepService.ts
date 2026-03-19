@@ -1,5 +1,4 @@
-import { db } from '../lib/firebase';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { db, doc, serverTimestamp, writeBatch } from '../lib/firebase';
 import { DailyLog, SummaryLog } from '../types';
 
 /**
@@ -11,12 +10,12 @@ export const validateLogMetrics = (metrics: Partial<SummaryLog['summaryMetrics']
   const checkRange = (val?: number) => val === undefined || (val >= 1 && val <= 10);
   const checkPositive = (val?: number) => val === undefined || val >= 0;
 
-  const { sleepQuality, restedness, energyLevel, importedDuration, importedInBed } = metrics;
+  const { sleep_quality, morning_alertness, daytime_energy, importedDuration, importedInBed } = metrics;
 
   return (
-    checkRange(sleepQuality) &&
-    checkRange(restedness) &&
-    checkRange(energyLevel) &&
+    checkRange(sleep_quality) &&
+    checkRange(morning_alertness) &&
+    checkRange(daytime_energy) &&
     checkPositive(importedDuration) &&
     checkPositive(importedInBed)
   );
@@ -39,6 +38,8 @@ export const saveLog = async (uid: string, logData: Partial<DailyLog> & { date: 
   const docRef = doc(db, 'users', uid, 'sleep_logs', date);
   const metricsRef = doc(db, 'users', uid, 'daily_metrics', date);
   
+  const batch = writeBatch(db);
+
   const payload = {
     ...rest,
     date,
@@ -46,18 +47,20 @@ export const saveLog = async (uid: string, logData: Partial<DailyLog> & { date: 
   };
 
   // setDoc with merge: true ensures we only update the fields provided
-  await setDoc(docRef, payload, { merge: true });
+  batch.set(docRef, payload, { merge: true });
 
   // Sync to daily_metrics if it has metrics
-  if (rest.sleepQuality !== undefined || rest.sleep_quality !== undefined) {
-    await setDoc(metricsRef, {
+  if (rest.sleep_quality !== undefined) {
+    batch.set(metricsRef, {
       date,
-      sleep_quality: rest.sleep_quality || rest.sleepQuality,
-      morning_alertness: rest.morning_alertness || rest.restedness,
-      daytime_energy: rest.daytime_energy || rest.energyLevel,
-      daily_remarks: rest.daily_remarks || rest.remarks,
+      sleep_quality: rest.sleep_quality,
+      morning_alertness: rest.morning_alertness,
+      daytime_energy: rest.daytime_energy,
+      daily_remarks: rest.daily_remarks,
       source: rest.source || 'manual',
       updatedAt: serverTimestamp(),
     }, { merge: true });
   }
+
+  await batch.commit();
 };

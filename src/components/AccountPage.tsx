@@ -1,7 +1,5 @@
 import React from 'react';
-import { User, signOut } from 'firebase/auth';
-import { auth, db } from '../lib/firebase';
-import { doc, setDoc } from 'firebase/firestore';
+import { User, signOut, auth, db, doc, setDoc, onSnapshot } from '../lib/firebase';
 import { motion } from 'motion/react';
 import { 
   LogOut, 
@@ -27,7 +25,6 @@ import { seedTestData, purgeUserData } from '../utils/devTools';
 import DataManager from './DataManager';
 import FeedbackForm from './FeedbackForm';
 import AdminFeedback from './AdminFeedback';
-import { onSnapshot } from 'firebase/firestore';
 
 interface AccountPageProps {
   user: User;

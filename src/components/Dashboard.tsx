@@ -26,9 +26,16 @@ import { calculateSleepDuration, calculateSleepEfficiency, formatDuration, getGr
 import { calculateSafeAverage } from '../utils/statsEngine';
 import { getSlotLabel } from '../constants';
 import { PersonalizationProfile } from '../types';
-import { User } from 'firebase/auth';
-import { db } from '../lib/firebase';
-import { collection, query, where, orderBy, limit, getDocs } from 'firebase/firestore';
+import { 
+  db, 
+  User, 
+  collection, 
+  query, 
+  where, 
+  orderBy, 
+  limit, 
+  getDocs 
+} from '../lib/firebase';
 
 interface DashboardProps {
   logs: Record<string, DailyLog>;
@@ -58,6 +65,7 @@ export default function Dashboard({
   isRefreshing
 }: DashboardProps) {
   const [aiInsight, setAiInsight] = useState<string | null>(null);
+  const [siaTip, setSiaTip] = useState<string | null>(null);
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [isDeepAnalysis, setIsDeepAnalysis] = useState(false);
   const [showAllFacts, setShowAllFacts] = useState(false);
@@ -149,9 +157,9 @@ export default function Dashboard({
     if (periodLogs.length === 0) return null;
 
     return {
-      avgSq: calculateSafeAverage(periodLogs, 'sleepQuality').average.toFixed(1),
-      avgR: calculateSafeAverage(periodLogs, 'restedness').average.toFixed(1),
-      avgL: calculateSafeAverage(periodLogs, 'energyLevel').average.toFixed(1),
+      avgSq: calculateSafeAverage(periodLogs, 'sleep_quality').average.toFixed(1),
+      avgR: calculateSafeAverage(periodLogs, 'morning_alertness').average.toFixed(1),
+      avgL: calculateSafeAverage(periodLogs, 'daytime_energy').average.toFixed(1),
       avgDuration: formatDuration(calculateSafeAverage(periodLogs, 'sleepDuration').average),
       avgEfficiency: calculateSafeAverage(periodLogs, 'efficiency').average.toFixed(1)
     };
@@ -200,9 +208,9 @@ export default function Dashboard({
           
           return {
             date: log.date,
-            sq: log.sleepQuality,
-            r: log.restedness,
-            l: log.energyLevel,
+            sq: log.sleep_quality,
+            r: log.morning_alertness,
+            l: log.daytime_energy,
             efficiency: efficiency + "%",
           };
         });
@@ -233,6 +241,36 @@ export default function Dashboard({
     generateQuickInsight();
   }, [Object.keys(logs).length]);
 
+  // SIA Daily Tip Generation
+  useEffect(() => {
+    const generateDailyTip = async () => {
+      if (!stats || siaTip) return;
+      
+      try {
+        const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+        const prompt = `
+          Current 7-day stats: Quality ${stats.avgSq}/10, Restedness ${stats.avgR}/10, Energy ${stats.avgL}/10, Duration ${stats.avgDuration}, Efficiency ${stats.avgEfficiency}%.
+          Provide one single, highly specific, clinical sleep tip (max 15 words) based on these numbers.
+          Format: "[Tip text]"
+        `;
+
+        const response = await ai.models.generateContent({
+          model: "gemini-3-flash-preview",
+          contents: [{ role: "user", parts: [{ text: prompt }] }],
+          config: {
+            systemInstruction: "You are 'SIA', a clinical Sleep Intelligence Agent. Provide one punchy, data-backed sleep tip."
+          }
+        });
+
+        setSiaTip(response.text || null);
+      } catch (e) {
+        console.error("SIA Tip Error:", e);
+      }
+    };
+
+    generateDailyTip();
+  }, [stats]);
+
   const handleDeepAnalysis = async () => {
     if (!user || isAiLoading) return;
     
@@ -257,8 +295,8 @@ export default function Dashboard({
         historicalLogs.push({
           d: data.date,
           dur: calculateSleepDuration(sleepData),
-          q: data.sleepQuality,
-          r: data.restedness,
+          q: data.sleep_quality,
+          r: data.morning_alertness,
           eff: calculateSleepEfficiency(sleepData)
         });
       });
@@ -361,62 +399,102 @@ export default function Dashboard({
           </motion.h1>
           <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4">
             <p className="text-zinc-500 text-sm font-medium">I've analyzed your sleep intelligence for the last {period} days.</p>
+            <div className="flex items-center gap-1 bg-zinc-900/50 p-1 rounded-xl border border-zinc-800">
+              <button 
+                onClick={() => setPeriod(7)}
+                className={`px-3 py-1 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${period === 7 ? 'bg-indigo-600 text-white shadow-lg' : 'text-zinc-500 hover:text-zinc-300'}`}
+              >
+                7 Days
+              </button>
+              <button 
+                onClick={() => setPeriod(30)}
+                className={`px-3 py-1 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${period === 30 ? 'bg-indigo-600 text-white shadow-lg' : 'text-zinc-500 hover:text-zinc-300'}`}
+              >
+                30 Days
+              </button>
+            </div>
           </div>
         </div>
       </section>
 
       {/* Section 1: The Vital Signs (Metrics) */}
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className={`flex flex-col justify-between hover:border-indigo-500/50 group hover:-translate-y-1 hover:shadow-indigo-500/10 transition-all duration-300 min-h-[160px] animate-sia-pulse ${isEnhanced ? 'bg-gradient-to-br from-zinc-900 to-indigo-950/30 border-indigo-500/10' : ''}`}>
-          <div className="flex justify-between items-start">
-            <div className="w-10 h-10 bg-indigo-500/10 rounded-xl flex items-center justify-center text-indigo-400 border border-indigo-500/20 aspect-square object-cover">
-              <Sparkles size={20} />
+      <section className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Card className={`flex flex-col justify-between hover:border-indigo-500/50 group hover:-translate-y-1 hover:shadow-indigo-500/10 transition-all duration-300 min-h-[160px] animate-sia-pulse ${isEnhanced ? 'bg-gradient-to-br from-zinc-900 to-indigo-950/30 border-indigo-500/10' : ''}`}>
+            <div className="flex justify-between items-start">
+              <div className="w-10 h-10 bg-indigo-500/10 rounded-xl flex items-center justify-center text-indigo-400 border border-indigo-500/20 aspect-square object-cover">
+                <Sparkles size={20} />
+              </div>
+              <TrendingUp size={16} className="text-zinc-700 group-hover:text-indigo-400 transition-colors" />
             </div>
-            <TrendingUp size={16} className="text-zinc-700 group-hover:text-indigo-400 transition-colors" />
-          </div>
-          <MetricDisplay 
-            title={`Avg Quality (${period}d)`} 
-            value={stats?.avgSq || '--'} 
-            unit="/10" 
-            className="mt-8 text-left"
-          />
-        </Card>
+            <MetricDisplay 
+              title={`Avg Quality`} 
+              value={stats?.avgSq || '--'} 
+              unit="/10" 
+              className="mt-8 text-left"
+            />
+          </Card>
 
-        <Card className={`flex flex-col justify-between hover:border-amber-500/50 group hover:-translate-y-1 hover:shadow-amber-500/10 transition-all duration-300 min-h-[160px] animate-sia-pulse ${isEnhanced ? 'bg-gradient-to-br from-zinc-900 to-amber-950/20 border-amber-500/10' : ''}`}>
-          <div className="flex justify-between items-start">
-            <div className="w-10 h-10 bg-amber-500/10 rounded-xl flex items-center justify-center text-amber-400 border border-amber-500/20 aspect-square object-cover">
-              <Moon size={20} />
+          <Card className={`flex flex-col justify-between hover:border-amber-500/50 group hover:-translate-y-1 hover:shadow-amber-500/10 transition-all duration-300 min-h-[160px] animate-sia-pulse ${isEnhanced ? 'bg-gradient-to-br from-zinc-900 to-amber-950/20 border-amber-500/10' : ''}`}>
+            <div className="flex justify-between items-start">
+              <div className="w-10 h-10 bg-amber-500/10 rounded-xl flex items-center justify-center text-amber-400 border border-amber-500/20 aspect-square object-cover">
+                <Moon size={20} />
+              </div>
+              <TrendingUp size={16} className="text-zinc-700 group-hover:text-amber-400 transition-colors" />
             </div>
-            <TrendingUp size={16} className="text-zinc-700 group-hover:text-amber-400 transition-colors" />
-          </div>
-          <MetricDisplay 
-            title={`Restedness (${period}d)`} 
-            value={stats?.avgR || '--'} 
-            unit="/10" 
-            className="mt-8 text-left"
-          />
-        </Card>
+            <MetricDisplay 
+              title={`Restedness`} 
+              value={stats?.avgR || '--'} 
+              unit="/10" 
+              className="mt-8 text-left"
+            />
+          </Card>
 
-        <Card className={`flex flex-col justify-between hover:border-emerald-500/50 group hover:-translate-y-1 hover:shadow-emerald-500/10 transition-all duration-300 min-h-[160px] animate-sia-pulse ${isEnhanced ? 'bg-gradient-to-br from-zinc-900 to-emerald-950/20 border-emerald-500/10' : ''}`}>
-          <div className="flex justify-between items-start">
-            <div className="w-10 h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center text-emerald-400 border border-emerald-500/20 aspect-square object-cover">
-              <Zap size={20} />
+          <Card className={`flex flex-col justify-between hover:border-emerald-500/50 group hover:-translate-y-1 hover:shadow-emerald-500/10 transition-all duration-300 min-h-[160px] animate-sia-pulse ${isEnhanced ? 'bg-gradient-to-br from-zinc-900 to-emerald-950/20 border-emerald-500/10' : ''}`}>
+            <div className="flex justify-between items-start">
+              <div className="w-10 h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center text-emerald-400 border border-emerald-500/20 aspect-square object-cover">
+                <Zap size={20} />
+              </div>
+              <TrendingUp size={16} className="text-zinc-700 group-hover:text-emerald-400 transition-colors" />
             </div>
-            <TrendingUp size={16} className="text-zinc-700 group-hover:text-emerald-400 transition-colors" />
-          </div>
-          <MetricDisplay 
-            title={`Energy Level (${period}d)`} 
-            value={stats?.avgL || '--'} 
-            unit="/10" 
-            className="mt-8 text-left"
-          />
-        </Card>
+            <MetricDisplay 
+              title={`Energy Level`} 
+              value={stats?.avgL || '--'} 
+              unit="/10" 
+              className="mt-8 text-left"
+            />
+          </Card>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Card className="flex items-center gap-6 hover:border-indigo-500/30 transition-colors">
+            <div className="w-12 h-12 bg-indigo-500/10 rounded-2xl flex items-center justify-center text-indigo-400 border border-indigo-500/20">
+              <Clock size={24} />
+            </div>
+            <MetricDisplay 
+              title="Avg Sleep Duration" 
+              value={stats?.avgDuration || '--'} 
+              className="text-left"
+            />
+          </Card>
+          <Card className="flex items-center gap-6 hover:border-violet-500/30 transition-colors">
+            <div className="w-12 h-12 bg-violet-500/10 rounded-2xl flex items-center justify-center text-violet-400 border border-violet-500/20">
+              <BarChart3 size={24} />
+            </div>
+            <MetricDisplay 
+              title="Avg Efficiency" 
+              value={stats?.avgEfficiency || '--'} 
+              unit="%" 
+              className="text-left"
+            />
+          </Card>
+        </div>
       </section>
 
       {/* Section 2: SIA Quick Insight */}
-      <section>
+      <section className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <Card 
-          className="bg-indigo-600/20 border-indigo-500/30 relative overflow-hidden group hover:bg-indigo-600/25 cursor-pointer" 
+          className="lg:col-span-2 bg-indigo-600/20 border-indigo-500/30 relative overflow-hidden group hover:bg-indigo-600/25 cursor-pointer" 
           onClick={() => onViewChange('ai')}
         >
           <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:opacity-20 transition-opacity">
@@ -430,7 +508,7 @@ export default function Dashboard({
                 size="sm"
                 className="shadow-lg shadow-indigo-500/20"
               />
-              <div>
+              <div className="text-left">
                 <h3 className="text-[10px] font-black text-indigo-300 uppercase tracking-[0.2em]">
                   {isDeepAnalysis ? `SIA ${personalizationProfile ? '180' : '30'}-Day Analysis` : "SIA 7-Day Insight"}
                 </h3>
@@ -455,6 +533,18 @@ export default function Dashboard({
               Full Report <ChevronRight size={16} />
             </button>
           </div>
+        </Card>
+
+        <Card className="bg-emerald-500/10 border-emerald-500/20 flex flex-col justify-center gap-2">
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 bg-emerald-500/20 rounded-full flex items-center justify-center text-emerald-400">
+              <Sparkles size={12} />
+            </div>
+            <h3 className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">SIA Daily Tip</h3>
+          </div>
+          <p className="text-sm text-white font-medium leading-tight text-left italic">
+            {siaTip || "Analyzing your patterns for today's tip..."}
+          </p>
         </Card>
       </section>
 

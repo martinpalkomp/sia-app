@@ -1,5 +1,10 @@
-import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { 
+  db, 
+  collection, 
+  getDocs, 
+  doc, 
+  getDoc 
+} from '../lib/firebase';
 import { DailyLog, PersonalizationProfile } from '../types';
 
 /**
@@ -33,9 +38,9 @@ export const getAnonymizedData = async () => {
             // Metadata Only: Ensure only relevant sleep metrics are exported
             return {
               date: data.date,
-              sleepQuality: data.sleepQuality,
-              restedness: data.restedness,
-              energyLevel: data.energyLevel,
+              sleep_quality: data.sleep_quality,
+              morning_alertness: data.morning_alertness,
+              daytime_energy: data.daytime_energy,
               factors: data.factors ? {
                 caffeine: data.factors.caffeine.consumed,
                 alcohol: data.factors.alcohol.consumed,

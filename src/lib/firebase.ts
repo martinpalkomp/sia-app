@@ -2,39 +2,86 @@ import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
+import { getFunctions } from "firebase/functions";
+
+// Re-export necessary members from Firebase SDKs for centralized access
+export { 
+  onAuthStateChanged, 
+  signInWithPopup, 
+  signOut,
+  GoogleAuthProvider,
+  type User 
+} from "firebase/auth";
+export { 
+  collection, 
+  addDoc, 
+  query, 
+  orderBy, 
+  onSnapshot, 
+  serverTimestamp, 
+  where, 
+  getDocs, 
+  getDoc, 
+  doc, 
+  limit,
+  setDoc,
+  updateDoc,
+  deleteDoc,
+  writeBatch,
+  runTransaction,
+  type Firestore
+} from "firebase/firestore";
+export { 
+  httpsCallable 
+} from "firebase/functions";
+export { 
+  getStorage,
+  ref,
+  uploadBytes,
+  getDownloadURL
+} from "firebase/storage";
+export { initializeApp, type FirebaseApp } from "firebase/app";
+
+// Safely attempt to load the fallback config
+// We use import.meta.glob to avoid build errors if the file is missing
+// PROD guard: only load fallback in development
+const configs = !import.meta.env.PROD ? import.meta.glob('/firebase-applet-config.json', { eager: true }) : {};
+const fallbackConfig = (configs['/firebase-applet-config.json'] as any)?.default || {};
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || fallbackConfig.apiKey,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || fallbackConfig.authDomain,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || fallbackConfig.projectId,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || fallbackConfig.storageBucket,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || fallbackConfig.messagingSenderId,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || fallbackConfig.appId,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || fallbackConfig.measurementId,
 };
 
-const firestoreDatabaseId = import.meta.env.VITE_FIREBASE_FIRESTORE_DATABASE_ID;
+const firestoreDatabaseId = import.meta.env.VITE_FIREBASE_FIRESTORE_DATABASE_ID || fallbackConfig.firestoreDatabaseId || "(default)";
 
 // Startup guard
-const requiredEnvVars = [
-  'VITE_FIREBASE_API_KEY',
-  'VITE_FIREBASE_AUTH_DOMAIN',
-  'VITE_FIREBASE_PROJECT_ID',
-  'VITE_FIREBASE_APP_ID',
-  'VITE_FIREBASE_FIRESTORE_DATABASE_ID'
+const requiredFields = [
+  'apiKey',
+  'authDomain',
+  'projectId',
+  'appId'
 ];
 
-const missingEnvVars = requiredEnvVars.filter(key => !import.meta.env[key]);
+const missingFields = requiredFields.filter(key => !firebaseConfig[key as keyof typeof firebaseConfig]);
 
-if (missingEnvVars.length > 0) {
-  throw new Error(`Missing required Firebase environment variables: ${missingEnvVars.join(', ')}`);
+if (missingFields.length > 0) {
+  console.warn(`Firebase is not fully configured. Missing fields: ${missingFields.join(', ')}. 
+Note: For a standard Firebase setup, the Firestore Database ID (VITE_FIREBASE_FIRESTORE_DATABASE_ID) is expected to be "(default)".`);
 }
 
-export const isFirebaseConfigured = true;
+export const isFirebaseConfigured = missingFields.length === 0;
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
+// Initialize Firebase only if configured
+const app = isFirebaseConfigured ? initializeApp(firebaseConfig) : null;
+
+export const auth = app ? getAuth(app) : null;
 export const googleProvider = new GoogleAuthProvider();
-export const db = getFirestore(app, firestoreDatabaseId);
-export const storage = getStorage(app);
+export const db = app ? getFirestore(app, firestoreDatabaseId) : null;
+export const storage = app ? getStorage(app) : null;
+export const functions = app ? getFunctions(app) : null;

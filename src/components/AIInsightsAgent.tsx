@@ -13,22 +13,23 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { DailyLog, PersonalizationProfile } from '../types';
-import { User } from 'firebase/auth';
-import { db } from '../lib/firebase';
-import Markdown from 'react-markdown';
 import { 
+  db, 
+  User, 
   collection, 
   addDoc, 
   query, 
   orderBy, 
   onSnapshot, 
-  serverTimestamp,
-  where,
-  getDocs,
-  getDoc,
-  doc,
-  limit
-} from 'firebase/firestore';
+  serverTimestamp, 
+  where, 
+  getDocs, 
+  getDoc, 
+  doc, 
+  limit,
+  httpsCallable
+} from '../lib/firebase';
+import Markdown from 'react-markdown';
 
 import { AvatarFrame } from './UI';
 import { getGridFromEvents } from '../utils/sleepUtils';
@@ -160,10 +161,10 @@ export default function AIInsightsAgent({ logs, user, personalizationProfile, is
         historicalLogs.push({
           d: String(data.date || ''),
           events: data.sleepEvents || [],
-          sq: Number(data.sleepQuality ?? 5),
-          r: Number(data.restedness ?? 5),
-          l: Number(data.energyLevel ?? 5),
-          txt: String(data.remarks || '').substring(0, 50)
+          sq: Number(data.sleep_quality ?? 5),
+          r: Number(data.morning_alertness ?? 5),
+          l: Number(data.daytime_energy ?? 5),
+          txt: String(data.daily_remarks || '').substring(0, 50)
         });
       });
 

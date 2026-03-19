@@ -9,7 +9,7 @@ import {
   ChevronDown,
   Paperclip
 } from 'lucide-react';
-import { User } from 'firebase/auth';
+import { User } from '../lib/firebase';
 import { submitFeedback } from '../services/feedbackService';
 import { DailyLog } from '../types';
 

@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import Papa from 'papaparse';
 import { read, utils } from 'xlsx';
-import { parse, format, isValid, addDays } from 'date-fns';
+import { parse, format, isValid } from 'date-fns';
 import { 
   Upload, 
   FileText, 
@@ -14,9 +14,16 @@ import {
   ChevronDown
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { User } from 'firebase/auth';
-import { doc, serverTimestamp, getDoc, runTransaction, addDoc, collection } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { 
+  db, 
+  User, 
+  doc, 
+  serverTimestamp, 
+  getDoc, 
+  runTransaction, 
+  addDoc, 
+  collection 
+} from '../lib/firebase';
 import { DailyLog, SleepState } from '../types';
 import { TOTAL_SLOTS } from '../constants';
 import { saveLog } from '../services/sleepService';
@@ -83,12 +90,13 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
 
   const defaultLog = (date: string): DailyLog => ({
     date,
+    type: 'log',
     isIgnored: false,
-    sleepQuality: 5,
-    restedness: 5,
-    energyLevel: 5,
+    sleep_quality: 5,
+    morning_alertness: 5,
+    daytime_energy: 5,
     sleepEvents: [],
-    remarks: '',
+    daily_remarks: '',
     source: 'import',
     factors: {
       caffeine: { consumed: false, amount: 0, lastIntake: '12:00' },
@@ -280,19 +288,22 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
 
         // Map Clinical Metrics
         const sqVal = parseInt(row.SQ);
-        logsToSave[date].sleepQuality = !isNaN(sqVal) ? sqVal : 5;
-        logsToSave[date].sleep_quality = !isNaN(sqVal) ? sqVal : 5;
-        if (!isNaN(sqVal)) metricsCaptured.add('SQ');
+        if (!isNaN(sqVal) && logsToSave[date].sleep_quality === 5) {
+          logsToSave[date].sleep_quality = sqVal;
+          metricsCaptured.add('SQ');
+        }
 
         const rVal = parseInt(row.R);
-        logsToSave[date].restedness = !isNaN(rVal) ? rVal : 5;
-        logsToSave[date].morning_alertness = !isNaN(rVal) ? rVal : 5;
-        if (!isNaN(rVal)) metricsCaptured.add('R');
+        if (!isNaN(rVal) && logsToSave[date].morning_alertness === 5) {
+          logsToSave[date].morning_alertness = rVal;
+          metricsCaptured.add('R');
+        }
 
         const lVal = parseInt(row.L);
-        logsToSave[date].energyLevel = !isNaN(lVal) ? lVal : 5;
-        logsToSave[date].daytime_energy = !isNaN(lVal) ? lVal : 5;
-        if (!isNaN(lVal)) metricsCaptured.add('L');
+        if (!isNaN(lVal) && logsToSave[date].daytime_energy === 5) {
+          logsToSave[date].daytime_energy = lVal;
+          metricsCaptured.add('L');
+        }
         
         // Map Remarks
         let remarks = row.Remarks || '';
@@ -300,44 +311,18 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
           remarks += (remarks ? ' ' : '') + unmapped.map((u: string) => `[Unmapped: ${u}]`).join(' ');
         }
         if (remarks) {
-          logsToSave[date].remarks = remarks;
           logsToSave[date].daily_remarks = remarks;
         }
 
         const startIndex = timeToIndex(start);
         const endIndex = timeToIndex(end);
 
-        if (endIndex < startIndex) {
-          // Midnight Crossover Logic: Split into two events
-          // Event A: Start to 20:00 (End of Day 1)
-          logsToSave[date].sleepEvents!.push({
-            id: crypto.randomUUID(),
-            type: state,
-            start: start,
-            end: '20:00'
-          });
-          
-          // Event B: 20:00 to End (Start of Day 2)
-          const nextDateObj = addDays(parse(date, 'yyyy-MM-dd', new Date()), 1);
-          const nextDateStr = format(nextDateObj, 'yyyy-MM-dd');
-          
-          if (!logsToSave[nextDateStr]) {
-            logsToSave[nextDateStr] = defaultLog(nextDateStr);
-          }
-          logsToSave[nextDateStr].sleepEvents!.push({
-            id: crypto.randomUUID(),
-            type: state,
-            start: '20:00',
-            end: end
-          });
-        } else {
-          logsToSave[date].sleepEvents!.push({
-            id: crypto.randomUUID(),
-            type: state,
-            start: start,
-            end: end
-          });
-        }
+        logsToSave[date].sleepEvents!.push({
+          id: crypto.randomUUID(),
+          type: state,
+          start: start,
+          end: end
+        });
         cleanedCount++;
       }
 
@@ -364,10 +349,10 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
             const metricsRef = doc(db, 'users', user.uid, 'daily_metrics', date);
             transaction.set(metricsRef, {
               date,
-              sleep_quality: log.sleep_quality || log.sleepQuality,
-              morning_alertness: log.morning_alertness || log.restedness,
-              daytime_energy: log.daytime_energy || log.energyLevel,
-              daily_remarks: log.daily_remarks || log.remarks,
+              sleep_quality: log.sleep_quality,
+              morning_alertness: log.morning_alertness,
+              daytime_energy: log.daytime_energy,
+              daily_remarks: log.daily_remarks,
               source: 'import',
               updatedAt: serverTimestamp(),
             }, { merge: true });
@@ -531,17 +516,12 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
   };
 
   const downloadTemplate = () => {
-    const headers = ['Date', 'Bedtime', 'Waketime', 'SQ', 'R', 'L', 'Remarks'];
+    const headers = ['Date', 'Bedtime', 'Waketime', 'Status_Code', 'SQ', 'R', 'L', 'Remarks'];
     const sampleData = [
-      {
-        Date: '2026-03-20',
-        Bedtime: '23:15',
-        Waketime: '07:30',
-        SQ: 8,
-        R: 7,
-        L: 7,
-        Remarks: 'Slept well.'
-      }
+      { Date: '# Date = night start. 20:00 cycle. Status: SLEEP or AWAKE-IN. SQ/R/L scale 0-10.', Bedtime: '', Waketime: '', Status_Code: '', SQ: '', R: '', L: '', Remarks: '' },
+      { Date: '2026-03-20', Bedtime: '23:15', Waketime: '07:30', Status_Code: 'SLEEP', SQ: 8, R: 7, L: 7, Remarks: 'Slept well.' },
+      { Date: '2026-03-21', Bedtime: '22:45', Waketime: '02:30', Status_Code: 'SLEEP', SQ: '', R: '', L: '', Remarks: '' },
+      { Date: '2026-03-21', Bedtime: '02:45', Waketime: '07:00', Status_Code: 'AWAKE-IN', SQ: 6, R: 5, L: 6, Remarks: 'Woke mid-sleep, hard to fall back.' },
     ];
 
     const csvContent = Papa.unparse({
@@ -637,7 +617,7 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
                     <textarea
                       value={pasteContent}
                       onChange={(e) => setPasteContent(e.target.value)}
-                      placeholder="Paste rows from Excel here (Date, Quality, Restedness, Energy, Duration, InBed, Remarks, Notes)..."
+                      placeholder="Paste rows from Excel here (Date, Quality, Morning Alertness, Daytime Energy, Duration, InBed, Remarks, Notes)..."
                       className="w-full h-48 bg-slate-900 border border-slate-700 rounded-lg p-4 font-mono text-sm text-blue-100 placeholder-slate-500 focus:ring-2 focus:ring-blue-500 outline-none resize-none"
                     />
                     {pasteContent.trim() && (
@@ -862,7 +842,9 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
                 <h4 className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold mb-2">Import Guidelines</h4>
                 <ul className="text-[10px] text-zinc-400 space-y-1 list-disc list-inside">
                   <li>Date format must be <code className="text-indigo-400">YYYY-MM-DD</code></li>
-                  <li>Metrics (Quality, Restedness, Energy) should be <code className="text-indigo-400">0-10</code></li>
+                  <li>Each row = one sleep event. Use multiple rows per date for nights with wake-ups (set Status_Code to AWAKE-IN).</li>
+                  <li>Date = the night it starts (20:00 cycle). Bedtime 23:00, wake 07:00 → use that evening's date.</li>
+                  <li>Metrics (Quality, Morning Alertness, Daytime Energy) should be <code className="text-indigo-400">0-10</code></li>
                   <li>Existing logs for the same date will be overwritten</li>
                   <li>Empty rows and whitespace are automatically handled</li>
                 </ul>

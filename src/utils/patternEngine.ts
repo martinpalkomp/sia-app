@@ -54,7 +54,7 @@ export const getSuggestedLog = (
       screensInBed: false,
       stressLevel: 3,
     },
-    remarks: '',
+    daily_remarks: '',
   };
 
   const reasons: string[] = [];

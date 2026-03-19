@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { User } from 'firebase/auth';
 import { 
+  db, 
+  User, 
   collection, 
   query, 
   orderBy, 
@@ -9,8 +10,7 @@ import {
   doc, 
   writeBatch,
   where
-} from 'firebase/firestore';
-import { db } from '../lib/firebase';
+} from '../lib/firebase';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Database, 

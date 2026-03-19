@@ -17,7 +17,7 @@ import {
 import { DailyLog } from '../types';
 import { saveLog } from '../services/sleepService';
 import { formatDuration, snapTo15Min } from '../utils/sleepUtils';
-import { User } from 'firebase/auth';
+import { User } from '../lib/firebase';
 import { format, isAfter, parseISO, startOfDay } from 'date-fns';
 
 interface CorrectionHubProps {
@@ -47,9 +47,9 @@ const CorrectionHub: React.FC<CorrectionHubProps> = ({ user, logs, onUpdate, onG
         const hasData = hasEvents || hasTimeline;
         
         const hasSummaryMetrics = !!log.summaryMetrics && 
-                                  typeof log.summaryMetrics.sleepQuality === 'number' &&
-                                  typeof log.summaryMetrics.restedness === 'number' &&
-                                  typeof log.summaryMetrics.energyLevel === 'number';
+                                  typeof log.summaryMetrics.sleep_quality === 'number' &&
+                                  typeof log.summaryMetrics.morning_alertness === 'number' &&
+                                  typeof log.summaryMetrics.daytime_energy === 'number';
         
         return isAfterStart && isNotIgnored && (!hasData || !hasSummaryMetrics);
       })
@@ -134,9 +134,9 @@ const CorrectionHub: React.FC<CorrectionHubProps> = ({ user, logs, onUpdate, onG
                     </h3>
                     <div className="flex items-center gap-2 mt-2">
                       {(!log.summaryMetrics || 
-                        typeof log.summaryMetrics.sleepQuality !== 'number' ||
-                        typeof log.summaryMetrics.restedness !== 'number' ||
-                        typeof log.summaryMetrics.energyLevel !== 'number') && (
+                        typeof log.summaryMetrics.sleep_quality !== 'number' ||
+                        typeof log.summaryMetrics.morning_alertness !== 'number' ||
+                        typeof log.summaryMetrics.daytime_energy !== 'number') && (
                         <span className="flex items-center gap-1 text-[9px] font-black uppercase tracking-[0.15em] text-amber-400 bg-amber-400/10 px-2.5 py-1 rounded-lg border border-amber-400/20">
                           Missing Metrics
                         </span>

@@ -11,8 +11,14 @@ service cloud.firestore {
 
     function isAdmin() {
       return isAuthenticated() && 
-        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
-         (request.auth.token.email == "martinpalko.mp@gmail.com" && request.auth.token.email_verified == true));
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    function isPremium(userId) {
+      let user = get(/databases/$(database)/documents/users/$(userId)).data;
+      return user.keys().hasAll(['subscription']) && 
+             user.subscription.tier == 'premium' && 
+             request.time < user.subscription.validUntil;
     }
 
     function isOwner(userId) {
@@ -47,8 +53,12 @@ service cloud.firestore {
     }
 
     // User subcollections (logs, data)
-    match /users/{userId}/{document=**} {
-      allow read, write: if isOwner(userId) || isAdmin();
+    match /users/{userId}/premium_exports/{docId} {
+      allow read, write: if isOwner(userId) && isPremium(userId);
+    }
+
+    match /users/{userId}/{collection}/{document=**} {
+      allow read, write: if (isOwner(userId) || isAdmin()) && collection != 'premium_exports';
     }
 
     // Feedback collection

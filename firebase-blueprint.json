@@ -6,14 +6,25 @@
       "type": "object",
       "properties": {
         "date": { "type": "string", "format": "date" },
-        "timeline": { "type": "array", "items": { "type": "string" } },
-        "sleepQuality": { "type": "integer" },
-        "restedness": { "type": "integer" },
-        "energyLevel": { "type": "integer" },
+        "sleepEvents": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "type": { "type": "string", "enum": ["sleep", "wake", "restless"] },
+              "startTime": { "type": "string", "pattern": "HH:mm" },
+              "endTime": { "type": "string", "pattern": "HH:mm" }
+            },
+            "required": ["type", "startTime", "endTime"]
+          }
+        },
+        "sleep_quality": { "type": "integer" },
+        "morning_alertness": { "type": "integer" },
+        "daytime_energy": { "type": "integer" },
         "remarks": { "type": "string" },
         "source": { "type": "string" }
       },
-      "required": ["date", "timeline"]
+      "required": ["date", "sleepEvents"]
     },
     "UnstructuredData": {
       "title": "Unstructured Data",
@@ -43,12 +54,31 @@
         "attachedLogs": { "type": "object" }
       },
       "required": ["userId", "userName", "category", "message", "timestamp", "status", "version"]
+    },
+    "DailyMetrics": {
+      "title": "Daily Metrics",
+      "description": "Clinical sleep metrics for a specific date.",
+      "type": "object",
+      "properties": {
+        "date": { "type": "string", "format": "date" },
+        "sleep_quality": { "type": "integer" },
+        "morning_alertness": { "type": "integer" },
+        "daytime_energy": { "type": "integer" },
+        "daily_remarks": { "type": "string" },
+        "source": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["date", "sleep_quality", "morning_alertness", "daytime_energy"]
     }
   },
   "firestore": {
     "/users/{userId}/sleep_logs/{date}": {
       "schema": "SleepLog",
-      "description": "Collection of structured sleep logs."
+      "description": "Event-based sleep ledger. Each document represents one 24-hour cycle starting at 20:00."
+    },
+    "/users/{userId}/daily_metrics/{date}": {
+      "schema": "DailyMetrics",
+      "description": "Clinical sleep metrics for a specific date."
     },
     "/users/{userId}/unstructured_data/{docId}": {
       "schema": "UnstructuredData",
