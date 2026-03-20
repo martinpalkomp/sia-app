@@ -117,15 +117,14 @@ export default function PersonalizationWizard({ user, onComplete, onClose }: Per
       // Use a timeout-wrapped promise if needed, but setDoc should resolve/reject
       await setDoc(profileRef, finalData, { merge: true });
       
-      // Clear loading state before calling onComplete to ensure UI feedback
-      setIsSaving(false);
-      
-      // Call onComplete which will close the wizard in the parent
+      // Call onComplete which will update the profile in the parent
       onComplete(finalData as PersonalizationProfile);
     } catch (error) {
       console.error('Error saving personalization profile:', error);
+    } finally {
+      // Always stop spinner and close wizard regardless of success
       setIsSaving(false);
-      // Optional: show a non-blocking error message
+      onClose();
     }
   };
 

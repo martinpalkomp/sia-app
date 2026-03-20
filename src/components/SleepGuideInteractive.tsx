@@ -212,7 +212,7 @@ export default function SleepGuideInteractive({ onClose, onOpenPersonalization }
           <section id="guide-section-intro" className="space-y-8">
             <div className="space-y-4">
               <span className="text-indigo-400 text-xs font-black uppercase tracking-[0.3em]">Section 01</span>
-              <h1 className="text-4xl md:text-6xl font-black text-white leading-tight">
+              <h1 className="text-3xl md:text-6xl font-black text-white tracking-tighter leading-[0.9]">
                 The SIA Guide to <br />
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-violet-400">Improving Your Sleep</span>
               </h1>
@@ -261,7 +261,7 @@ export default function SleepGuideInteractive({ onClose, onOpenPersonalization }
           <section id="guide-section-hygiene" className="space-y-8">
             <div className="space-y-4">
               <span className="text-indigo-400 text-xs font-black uppercase tracking-[0.3em]">Section 02</span>
-              <h2 className="text-3xl md:text-5xl font-black text-white">The Importance of Sleep Hygiene</h2>
+              <h2 className="text-2xl md:text-5xl font-black text-white tracking-tighter leading-[0.95]">The Importance of Sleep Hygiene</h2>
               <p className="text-lg text-zinc-400 leading-relaxed">
                 It may sound hyperbolic, but sleep is the foundation of all human performance. Neglecting your sleep hygiene has serious consequences.
               </p>
@@ -299,7 +299,7 @@ export default function SleepGuideInteractive({ onClose, onOpenPersonalization }
           <section id="guide-section-laws" className="space-y-8">
             <div className="space-y-4">
               <span className="text-indigo-400 text-xs font-black uppercase tracking-[0.3em]">Section 03</span>
-              <h2 className="text-3xl md:text-5xl font-black text-white">The Two Laws of Sleep</h2>
+              <h2 className="text-2xl md:text-5xl font-black text-white tracking-tighter leading-[0.95]">The Two Laws of Sleep</h2>
               <p className="text-lg text-zinc-400 leading-relaxed">
                 Everything we’ve built revolves around what we call the two laws of sleep: sleep debt and circadian rhythm.
               </p>
@@ -337,7 +337,7 @@ export default function SleepGuideInteractive({ onClose, onOpenPersonalization }
           <section id="guide-section-environment" className="space-y-8">
             <div className="space-y-4">
               <span className="text-indigo-400 text-xs font-black uppercase tracking-[0.3em]">Section 04</span>
-              <h2 className="text-3xl md:text-5xl font-black text-white">How to Prep the Perfect Sleep Environment</h2>
+              <h2 className="text-2xl md:text-5xl font-black text-white tracking-tighter leading-[0.95]">How to Prep the Perfect Sleep Environment</h2>
               <p className="text-lg text-zinc-400 leading-relaxed">
                 Some of the most important changes you can make are relatively easy, one-time tweaks. Remember the fundamental trio: cool, dark, and quiet.
               </p>
@@ -372,7 +372,7 @@ export default function SleepGuideInteractive({ onClose, onOpenPersonalization }
           <section id="guide-section-schedule" className="space-y-12">
             <div className="space-y-4">
               <span className="text-indigo-400 text-xs font-black uppercase tracking-[0.3em]">Section 05</span>
-              <h2 className="text-3xl md:text-5xl font-black text-white">Structuring Your Day for Better Sleep</h2>
+              <h2 className="text-2xl md:text-5xl font-black text-white tracking-tighter leading-[0.95]">Structuring Your Day for Better Sleep</h2>
               <p className="text-lg text-zinc-400 leading-relaxed">
                 Great sleep doesn't start at bedtime. It starts the moment you wake up.
               </p>
@@ -445,7 +445,7 @@ export default function SleepGuideInteractive({ onClose, onOpenPersonalization }
           <section id="guide-section-conclusion" className="space-y-8">
             <div className="space-y-4">
               <span className="text-indigo-400 text-xs font-black uppercase tracking-[0.3em]">Section 06</span>
-              <h2 className="text-3xl md:text-5xl font-black text-white">Getting to Know Yourself is the Best First Step</h2>
+              <h2 className="text-2xl md:text-5xl font-black text-white tracking-tighter leading-[0.95]">Getting to Know Yourself is the Best First Step</h2>
               <p className="text-lg text-zinc-400 leading-relaxed">
                 The science provides the framework, but the exact timing of these biological events is entirely unique to you.
               </p>

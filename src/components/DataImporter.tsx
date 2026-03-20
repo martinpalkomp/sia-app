@@ -1,7 +1,8 @@
 import React, { useState, useRef } from 'react';
 import Papa from 'papaparse';
-import { read, utils } from 'xlsx';
+import { read, utils, writeFile } from 'xlsx';
 import { parse, format, isValid } from 'date-fns';
+import { GoogleGenAI } from "@google/genai";
 import { 
   Upload, 
   FileText, 
@@ -53,18 +54,59 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
   const [pendingData, setPendingData] = useState<any[] | null>(null);
   const [cleaningReport, setCleaningReport] = useState<{ skipped: number; cleaned: number; metrics: string[] } | null>(null);
   const [showLegacyToast, setShowLegacyToast] = useState(false);
+  const [previewData, setPreviewData] = useState<any[] | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const saveUnstructuredData = async (content: string, fileName: string) => {
     try {
+      setUploadStatus('idle'); // Show processing state
+      
+      // Enriched storage with Gemini pre-processing
+      let extracted = { 
+        summary: null, 
+        estimatedDateRange: null, 
+        extractedInsights: [], 
+        rawDataType: 'raw_text' 
+      };
+
+      try {
+        const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+        const response = await ai.models.generateContent({
+          model: "gemini-2.0-flash",
+          contents: content.slice(0, 8000),
+          config: {
+            systemInstruction: "Extract sleep insights from this text. Return only valid JSON: { summary, estimatedDateRange, extractedInsights (string array), rawDataType }."
+          }
+        });
+
+        try {
+          const parsed = JSON.parse(response.text || '{}');
+          extracted = {
+            summary: parsed.summary || null,
+            estimatedDateRange: parsed.estimatedDateRange || null,
+            extractedInsights: parsed.extractedInsights || [],
+            rawDataType: parsed.rawDataType || 'raw_text'
+          };
+        } catch (e) {
+          console.error("JSON Parse Error:", e);
+        }
+      } catch (aiError) {
+        console.warn("Gemini pre-processing failed, saving raw content only:", aiError);
+      }
+
       await addDoc(collection(db, 'users', user.uid, 'unstructured_data'), {
         fileName,
         content,
         uploadDate: new Date().toISOString(),
-        status: 'raw_text',
+        status: 'processed',
         source: 'import',
+        aiSummary: extracted.summary,
+        aiDateRange: extracted.estimatedDateRange,
+        aiInsights: extracted.extractedInsights,
+        dataType: extracted.rawDataType,
         updatedAt: serverTimestamp()
       });
+      
       setUploadStatus('unstructured');
       setErrorMessage("This data format doesn't fit the sleep grid, so you won't see indigo bars. However, SIA has indexed this text and will use it for your AI Analysis.");
       if (onImportComplete) onImportComplete();
@@ -238,18 +280,23 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
       if (!forceOverwrite) {
         const uniqueDates = Array.from(new Set(validRows.map(r => (r as any)._mapped.Date)));
         let hasConflict = false;
-        for (const date of uniqueDates) {
-          const docRef = doc(db, 'users', user.uid, 'sleep_logs', date as string);
-          const docSnap = await getDoc(docRef);
-          if (docSnap.exists()) {
-            const existingData = docSnap.data() as DailyLog;
-            const hasEvents = existingData.sleepEvents && existingData.sleepEvents.length > 0;
-            const hasTimeline = existingData.timeline && !existingData.timeline.every(s => s === 'awake-out');
-            if (hasEvents || hasTimeline) {
-              hasConflict = true;
-              break;
+        try {
+          for (const date of uniqueDates) {
+            const docRef = doc(db, 'users', user.uid, 'sleep_logs', date as string);
+            const docSnap = await getDoc(docRef);
+            if (docSnap.exists()) {
+              const existingData = docSnap.data() as DailyLog;
+              const hasEvents = existingData.sleepEvents && existingData.sleepEvents.length > 0;
+              const hasTimeline = existingData.timeline && !existingData.timeline.every(s => s === 'awake-out');
+              if (hasEvents || hasTimeline) {
+                hasConflict = true;
+                break;
+              }
             }
           }
+        } catch (offlineError) {
+          console.warn("Offline or network error during conflict check, proceeding with import:", offlineError);
+          hasConflict = false;
         }
 
         if (hasConflict) {
@@ -458,6 +505,25 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
     }
 
     setSelectedFile(file);
+    setUploadStatus('idle');
+    setErrorMessage('');
+    setPreviewData(null); // Reset preview
+
+    // Generate preview for first 3 rows
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target?.result as ArrayBuffer);
+        const workbook = read(data, { type: 'array' });
+        const firstSheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[firstSheetName];
+        const json = utils.sheet_to_json(worksheet, { header: 1 }).slice(0, 4); // Header + 3 rows
+        setPreviewData(json as any[]);
+      } catch (err) {
+        console.warn("Failed to generate preview:", err);
+      }
+    };
+    reader.readAsArrayBuffer(file);
   };
 
   const handleUploadSubmit = async (e: React.FormEvent) => {
@@ -518,26 +584,29 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
   const downloadTemplate = () => {
     const headers = ['Date', 'Bedtime', 'Waketime', 'Status_Code', 'SQ', 'R', 'L', 'Remarks'];
     const sampleData = [
-      { Date: '# Date = night start. 20:00 cycle. Status: SLEEP or AWAKE-IN. SQ/R/L scale 0-10.', Bedtime: '', Waketime: '', Status_Code: '', SQ: '', R: '', L: '', Remarks: '' },
       { Date: '2026-03-20', Bedtime: '23:15', Waketime: '07:30', Status_Code: 'SLEEP', SQ: 8, R: 7, L: 7, Remarks: 'Slept well.' },
       { Date: '2026-03-21', Bedtime: '22:45', Waketime: '02:30', Status_Code: 'SLEEP', SQ: '', R: '', L: '', Remarks: '' },
       { Date: '2026-03-21', Bedtime: '02:45', Waketime: '07:00', Status_Code: 'AWAKE-IN', SQ: 6, R: 5, L: 6, Remarks: 'Woke mid-sleep, hard to fall back.' },
     ];
 
-    const csvContent = Papa.unparse({
-      fields: headers,
-      data: sampleData
-    });
+    const instructions = [
+      { Instruction: 'Date', Description: 'The date the sleep session started (YYYY-MM-DD).' },
+      { Instruction: 'Bedtime', Description: 'The time you went to bed (HH:mm).' },
+      { Instruction: 'Waketime', Description: 'The time you woke up (HH:mm).' },
+      { Instruction: 'Status_Code', Description: 'SLEEP for main sleep, AWAKE-IN for wakeups, AWAKE-OUT for end of sleep.' },
+      { Instruction: 'SQ/R/L', Description: 'Scale 0-10 for Sleep Quality, Restedness, and Energy.' },
+      { Instruction: 'Remarks', Description: 'Any notes about the night.' },
+      { Instruction: '20:00 Cycle', Description: 'Dates are based on the 20:00 to 20:00 cycle. Sleep starting at 01:00 on March 21st belongs to the March 20th log.' },
+    ];
 
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', 'sia_sleep_log_template.csv');
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const wb = utils.book_new();
+    const wsData = utils.json_to_sheet(sampleData, { header: headers });
+    const wsInstructions = utils.json_to_sheet(instructions);
+
+    utils.book_append_sheet(wb, wsData, "Data");
+    utils.book_append_sheet(wb, wsInstructions, "Instructions");
+
+    writeFile(wb, "sia_sleep_log_template.xlsx");
   };
 
   return (
@@ -571,6 +640,7 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
       <AnimatePresence>
         {(!isCollapsed || isUploading) && (
           <motion.div
+            key="importer-content"
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
@@ -609,6 +679,7 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
               <AnimatePresence>
                 {isPasteOpen && (
                   <motion.div
+                    key="paste-area"
                     initial={{ height: 0, opacity: 0 }}
                     animate={{ height: 'auto', opacity: 1 }}
                     exit={{ height: 0, opacity: 0 }}
@@ -617,7 +688,7 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
                     <textarea
                       value={pasteContent}
                       onChange={(e) => setPasteContent(e.target.value)}
-                      placeholder="Paste rows from Excel here (Date, Quality, Morning Alertness, Daytime Energy, Duration, InBed, Remarks, Notes)..."
+                      placeholder="Paste rows from Excel here (e.g., 2026-03-20	23:15	07:30	SLEEP	8	7	7	Slept well.)"
                       className="w-full h-48 bg-slate-900 border border-slate-700 rounded-lg p-4 font-mono text-sm text-blue-100 placeholder-slate-500 focus:ring-2 focus:ring-blue-500 outline-none resize-none"
                     />
                     {pasteContent.trim() && (
@@ -639,6 +710,52 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
                         )}
                       </button>
                     )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              <AnimatePresence>
+                {selectedFile && uploadStatus === 'idle' && previewData && (
+                  <motion.div
+                    key="file-preview"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="p-4 bg-zinc-800/50 border border-zinc-700 rounded-2xl space-y-3"
+                  >
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">File Preview (First 3 Rows)</h4>
+                      <button 
+                        onClick={() => {
+                          setSelectedFile(null);
+                          setPreviewData(null);
+                          if (fileInputRef.current) fileInputRef.current.value = '';
+                        }}
+                        className="text-[10px] text-red-400 hover:text-red-300 font-bold uppercase tracking-widest"
+                      >
+                        Remove File
+                      </button>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-[10px] text-left border-collapse">
+                        <thead>
+                          <tr className="border-b border-zinc-700">
+                            {previewData[0]?.map((cell: any, i: number) => (
+                              <th key={i} className="p-2 text-zinc-500 font-bold uppercase">{cell}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {previewData.slice(1).map((row: any, i: number) => (
+                            <tr key={i} className="border-b border-zinc-800/50">
+                              {row.map((cell: any, j: number) => (
+                                <td key={j} className="p-2 text-zinc-300">{cell}</td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -718,6 +835,7 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
                 <AnimatePresence>
                   {showLegacyToast && (
                   <motion.div 
+                    key="legacy-toast"
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-2xl flex items-start gap-3"
@@ -734,6 +852,7 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
 
                 {uploadStatus === 'unstructured' && (
                   <motion.div 
+                    key="unstructured-toast"
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: 'auto' }}
                     className="p-4 bg-indigo-500/10 border border-indigo-500/30 rounded-2xl flex items-start gap-3"
@@ -748,6 +867,7 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
 
                 {uploadStatus === 'success' && (
                     <motion.div 
+                      key="success-toast"
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0 }}
@@ -784,6 +904,7 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
 
                   {showConflictModal && (
                     <motion.div 
+                      key="conflict-modal"
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       className="absolute inset-0 bg-zinc-900/95 backdrop-blur-md rounded-2xl flex flex-col items-center justify-center p-6 text-center z-50"
@@ -819,6 +940,7 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
 
                   {uploadStatus === 'error' && (
                     <motion.div 
+                      key="error-toast"
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0 }}
@@ -847,6 +969,7 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
                   <li>Metrics (Quality, Morning Alertness, Daytime Energy) should be <code className="text-indigo-400">0-10</code></li>
                   <li>Existing logs for the same date will be overwritten</li>
                   <li>Empty rows and whitespace are automatically handled</li>
+                  <li>Unstructured data (e.g., raw text, journal entries) will be indexed for SIA's AI Analysis.</li>
                 </ul>
               </div>
             </div>

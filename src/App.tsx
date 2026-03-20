@@ -96,7 +96,10 @@ import {
   addDoc,
   serverTimestamp,
   orderBy,
-  limit
+  limit,
+  getDoc,
+  setPersistence,
+  browserLocalPersistence
 } from './lib/firebase';
 
 // Lazy load heavy components
@@ -155,6 +158,7 @@ export default function App() {
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [clinicalReport, setClinicalReport] = useState<string | null>(null);
   const [personalizationProfile, setPersonalizationProfile] = useState<PersonalizationProfile | null>(null);
+  const [userProfile, setUserProfile] = useState<any>(null);
   const [isProfileLoading, setIsProfileLoading] = useState(true);
   const [showPersonalizationWizard, setShowPersonalizationWizard] = useState(false);
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
@@ -175,6 +179,8 @@ export default function App() {
   const [originalSuggestion, setOriginalSuggestion] = useState<Partial<DailyLog> | null>(null);
   const [isImporting, setIsImporting] = useState(false);
   const [showPrefillConfirm, setShowPrefillConfirm] = useState(false);
+
+  const historyCount = useMemo(() => Object.keys(logs).length, [logs]);
 
   const refreshAllData = async () => {
     setIsRefreshing(true);
@@ -289,12 +295,61 @@ export default function App() {
       setAuthLoading(false);
       return;
     }
-    const unsubscribe = onAuthStateChanged(auth, (u) => {
-      setUser(u);
-      setAuthLoading(false);
-    });
-    return () => unsubscribe();
+
+    let unsubscribe: (() => void) | undefined;
+
+    const initAuth = async () => {
+      try {
+        // Fix 2: Set persistence to LOCAL for Vercel persistence
+        if (auth) {
+          await setPersistence(auth, browserLocalPersistence);
+          
+          // Fix 3: Guard onAuthStateChanged with isFirebaseConfigured (already checked above)
+          unsubscribe = onAuthStateChanged(auth, (u) => {
+            if (u) {
+              setUser(u);
+            } else {
+              setUser(null);
+              setUserProfile(null);
+            }
+            setAuthLoading(false);
+          });
+        }
+      } catch (error) {
+        console.error('Auth initialization error:', error);
+        setAuthLoading(false);
+      }
+    };
+
+    initAuth();
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
   }, []);
+
+  // Load User Profile
+  useEffect(() => {
+    if (!user || !db) {
+      setUserProfile(null);
+      return;
+    }
+
+    const userRef = doc(db, 'users', user.uid);
+    const unsubscribe = onSnapshot(userRef, (doc) => {
+      if (doc.exists()) {
+        setUserProfile(doc.data());
+      }
+    }, (error) => {
+      // Handle "offline" error gracefully - it will retry automatically
+      if (error.message.includes('offline')) {
+        console.warn("Firestore is offline, waiting for connection...");
+      } else {
+        console.error("User profile fetch error:", error);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [user]);
 
   // Load Personalization Profile
   useEffect(() => {
@@ -311,7 +366,11 @@ export default function App() {
       }
       setIsProfileLoading(false);
     }, (error) => {
-      console.error("Profile fetch error:", error);
+      if (error.message.includes('offline')) {
+        console.warn("Personalization profile fetch is offline, waiting...");
+      } else {
+        console.error("Profile fetch error:", error);
+      }
       setIsProfileLoading(false);
     });
 
@@ -716,10 +775,9 @@ export default function App() {
   }, [logs, activeDates]);
 
   const generateClinicalReport = async () => {
-    if (isGeneratingReport || !user) return;
-    setIsGeneratingReport(true);
-
     try {
+      if (isGeneratingReport || !user) return;
+      setIsGeneratingReport(true);
       const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
       
       const periodLogs = activeDates
@@ -750,8 +808,9 @@ export default function App() {
       `;
 
       const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: [{ role: "user", parts: [{ text: reportPrompt }] }]
+        model: "gemini-2.5-pro-preview-03-25",
+        contents: [{ role: "user", parts: [{ text: reportPrompt }] }],
+        config: { temperature: 0.2, maxOutputTokens: 2048 }
       });
 
       if (response.text) {
@@ -971,18 +1030,18 @@ export default function App() {
                 src="https://i.imgur.com/MnI5hn3.png" 
                 alt="SIA" 
                 size="sm"
-                className="w-8 h-8 md:w-10 md:h-10 shadow-lg shadow-indigo-500/20 border-indigo-500/30 bg-indigo-600"
+                className="w-10 h-10 md:w-12 md:h-12 shadow-lg shadow-indigo-500/20 border-indigo-500/30 bg-indigo-600"
               />
               <div className="hidden sm:block">
-                <h1 className="text-sm md:text-lg font-bold tracking-tight text-white flex items-center gap-2">
+                <h1 className="text-2xl md:text-4xl font-black tracking-tighter text-white flex items-center gap-2">
                   SIA
                   {personalizationProfile && (
-                    <span className="text-[8px] md:text-[9px] font-black bg-violet-500/20 text-violet-400 px-1.5 py-0.5 rounded border border-violet-500/30 animate-pulse">
+                    <span className="text-[10px] md:text-xs font-black bg-violet-500/20 text-violet-400 px-1.5 py-0.5 rounded border border-violet-500/30 animate-pulse">
                       ✨
                     </span>
                   )}
                 </h1>
-                <p className="text-[8px] md:text-[10px] text-zinc-500 uppercase tracking-widest font-black">Sleep Intelligence Agent</p>
+                <p className="text-[9px] md:text-[10px] text-zinc-500 uppercase tracking-[0.3em] font-black">Sleep Intelligence Agent</p>
               </div>
           </div>
           
@@ -1182,174 +1241,164 @@ export default function App() {
                 </div>
 
                 {/* Anchor Container for SIA Learning & Editing Controls */}
-                <div className="h-[140px] flex items-center justify-center bg-zinc-900/50 border border-zinc-800 rounded-2xl overflow-hidden relative">
-                  <AnimatePresence mode="wait">
-                    {isEditing ? (
-                      <motion.div
-                        key="editing"
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.95 }}
-                        transition={{ duration: 0.2 }}
-                        className="w-full h-full flex flex-col items-center justify-center p-6 space-y-4"
-                      >
-                        <div className="flex items-center gap-3 text-indigo-400">
-                          <div className="p-2 bg-indigo-500/10 rounded-lg">
-                            <Wand2 size={20} className="animate-pulse" />
-                          </div>
-                          <div className="text-left">
-                            <h3 className="text-sm font-bold uppercase tracking-widest">Editing Mode</h3>
-                            <p className="text-[10px] text-zinc-500">Adjust your sleep window on the grid below</p>
-                          </div>
-                        </div>
-                        <div className="flex gap-3">
-                          {currentLog.modifiedBySync?.some(v => v) && (
-                            <button 
-                              onClick={() => {
-                                const { modifiedBySync, ...rest } = currentLog;
-                                updateLog({ modifiedBySync: undefined });
-                              }}
-                              className="px-6 py-2 bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/50 rounded-xl text-[10px] font-black uppercase tracking-widest text-indigo-400 transition-all flex items-center gap-2"
-                            >
-                              <Check size={14} />
-                              Confirm Sync
-                            </button>
-                          )}
-                          <div className="flex gap-2">
-                            <button 
-                              onClick={() => {
-                                if (initialTimeline) {
-                                  const newEvents = convertGridToEvents(initialTimeline);
-                                  updateLog({ sleepEvents: newEvents });
-                                }
-                                setIsEditing(false);
-                              }}
-                              className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-xl text-[10px] font-black uppercase tracking-widest text-zinc-400 transition-all flex items-center gap-2"
-                            >
-                              <X size={14} />
-                              Cancel
-                            </button>
-                            <button 
-                              onClick={() => setIsEditing(false)}
-                              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 border border-indigo-500 rounded-xl text-[10px] font-black uppercase tracking-widest text-white transition-all flex items-center gap-2"
-                            >
-                              <Check size={14} />
-                              Save Changes
-                            </button>
-                          </div>
-                        </div>
-                      </motion.div>
-                    ) : activeSuggestion && !prefillUsed ? (
-                      <motion.div
-                        key="learning"
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.95 }}
-                        transition={{ duration: 0.2 }}
-                        className="w-full h-full flex flex-col items-center justify-center"
-                      >
-                        {(() => {
-                          const historyCount = Object.keys(logs).length;
-                          const confidence = activeSuggestion.confidence;
-                          
-                          if (historyCount === 0) {
-                            return (
-                              <button
-                                onClick={() => setToast({ message: 'Start by logging your first night manually!', type: 'info' })}
-                                className="w-full h-full flex flex-col items-center justify-center gap-3 group p-6"
-                              >
-                                <Rocket className="text-zinc-500 group-hover:scale-110 transition-transform" size={24} />
-                                <div className="text-center">
-                                  <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">SIA Learning: Start Your Journey</p>
-                                  <p className="text-[8px] text-zinc-600 mt-1 uppercase tracking-wider">Log your first night to begin pattern recognition</p>
-                                </div>
-                              </button>
-                            );
-                          }
-
-                          if (historyCount < 3) {
-                            return (
-                              <button
-                                onClick={() => setToast({ message: `SIA needs ${3 - historyCount} more days of data to recognize your patterns.`, type: 'info' })}
-                                className="w-full h-full flex flex-col items-center justify-center gap-3 grayscale opacity-50 cursor-not-allowed p-6"
-                              >
-                                <Wand2 className="text-zinc-600" size={24} />
-                                <div className="text-center">
-                                  <p className="text-[10px] font-black text-zinc-600 uppercase tracking-widest">SIA Learning: Log {3 - historyCount} more days to unlock</p>
-                                  <p className="text-[8px] text-zinc-700 mt-1 uppercase tracking-wider">Pattern recognition requires more data</p>
-                                </div>
-                              </button>
-                            );
-                          }
-
-                          if (confidence < 0.8) {
-                            return (
-                              <button
-                                onClick={() => setShowPrefillConfirm(true)}
-                                className="w-full h-full flex flex-col items-center justify-center gap-3 group p-6"
-                              >
-                                <Lightbulb className="text-amber-400 group-hover:scale-110 transition-transform" size={24} />
-                                <div className="text-center">
-                                  <p className="text-[10px] font-black text-amber-500 uppercase tracking-widest">SIA Draft: Suggested Fill Available</p>
-                                  <p className="text-[8px] text-amber-600/70 mt-1 uppercase tracking-wider">Click to preview your routine</p>
-                                </div>
-                              </button>
-                            );
-                          }
-
-                          return (
-                            <button
-                              onClick={applySuggestion}
-                              className="w-full h-full bg-indigo-600/5 hover:bg-indigo-600/10 transition-all flex flex-col items-center justify-center gap-3 group relative overflow-hidden p-6"
-                            >
-                              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
-                              <Wand2 className="text-indigo-400 group-hover:rotate-12 transition-transform" size={24} />
-                              <div className="text-center">
-                                <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">SIA Master: Apply Routine</p>
-                                <p className="text-[8px] text-indigo-500/70 mt-1 uppercase tracking-wider">High confidence pattern detected</p>
-                              </div>
-                            </button>
-                          );
-                        })()}
-                      </motion.div>
-                    ) : (
-                      <motion.div
-                        key="complete"
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.95 }}
-                        transition={{ duration: 0.2 }}
-                        className="w-full h-full flex flex-col items-center justify-center p-6 space-y-4"
-                      >
-                        <div className="flex items-center gap-8">
-                          <div className="text-center">
-                            <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Duration</p>
-                            <p className="text-xl font-mono font-bold text-white tracking-tight">
-                              {formatDuration(calculateSleepDuration(currentLog.visualTimeline))}
-                            </p>
-                          </div>
-                          <div className="w-px h-8 bg-zinc-800" />
-                          <div className="text-center">
-                            <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Efficiency</p>
-                            <p className="text-xl font-mono font-bold text-emerald-400 tracking-tight">
-                              {calculateSleepEfficiency(currentLog.visualTimeline)}%
-                            </p>
-                          </div>
-                        </div>
-                        <button 
-                          onClick={() => {
-                            setInitialTimeline([...currentLog.visualTimeline]);
-                            setIsEditing(true);
-                          }}
-                          className="px-4 py-1.5 bg-zinc-800/50 hover:bg-zinc-800 border border-zinc-700/50 rounded-lg text-[9px] font-bold text-zinc-400 hover:text-zinc-200 uppercase tracking-[0.2em] transition-all flex items-center gap-2"
+                {(isEditing || (activeSuggestion && !prefillUsed) || (!isEditing && !activeSuggestion)) && (
+                  <div className="h-[140px] flex items-center justify-center bg-zinc-900/50 border border-zinc-800 rounded-2xl overflow-hidden relative">
+                    <AnimatePresence mode="wait">
+                      {isEditing ? (
+                        <motion.div
+                          key="editing"
+                          initial={{ opacity: 0, scale: 0.95 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          exit={{ opacity: 0, scale: 0.95 }}
+                          transition={{ duration: 0.2 }}
+                          className="w-full h-full flex flex-col items-center justify-center p-6 space-y-4"
                         >
-                          <Plus size={12} />
-                          Edit Sleep Window
-                        </button>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
+                          <div className="flex items-center gap-3 text-indigo-400">
+                            <div className="p-2 bg-indigo-500/10 rounded-lg">
+                              <Wand2 size={20} className="animate-pulse" />
+                            </div>
+                            <div className="text-left">
+                              <h3 className="text-sm font-bold uppercase tracking-widest">Editing Mode</h3>
+                              <p className="text-[10px] text-zinc-500">Adjust your sleep window on the grid below</p>
+                            </div>
+                          </div>
+                          <div className="flex gap-3">
+                            {currentLog.modifiedBySync?.some(v => v) && (
+                              <button 
+                                onClick={() => {
+                                  const { modifiedBySync, ...rest } = currentLog;
+                                  updateLog({ modifiedBySync: undefined });
+                                }}
+                                className="px-6 py-2 bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/50 rounded-xl text-[10px] font-black uppercase tracking-widest text-indigo-400 transition-all flex items-center gap-2"
+                              >
+                                <Check size={14} />
+                                Confirm Sync
+                              </button>
+                            )}
+                            <div className="flex gap-2">
+                              <button 
+                                onClick={() => {
+                                  if (initialTimeline) {
+                                    const newEvents = convertGridToEvents(initialTimeline);
+                                    updateLog({ sleepEvents: newEvents });
+                                  }
+                                  setIsEditing(false);
+                                }}
+                                className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-xl text-[10px] font-black uppercase tracking-widest text-zinc-400 transition-all flex items-center gap-2"
+                              >
+                                <X size={14} />
+                                Cancel
+                              </button>
+                              <button 
+                                onClick={() => setIsEditing(false)}
+                                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 border border-indigo-500 rounded-xl text-[10px] font-black uppercase tracking-widest text-white transition-all flex items-center gap-2"
+                              >
+                                <Check size={14} />
+                                Save Changes
+                              </button>
+                            </div>
+                          </div>
+                        </motion.div>
+                      ) : activeSuggestion && !prefillUsed ? (
+                        <motion.div
+                          key="learning"
+                          initial={{ opacity: 0, scale: 0.95 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          exit={{ opacity: 0, scale: 0.95 }}
+                          transition={{ duration: 0.2 }}
+                          className="w-full h-full flex flex-col items-center justify-center"
+                        >
+                          {(() => {
+                            const confidence = activeSuggestion.confidence;
+                            
+                            if (historyCount < 3) {
+                              return (
+                                <button
+                                  onClick={() => setToast({ message: `SIA needs ${3 - historyCount} more days of data to recognize your patterns.`, type: 'info' })}
+                                  className="w-full h-full flex flex-col items-center justify-center gap-1 grayscale opacity-50 cursor-not-allowed px-6 py-4"
+                                >
+                                  <Rocket className="text-zinc-600" size={16} />
+                                  <div className="text-center">
+                                    <p className="text-[10px] font-black text-zinc-600 uppercase tracking-widest">
+                                      {historyCount === 0 ? "SIA Learning: Start Your Journey" : `SIA Learning: Log ${3 - historyCount} more days to unlock`}
+                                    </p>
+                                    <p className="text-[10px] text-zinc-700 mt-1 uppercase tracking-wider">
+                                      {historyCount === 0 ? "Log your first night to begin pattern recognition" : "Pattern recognition requires more data"}
+                                    </p>
+                                  </div>
+                                </button>
+                              );
+                            }
+
+                            if (confidence < 0.8) {
+                              return (
+                                <button
+                                  onClick={() => setShowPrefillConfirm(true)}
+                                  className="w-full h-full flex flex-col items-center justify-center gap-3 group p-6"
+                                >
+                                  <Lightbulb className="text-amber-400 group-hover:scale-110 transition-transform" size={24} />
+                                  <div className="text-center">
+                                    <p className="text-[10px] font-black text-amber-500 uppercase tracking-widest">SIA Draft: Suggested Fill Available</p>
+                                    <p className="text-[8px] text-amber-600/70 mt-1 uppercase tracking-wider">Click to preview your routine</p>
+                                  </div>
+                                </button>
+                              );
+                            }
+
+                            return (
+                              <button
+                                onClick={applySuggestion}
+                                className="w-full h-full bg-indigo-600/5 hover:bg-indigo-600/10 transition-all flex flex-col items-center justify-center gap-3 group relative overflow-hidden p-6"
+                              >
+                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+                                <Wand2 className="text-indigo-400 group-hover:rotate-12 transition-transform" size={24} />
+                                <div className="text-center">
+                                  <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">SIA Master: Apply Routine</p>
+                                  <p className="text-[8px] text-indigo-500/70 mt-1 uppercase tracking-wider">High confidence pattern detected</p>
+                                </div>
+                              </button>
+                            );
+                          })()}
+                        </motion.div>
+                      ) : (
+                        <motion.div
+                          key="complete"
+                          initial={{ opacity: 0, scale: 0.95 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          exit={{ opacity: 0, scale: 0.95 }}
+                          transition={{ duration: 0.2 }}
+                          className="w-full h-full flex flex-col items-center justify-center p-6 space-y-4"
+                        >
+                          <div className="flex items-center gap-8">
+                            <div className="text-center">
+                              <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Duration</p>
+                              <p className="text-xl font-mono font-bold text-white tracking-tight">
+                                {formatDuration(calculateSleepDuration(currentLog.visualTimeline))}
+                              </p>
+                            </div>
+                            <div className="w-px h-8 bg-zinc-800" />
+                            <div className="text-center">
+                              <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Efficiency</p>
+                              <p className="text-xl font-mono font-bold text-emerald-400 tracking-tight">
+                                {calculateSleepEfficiency(currentLog.visualTimeline)}%
+                              </p>
+                            </div>
+                          </div>
+                          <button 
+                            onClick={() => {
+                              setInitialTimeline([...currentLog.visualTimeline]);
+                              setIsEditing(true);
+                            }}
+                            className="px-4 py-1.5 bg-zinc-800/50 hover:bg-zinc-800 border border-zinc-700/50 rounded-lg text-[9px] font-bold text-zinc-400 hover:text-zinc-200 uppercase tracking-[0.2em] transition-all flex items-center gap-2"
+                          >
+                            <Plus size={12} />
+                            Edit Sleep Window
+                          </button>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                )}
 
                 <div 
                   className={`relative bg-zinc-900 border rounded-2xl overflow-hidden select-none flex flex-col divide-y divide-zinc-800/50 transition-all ${
@@ -1366,23 +1415,38 @@ export default function App() {
                           setInitialTimeline([...currentLog.visualTimeline]);
                           setIsEditing(true);
                         }}
-                        className="absolute inset-0 z-20 bg-black/20 backdrop-blur-[2px] flex flex-col items-center justify-center cursor-pointer group touch-pan-y"
+                        className={`absolute inset-0 z-20 flex flex-col items-center justify-center cursor-pointer group touch-pan-y ${
+                          historyCount === 0 ? '' : 'bg-black/20 backdrop-blur-[2px]'
+                        }`}
                       >
-                        <div className="bg-zinc-900/90 border border-zinc-700 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest text-zinc-300 group-hover:text-white transition-colors flex items-center gap-2">
-                          <Plus size={14} />
-                          Tap to edit sleep window
-                        </div>
-                        
-                        {/* Scroll Hint */}
-                        <div className="absolute bottom-4 flex flex-col items-center gap-1 opacity-40 group-hover:opacity-100 transition-opacity">
-                          <p className="text-[8px] font-black uppercase tracking-[0.2em] text-zinc-400">Drag to scroll / Tap to edit</p>
-                          <motion.div
-                            animate={{ y: [0, 4, 0] }}
-                            transition={{ repeat: Infinity, duration: 1.5 }}
-                          >
-                            <ChevronDown size={12} className="text-zinc-500" />
-                          </motion.div>
-                        </div>
+                        {historyCount === 0 ? (
+                          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 pointer-events-none">
+                            <p className="text-[10px] font-semibold tracking-[0.12em] uppercase text-zinc-600">
+                              No data for this night
+                            </p>
+                            <p className="text-[10px] text-zinc-700 tracking-wide">
+                              Tap the grid or use the buttons above to log sleep
+                            </p>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="bg-zinc-900/90 border border-zinc-700 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest text-zinc-300 group-hover:text-white transition-colors flex items-center gap-2">
+                              <Plus size={14} />
+                              Tap to edit sleep window
+                            </div>
+                            
+                            {/* Scroll Hint */}
+                            <div className="absolute bottom-4 flex flex-col items-center gap-1 opacity-40 group-hover:opacity-100 transition-opacity">
+                              <p className="text-[8px] font-black uppercase tracking-[0.2em] text-zinc-400">Drag to scroll / Tap to edit</p>
+                              <motion.div
+                                animate={{ y: [0, 4, 0] }}
+                                transition={{ repeat: Infinity, duration: 1.5 }}
+                              >
+                                <ChevronDown size={12} className="text-zinc-500" />
+                              </motion.div>
+                            </div>
+                          </>
+                        )}
                       </motion.div>
                     )}
                   </AnimatePresence>

@@ -73,11 +73,11 @@ const CorrectionHub: React.FC<CorrectionHubProps> = ({ user, logs, onUpdate, onG
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-zinc-900/50 p-6 rounded-[2.5rem] shadow-sm border border-zinc-800/50">
         <div>
-          <h2 className="text-2xl font-semibold tracking-tight text-white flex items-center gap-2">
+          <h2 className="text-xl md:text-3xl font-black tracking-tighter text-white flex items-center gap-3 leading-[0.95]">
             <AlertCircle className="w-6 h-6 text-amber-500" />
             Correction Hub
           </h2>
-          <p className="text-zinc-500 text-sm mt-1 font-medium">
+          <p className="text-zinc-500 text-[9px] mt-2 font-black uppercase tracking-widest">
             Review and complete missing clinical data points.
           </p>
         </div>

@@ -1,0 +1,31 @@
+:root {
+  /* Surfaces */
+  --sia-base:      #0d0d12;
+  --sia-surface-1: #13131c;
+  --sia-surface-2: #1a1a26;
+  --sia-surface-3: #222235;
+  --sia-surface-4: #2c2c44;
+
+  /* Text */
+  --sia-text-primary:   #eeedf8;
+  --sia-text-secondary: #a8a6c8;
+  --sia-text-tertiary:  #6b6890;
+
+  /* Accents */
+  --sia-indigo-400: #a78bfa;
+  --sia-indigo-500: #7c6ffa;
+  --sia-indigo-600: #5b4ef0;
+  --sia-indigo-900: #1e1840;
+
+  /* Semantic */
+  --sia-success: #4ade80;
+  --sia-warning: #fcd34d;
+  --sia-error:   #f87171;
+
+  /* Typography */
+  --sia-font-display: 'DM Serif Display', Georgia, serif;
+  --sia-font-body:    'Inter', system-ui, sans-serif;
+  --sia-font-mono:    'JetBrains Mono', 'Fira Code', monospace;
+}
+
+body { font-family: var(--sia-font-body); background: var(--sia-base); }

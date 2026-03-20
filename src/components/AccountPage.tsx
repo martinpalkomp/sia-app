@@ -165,8 +165,8 @@ export default function AccountPage({ user, personalizationProfile, onModifyAsse
           className="shadow-2xl shadow-clinical-primary/20 border-clinical-primary/30"
         />
         <div>
-          <h2 className="text-3xl font-black tracking-tight text-white">{user.displayName}</h2>
-          <p className="text-zinc-500 font-medium">{user.email}</p>
+          <h2 className="text-2xl md:text-4xl font-black tracking-tighter text-white leading-[0.95]">{user.displayName}</h2>
+          <p className="text-zinc-500 font-bold uppercase tracking-widest text-[9px] mt-1.5">{user.email}</p>
         </div>
       </div>
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Moon, 
   Sun, 
@@ -65,13 +65,11 @@ export default function Dashboard({
   isRefreshing
 }: DashboardProps) {
   const [aiInsight, setAiInsight] = useState<string | null>(null);
-  const [siaTip, setSiaTip] = useState<string | null>(null);
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [isDeepAnalysis, setIsDeepAnalysis] = useState(false);
   const [showAllFacts, setShowAllFacts] = useState(false);
   const [isFirstVisit, setIsFirstVisit] = useState(false);
   const [factAnchor, setFactAnchor] = useState<string | null>(null);
-  const [period, setPeriod] = useState<7 | 30>(7);
 
   // Check for first visit
   useEffect(() => {
@@ -140,17 +138,17 @@ export default function Dashboard({
     }
   }, [showAllFacts, factAnchor]);
 
-  // Get last N days of logs relative to selectedDate
+  // Get last 7 days of logs relative to selectedDate
   const periodDates = useMemo(() => {
     const dates = [];
     const baseDate = new Date(selectedDate);
-    for (let i = 0; i < period; i++) {
+    for (let i = 0; i < 7; i++) {
       const d = new Date(baseDate);
       d.setDate(d.getDate() - i);
       dates.push(d.toISOString().split('T')[0]);
     }
     return dates;
-  }, [selectedDate, period]);
+  }, [selectedDate]);
 
   const stats = useMemo(() => {
     const periodLogs = periodDates.map(d => logs[d]).filter(Boolean);
@@ -193,83 +191,64 @@ export default function Dashboard({
     return `${prefix}... ${suffix}`;
   }, [isFirstVisit, averageBedtime]);
 
-  // AI Insight Generation - Quick Analysis (7 days)
+  const insightDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastInsightKeyRef = useRef<string>('');
+
+  const generateQuickInsight = async () => {
+    const logsCount = Object.keys(logs).length;
+    if (logsCount < 3 || aiInsight) return;
+    
+    setIsAiLoading(true);
+    try {
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+      // Get last 7 days of logs for analysis
+      const sortedLogs = Object.values(logs).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 7);
+      const historyContext = sortedLogs.map(log => {
+        const sleepData = log.sleepEvents || log.timeline || [];
+        const efficiency = calculateSleepEfficiency(sleepData);
+        
+        return {
+          date: log.date,
+          sq: log.sleep_quality,
+          r: log.morning_alertness,
+          l: log.daytime_energy,
+          efficiency: efficiency + "%",
+        };
+      });
+
+      const prompt = `
+        Analyze these recent sleep logs (last 7 days): ${JSON.stringify(historyContext)}
+        Provide a concise, data-backed "SIA Weekly Insight" (max 25 words). 
+        Focus on consistency, timing, and immediate recovery improvements.
+        Format: "💡 SIA Weekly Insight: [Your insight here]"
+      `;
+
+      const response = await ai.models.generateContent({
+        model: "gemini-2.0-flash",
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        config: {
+          systemInstruction: "You are 'SIA', a Sleep Intelligence Agent. Provide punchy, clinical, data-backed weekly sleep insights."
+        }
+      });
+
+      setAiInsight(response.text || null);
+    } catch (e) {
+      console.error("Dashboard AI Error:", e);
+    } finally {
+      setIsAiLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const generateQuickInsight = async () => {
-      const logsCount = Object.keys(logs).length;
-      if (logsCount < 3 || aiInsight) return;
-      
-      setIsAiLoading(true);
-      try {
-        const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
-        const historyContext = Object.values(logs).map(log => {
-          const sleepData = log.sleepEvents || log.timeline || [];
-          const efficiency = calculateSleepEfficiency(sleepData);
-          
-          return {
-            date: log.date,
-            sq: log.sleep_quality,
-            r: log.morning_alertness,
-            l: log.daytime_energy,
-            efficiency: efficiency + "%",
-          };
-        });
-
-        const prompt = `
-          Analyze these recent sleep logs (last 7 days): ${JSON.stringify(historyContext)}
-          Provide a concise, data-backed "SIA Weekly Insight" (max 25 words). 
-          Focus on consistency, timing, and immediate recovery improvements.
-          Format: "💡 SIA Weekly Insight: [Your insight here]"
-        `;
-
-        const response = await ai.models.generateContent({
-          model: "gemini-3-flash-preview",
-          contents: [{ role: "user", parts: [{ text: prompt }] }],
-          config: {
-            systemInstruction: "You are 'SIA', a Sleep Intelligence Agent. Provide punchy, clinical, data-backed weekly sleep insights."
-          }
-        });
-
-        setAiInsight(response.text || null);
-      } catch (e) {
-        console.error("Dashboard AI Error:", e);
-      } finally {
-        setIsAiLoading(false);
-      }
-    };
-
-    generateQuickInsight();
-  }, [Object.keys(logs).length]);
-
-  // SIA Daily Tip Generation
-  useEffect(() => {
-    const generateDailyTip = async () => {
-      if (!stats || siaTip) return;
-      
-      try {
-        const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
-        const prompt = `
-          Current 7-day stats: Quality ${stats.avgSq}/10, Restedness ${stats.avgR}/10, Energy ${stats.avgL}/10, Duration ${stats.avgDuration}, Efficiency ${stats.avgEfficiency}%.
-          Provide one single, highly specific, clinical sleep tip (max 15 words) based on these numbers.
-          Format: "[Tip text]"
-        `;
-
-        const response = await ai.models.generateContent({
-          model: "gemini-3-flash-preview",
-          contents: [{ role: "user", parts: [{ text: prompt }] }],
-          config: {
-            systemInstruction: "You are 'SIA', a clinical Sleep Intelligence Agent. Provide one punchy, data-backed sleep tip."
-          }
-        });
-
-        setSiaTip(response.text || null);
-      } catch (e) {
-        console.error("SIA Tip Error:", e);
-      }
-    };
-
-    generateDailyTip();
-  }, [stats]);
+    const key = Object.keys(logs).sort().join(',');
+    if (key === lastInsightKeyRef.current) return;
+    if (insightDebounceRef.current) clearTimeout(insightDebounceRef.current);
+    insightDebounceRef.current = setTimeout(async () => {
+      lastInsightKeyRef.current = key;
+      await generateQuickInsight();
+    }, 2000);
+    return () => { if (insightDebounceRef.current) clearTimeout(insightDebounceRef.current); };
+  }, [logs]);
 
   const handleDeepAnalysis = async () => {
     if (!user || isAiLoading) return;
@@ -310,7 +289,7 @@ export default function Dashboard({
       `;
 
       const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
+        model: "gemini-2.0-flash",
         contents: [{ role: "user", parts: [{ text: prompt }] }],
         config: {
           systemInstruction: "You are 'SIA', a Sleep Intelligence Agent. Provide deep, structured, data-backed long-term sleep analysis."
@@ -392,27 +371,13 @@ export default function Dashboard({
           <motion.h1 
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
-            className="text-2xl md:text-3xl font-bold tracking-tight text-white flex flex-wrap items-center gap-3"
+            className="text-2xl md:text-5xl font-black tracking-tighter text-white leading-[0.95] flex flex-wrap items-center gap-x-4 gap-y-2"
           >
-            <span className="bg-clinical-primary text-[10px] px-2 py-0.5 rounded-full uppercase tracking-tighter align-middle">Sleep Intelligence Agent</span>
+            <span className="bg-clinical-primary text-[9px] md:text-[10px] px-2 py-0.5 rounded-full uppercase tracking-widest align-middle h-fit self-center">Sleep Intelligence Agent</span>
             {greeting}
           </motion.h1>
-          <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4">
-            <p className="text-zinc-500 text-sm font-medium">I've analyzed your sleep intelligence for the last {period} days.</p>
-            <div className="flex items-center gap-1 bg-zinc-900/50 p-1 rounded-xl border border-zinc-800">
-              <button 
-                onClick={() => setPeriod(7)}
-                className={`px-3 py-1 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${period === 7 ? 'bg-indigo-600 text-white shadow-lg' : 'text-zinc-500 hover:text-zinc-300'}`}
-              >
-                7 Days
-              </button>
-              <button 
-                onClick={() => setPeriod(30)}
-                className={`px-3 py-1 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${period === 30 ? 'bg-indigo-600 text-white shadow-lg' : 'text-zinc-500 hover:text-zinc-300'}`}
-              >
-                30 Days
-              </button>
-            </div>
+          <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4 pt-4">
+            <p className="text-zinc-500 text-sm font-medium">I've analyzed your sleep intelligence for the last 7 days.</p>
           </div>
         </div>
       </section>
@@ -492,9 +457,9 @@ export default function Dashboard({
       </section>
 
       {/* Section 2: SIA Quick Insight */}
-      <section className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <section className="grid grid-cols-1 gap-4">
         <Card 
-          className="lg:col-span-2 bg-indigo-600/20 border-indigo-500/30 relative overflow-hidden group hover:bg-indigo-600/25 cursor-pointer" 
+          className="bg-indigo-600/20 border-indigo-500/30 relative overflow-hidden group hover:bg-indigo-600/25 cursor-pointer" 
           onClick={() => onViewChange('ai')}
         >
           <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:opacity-20 transition-opacity">
@@ -533,18 +498,6 @@ export default function Dashboard({
               Full Report <ChevronRight size={16} />
             </button>
           </div>
-        </Card>
-
-        <Card className="bg-emerald-500/10 border-emerald-500/20 flex flex-col justify-center gap-2">
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 bg-emerald-500/20 rounded-full flex items-center justify-center text-emerald-400">
-              <Sparkles size={12} />
-            </div>
-            <h3 className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">SIA Daily Tip</h3>
-          </div>
-          <p className="text-sm text-white font-medium leading-tight text-left italic">
-            {siaTip || "Analyzing your patterns for today's tip..."}
-          </p>
         </Card>
       </section>
 

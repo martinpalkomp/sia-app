@@ -9,6 +9,8 @@ export {
   onAuthStateChanged, 
   signInWithPopup, 
   signOut,
+  setPersistence,
+  browserLocalPersistence,
   GoogleAuthProvider,
   type User 
 } from "firebase/auth";
