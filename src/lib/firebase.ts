@@ -24,6 +24,7 @@ export {
   where, 
   getDocs, 
   getDoc, 
+  getDocFromServer,
   doc, 
   limit,
   setDoc,
@@ -48,19 +49,39 @@ export { initializeApp, type FirebaseApp } from "firebase/app";
 // We use import.meta.glob to avoid build errors if the file is missing
 // PROD guard: only load fallback in development
 const configs = !import.meta.env.PROD ? import.meta.glob('/firebase-applet-config.json', { eager: true }) : {};
-const fallbackConfig = (configs['/firebase-applet-config.json'] as any)?.default || {};
+const fallbackConfig = (configs['/firebase-applet-config.json'] as any)?.default ?? {};
 
-const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || fallbackConfig.apiKey,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || fallbackConfig.authDomain,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || fallbackConfig.projectId,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || fallbackConfig.storageBucket,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || fallbackConfig.messagingSenderId,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || fallbackConfig.appId,
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || fallbackConfig.measurementId,
+const isValidValue = (val: string | undefined): boolean => {
+  if (!val || val.trim() === '') return false;
+  if (val.startsWith('"') || val.endsWith('"')) return false; // reject quoted values
+  if (val.startsWith("'") || val.endsWith("'")) return false; // reject single-quoted values
+  return true;
 };
 
-const firestoreDatabaseId = import.meta.env.VITE_FIREBASE_FIRESTORE_DATABASE_ID || fallbackConfig.firestoreDatabaseId || "(default)";
+const resolveField = (envVal: string | undefined, fallbackVal: string | undefined): string => {
+  if (isValidValue(envVal)) return envVal!.trim();
+  if (isValidValue(fallbackVal)) return fallbackVal!.trim();
+  return '';
+};
+
+const firebaseConfig = {
+  apiKey:            resolveField(import.meta.env.VITE_FIREBASE_API_KEY,             fallbackConfig.apiKey),
+  authDomain:        resolveField(import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,         fallbackConfig.authDomain),
+  projectId:         resolveField(import.meta.env.VITE_FIREBASE_PROJECT_ID,          fallbackConfig.projectId),
+  storageBucket:     resolveField(import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,      fallbackConfig.storageBucket),
+  messagingSenderId: resolveField(import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID, fallbackConfig.messagingSenderId),
+  appId:             resolveField(import.meta.env.VITE_FIREBASE_APP_ID,              fallbackConfig.appId),
+  measurementId:     resolveField(import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,      fallbackConfig.measurementId),
+};
+
+const envDbId = import.meta.env.VITE_FIREBASE_FIRESTORE_DATABASE_ID;
+const jsonDbId = fallbackConfig.firestoreDatabaseId;
+
+const firestoreDatabaseId = (
+  envDbId && !envDbId.includes('"') && envDbId.trim() !== '' ? envDbId.trim() :
+  jsonDbId && !jsonDbId.includes('"') && jsonDbId.trim() !== '' ? jsonDbId.trim() :
+  '(default)'
+);
 
 // Startup guard
 const requiredFields = [
@@ -84,6 +105,6 @@ const app = isFirebaseConfigured ? initializeApp(firebaseConfig) : null;
 
 export const auth = app ? getAuth(app) : null;
 export const googleProvider = new GoogleAuthProvider();
-export const db = app ? getFirestore(app, firestoreDatabaseId) : null;
+export const db = app ? (firestoreDatabaseId && firestoreDatabaseId !== '(default)' ? getFirestore(app, firestoreDatabaseId) : getFirestore(app)) : null;
 export const storage = app ? getStorage(app) : null;
 export const functions = app ? getFunctions(app) : null;

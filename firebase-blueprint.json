@@ -12,10 +12,10 @@
             "type": "object",
             "properties": {
               "type": { "type": "string", "enum": ["sleep", "wake", "restless"] },
-              "startTime": { "type": "string", "pattern": "HH:mm" },
-              "endTime": { "type": "string", "pattern": "HH:mm" }
+              "start": { "type": "string", "pattern": "HH:mm" },
+              "end": { "type": "string", "pattern": "HH:mm" }
             },
-            "required": ["type", "startTime", "endTime"]
+            "required": ["type", "start", "end"]
           }
         },
         "sleep_quality": { "type": "integer" },
@@ -75,6 +75,12 @@
     "/users/{userId}/sleep_logs/{date}": {
       "schema": "SleepLog",
       "description": "Event-based sleep ledger. Each document represents one 24-hour cycle starting at 20:00."
+    },
+    "/users/{userId}/personalization/{docId}": {
+      "description": "User personalization profile and wizard preferences."
+    },
+    "/users/{userId}/ai_corrections/{docId}": {
+      "description": "User corrections to AI suggestions used for pattern learning."
     },
     "/users/{userId}/daily_metrics/{date}": {
       "schema": "DailyMetrics",

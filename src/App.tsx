@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, lazy, Suspense } from 'react';
 import { 
   Moon, 
   Sun, 
@@ -65,11 +65,11 @@ import {
 } from './utils/sleepUtils';
 import { calculateSafeAverage } from './utils/statsEngine';
 
-import AIInsightsAgent from './components/AIInsightsAgent';
-import Dashboard from './components/Dashboard';
 import Legal from './components/Legal';
 import CorrectionHub from './components/CorrectionHub';
-import PersonalizationWizard from './components/PersonalizationWizard';
+const AIInsightsAgent = lazy(() => import('./components/AIInsightsAgent'));
+const Dashboard = lazy(() => import('./components/Dashboard'));
+const PersonalizationWizard = lazy(() => import('./components/PersonalizationWizard'));
 import AccountPage from './components/AccountPage';
 import SleepRibbon from './components/SleepRibbon';
 import DataImporter from './components/DataImporter';
@@ -98,6 +98,8 @@ import {
   orderBy,
   limit,
   getDoc,
+  getDocFromServer,
+  setDoc,
   setPersistence,
   browserLocalPersistence
 } from './lib/firebase';
@@ -327,6 +329,22 @@ export default function App() {
     };
   }, []);
 
+  // Connection Test
+  useEffect(() => {
+    if (!db) return;
+    const testConnection = async () => {
+      try {
+        // Attempt to fetch a non-existent doc to test connectivity
+        await getDocFromServer(doc(db, '_sia_system', 'connection_test'));
+      } catch (error: any) {
+        if (error.message?.includes('offline')) {
+          console.error("CRITICAL: Firestore is offline. Check your Firebase configuration.");
+        }
+      }
+    };
+    testConnection();
+  }, []);
+
   // Load User Profile
   useEffect(() => {
     if (!user || !db) {
@@ -355,6 +373,7 @@ export default function App() {
   useEffect(() => {
     if (!user) {
       setPersonalizationProfile(null);
+      setIsProfileLoading(false);
       return;
     }
 
@@ -470,21 +489,17 @@ export default function App() {
             }
           }
 
-          if (validateLogMetrics(summaryMetrics)) {
-            await saveLog(user.uid, {
-              ...log,
-              type: 'log',
-              summaryMetrics,
-              isIgnored: log.isIgnored || false,
-            });
-          } else {
-            console.warn("Incomplete metrics for manual save, still saving for Correction Hub.");
-            await saveLog(user.uid, {
-              ...log,
-              type: 'log',
-              isIgnored: log.isIgnored || false,
-            });
+          if (!validateLogMetrics(summaryMetrics)) {
+            console.error('saveLog blocked — invalid metrics:', summaryMetrics);
+            return; // do not write invalid data to Firestore
           }
+
+          await saveLog(user.uid, {
+            ...log,
+            type: 'log',
+            summaryMetrics,
+            isIgnored: log.isIgnored || false,
+          });
         } catch (error: any) {
           console.error("Save failed:", error);
           alert(error.code === 'permission-denied' 
@@ -778,7 +793,12 @@ export default function App() {
     try {
       if (isGeneratingReport || !user) return;
       setIsGeneratingReport(true);
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+      const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      console.error('GEMINI_API_KEY is not set — AI features disabled');
+      return;
+    }
+    const ai = new GoogleGenAI({ apiKey });
       
       const periodLogs = activeDates
         .map(d => logs[d])
@@ -808,7 +828,7 @@ export default function App() {
       `;
 
       const response = await ai.models.generateContent({
-        model: "gemini-2.5-pro-preview-03-25",
+        model: "gemini-1.5-pro",
         contents: [{ role: "user", parts: [{ text: reportPrompt }] }],
         config: { temperature: 0.2, maxOutputTokens: 2048 }
       });
@@ -1122,22 +1142,24 @@ export default function App() {
                     opacity: { duration: 0.2 }
                   }}
                 >
-                  <Dashboard 
-                    logs={logs} 
-                    user={user}
-                    selectedDate={selectedDate}
-                    correctionsCount={correctionsCount}
-                    personalizationProfile={personalizationProfile}
-                    onLogClick={() => {
-                      setSelectedDate(getTodayDate());
-                      setView('log');
-                    }}
-                    onViewChange={setView}
-                    onOpenPersonalization={() => setShowPersonalizationWizard(true)}
-                    onOpenSleepGuide={() => setShowSleepGuide(true)}
-                    refreshAllData={refreshAllData}
-                    isRefreshing={isRefreshing}
-                  />
+                  <Suspense fallback={<div className="flex items-center justify-center h-64"><div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"/></div>}>
+                    <Dashboard 
+                      logs={logs} 
+                      user={user}
+                      selectedDate={selectedDate}
+                      correctionsCount={correctionsCount}
+                      personalizationProfile={personalizationProfile}
+                      onLogClick={() => {
+                        setSelectedDate(getTodayDate());
+                        setView('log');
+                      }}
+                      onViewChange={setView}
+                      onOpenPersonalization={() => setShowPersonalizationWizard(true)}
+                      onOpenSleepGuide={() => setShowSleepGuide(true)}
+                      refreshAllData={refreshAllData}
+                      isRefreshing={isRefreshing}
+                    />
+                  </Suspense>
                 </motion.div>
               </AnimatePresence>
             </motion.div>
@@ -1151,9 +1173,7 @@ export default function App() {
               <CorrectionHub 
                 user={user} 
                 logs={logs} 
-                onUpdate={() => {
-                  // Logs updated from CorrectionHub
-                }} 
+                onUpdate={refreshAllData} 
                 onGoToLog={(date) => {
                   setSelectedDate(date);
                   setView('log');
@@ -1306,7 +1326,7 @@ export default function App() {
                           animate={{ opacity: 1, scale: 1 }}
                           exit={{ opacity: 0, scale: 0.95 }}
                           transition={{ duration: 0.2 }}
-                          className="w-full h-full flex flex-col items-center justify-center"
+                          className="w-full max-h-10 flex flex-col items-center justify-center"
                         >
                           {(() => {
                             const confidence = activeSuggestion.confidence;
@@ -1315,14 +1335,14 @@ export default function App() {
                               return (
                                 <button
                                   onClick={() => setToast({ message: `SIA needs ${3 - historyCount} more days of data to recognize your patterns.`, type: 'info' })}
-                                  className="w-full h-full flex flex-col items-center justify-center gap-1 grayscale opacity-50 cursor-not-allowed px-6 py-4"
+                                  className="w-full flex flex-row items-center justify-center gap-3 grayscale opacity-50 cursor-not-allowed px-6 py-1.5 max-h-10 overflow-hidden"
                                 >
-                                  <Rocket className="text-zinc-600" size={16} />
-                                  <div className="text-center">
-                                    <p className="text-[10px] font-black text-zinc-600 uppercase tracking-widest">
+                                  <Rocket className="text-zinc-600 shrink-0" size={14} />
+                                  <div className="text-left">
+                                    <p className="text-[9px] font-black text-zinc-600 uppercase tracking-widest leading-tight">
                                       {historyCount === 0 ? "SIA Learning: Start Your Journey" : `SIA Learning: Log ${3 - historyCount} more days to unlock`}
                                     </p>
-                                    <p className="text-[10px] text-zinc-700 mt-1 uppercase tracking-wider">
+                                    <p className="text-[8px] text-zinc-700 uppercase tracking-wider leading-tight">
                                       {historyCount === 0 ? "Log your first night to begin pattern recognition" : "Pattern recognition requires more data"}
                                     </p>
                                   </div>
@@ -1822,12 +1842,14 @@ export default function App() {
                 <h2 className="text-2xl font-bold tracking-tight">Sleep Intelligence Agent</h2>
                 <p className="text-sm text-zinc-500">Advanced correlation analysis of your sleep history</p>
               </div>
-              <AIInsightsAgent 
-                logs={logs} 
-                user={user} 
-                personalizationProfile={personalizationProfile}
-                isProfileLoading={isProfileLoading}
-              />
+              <Suspense fallback={<div className="flex items-center justify-center h-64"><div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"/></div>}>
+                <AIInsightsAgent 
+                  logs={logs} 
+                  user={user} 
+                  personalizationProfile={personalizationProfile}
+                  isProfileLoading={isProfileLoading}
+                />
+              </Suspense>
             </motion.div>
           ) : view === 'legal' ? (
             <Legal onBack={() => setView('dashboard')} />
@@ -2215,14 +2237,16 @@ export default function App() {
 
       <AnimatePresence>
         {showPersonalizationWizard && user && (
-          <PersonalizationWizard 
-            user={user}
-            onComplete={(profile) => {
-              setPersonalizationProfile(profile);
-              setShowPersonalizationWizard(false);
-            }}
-            onClose={() => setShowPersonalizationWizard(false)}
-          />
+          <Suspense fallback={<div className="flex items-center justify-center h-64"><div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"/></div>}>
+            <PersonalizationWizard 
+              user={user}
+              onComplete={(profile) => {
+                setPersonalizationProfile(profile);
+                setShowPersonalizationWizard(false);
+              }}
+              onClose={() => setShowPersonalizationWizard(false)}
+            />
+          </Suspense>
         )}
       </AnimatePresence>
     </div>

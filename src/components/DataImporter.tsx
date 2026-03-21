@@ -58,62 +58,46 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const saveUnstructuredData = async (content: string, fileName: string) => {
+    setUploadStatus('idle'); // Show processing state
+    
+    // Step 1: Try AI extraction — failure must never block Step 2
+    let extracted = { summary: null, estimatedDateRange: null, extractedInsights: [], rawDataType: 'unknown' };
     try {
-      setUploadStatus('idle'); // Show processing state
-      
-      // Enriched storage with Gemini pre-processing
-      let extracted = { 
-        summary: null, 
-        estimatedDateRange: null, 
-        extractedInsights: [], 
-        rawDataType: 'raw_text' 
-      };
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+      const response = await ai.models.generateContent({
+        model: "gemini-1.5-flash",
+        config: {
+          systemInstruction: "Extract sleep insights from this text. Return only valid JSON: { summary, estimatedDateRange, extractedInsights (string array), rawDataType }."
+        },
+        contents: content.slice(0, 8000)
+      });
+      const clean = (response.text ?? '').replace(/```json|```/g, '').trim();
+      extracted = JSON.parse(clean);
+    } catch (aiError) {
+      console.warn('AI extraction skipped — continuing with null metadata:', aiError);
+    }
 
-      try {
-        const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
-        const response = await ai.models.generateContent({
-          model: "gemini-2.0-flash",
-          contents: content.slice(0, 8000),
-          config: {
-            systemInstruction: "Extract sleep insights from this text. Return only valid JSON: { summary, estimatedDateRange, extractedInsights (string array), rawDataType }."
-          }
-        });
-
-        try {
-          const parsed = JSON.parse(response.text || '{}');
-          extracted = {
-            summary: parsed.summary || null,
-            estimatedDateRange: parsed.estimatedDateRange || null,
-            extractedInsights: parsed.extractedInsights || [],
-            rawDataType: parsed.rawDataType || 'raw_text'
-          };
-        } catch (e) {
-          console.error("JSON Parse Error:", e);
-        }
-      } catch (aiError) {
-        console.warn("Gemini pre-processing failed, saving raw content only:", aiError);
-      }
-
+    // Step 2: Always save to Firestore regardless of Step 1 outcome
+    try {
       await addDoc(collection(db, 'users', user.uid, 'unstructured_data'), {
         fileName,
         content,
         uploadDate: new Date().toISOString(),
-        status: 'processed',
+        status: 'raw_text',
         source: 'import',
-        aiSummary: extracted.summary,
-        aiDateRange: extracted.estimatedDateRange,
-        aiInsights: extracted.extractedInsights,
-        dataType: extracted.rawDataType,
+        summary: extracted.summary,
+        estimatedDateRange: extracted.estimatedDateRange,
+        extractedInsights: extracted.extractedInsights,
+        rawDataType: extracted.rawDataType,
         updatedAt: serverTimestamp()
       });
-      
       setUploadStatus('unstructured');
-      setErrorMessage("This data format doesn't fit the sleep grid, so you won't see indigo bars. However, SIA has indexed this text and will use it for your AI Analysis.");
+      setErrorMessage("This data format doesn't fit the sleep grid. SIA has indexed this text and will use it for AI Analysis.");
       if (onImportComplete) onImportComplete();
-    } catch (error: any) {
-      console.error("Failed to save unstructured data:", error);
+    } catch (firestoreError: any) {
+      console.error("Failed to save unstructured data:", firestoreError);
       setUploadStatus('error');
-      setErrorMessage("Failed to save raw data.");
+      setErrorMessage("Failed to save data: " + firestoreError.message);
     }
   };
 

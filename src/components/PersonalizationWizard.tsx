@@ -107,6 +107,14 @@ export default function PersonalizationWizard({ user, onComplete, onClose }: Per
       return;
     }
     setIsSaving(true);
+    
+    // Safety timeout to prevent infinite loading if Firestore hangs
+    const timeoutId = setTimeout(() => {
+      console.warn('Firestore save timed out - closing wizard');
+      setIsSaving(false);
+      onClose();
+    }, 10000);
+
     try {
       const profileRef = doc(db, 'users', user.uid, 'personalization', 'profile');
       const finalData = {
@@ -114,12 +122,13 @@ export default function PersonalizationWizard({ user, onComplete, onClose }: Per
         updatedAt: serverTimestamp(),
       };
       
-      // Use a timeout-wrapped promise if needed, but setDoc should resolve/reject
       await setDoc(profileRef, finalData, { merge: true });
+      clearTimeout(timeoutId);
       
       // Call onComplete which will update the profile in the parent
       onComplete(finalData as PersonalizationProfile);
     } catch (error) {
+      clearTimeout(timeoutId);
       console.error('Error saving personalization profile:', error);
     } finally {
       // Always stop spinner and close wizard regardless of success
