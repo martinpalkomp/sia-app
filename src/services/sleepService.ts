@@ -28,6 +28,7 @@ export const validateLogMetrics = (metrics: Partial<SummaryLog['summaryMetrics']
  * @param logData - The log data to save. Must include at least the date.
  */
 export const saveLog = async (uid: string, logData: Partial<DailyLog> & { date: string }) => {
+  if (!db) throw new Error('Firestore is not initialized — check Firebase configuration');
   const { date, ...rest } = logData;
   
   // Basic validation before saving

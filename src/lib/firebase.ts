@@ -47,8 +47,7 @@ export { initializeApp, type FirebaseApp } from "firebase/app";
 
 // Safely attempt to load the fallback config
 // We use import.meta.glob to avoid build errors if the file is missing
-// PROD guard: only load fallback in development
-const configs = !import.meta.env.PROD ? import.meta.glob('/firebase-applet-config.json', { eager: true }) : {};
+const configs = import.meta.glob('/firebase-applet-config.json', { eager: true });
 const fallbackConfig = (configs['/firebase-applet-config.json'] as any)?.default ?? {};
 
 const isValidValue = (val: string | undefined): boolean => {

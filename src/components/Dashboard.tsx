@@ -200,7 +200,9 @@ export default function Dashboard({
     
     setIsAiLoading(true);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+      const apiKey = process.env.GEMINI_API_KEY;
+      if (!apiKey) { console.error('GEMINI_API_KEY not set'); setIsAiLoading(false); return; }
+      const ai = new GoogleGenAI({ apiKey });
       // Get last 7 days of logs for analysis
       const sortedLogs = Object.values(logs).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 7);
       const historyContext = sortedLogs.map(log => {
@@ -224,7 +226,7 @@ export default function Dashboard({
       `;
 
       const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
+        model: "gemini-1.5-flash",
         contents: [{ role: "user", parts: [{ text: prompt }] }],
         config: {
           systemInstruction: "You are 'SIA', a Sleep Intelligence Agent. Provide punchy, clinical, data-backed weekly sleep insights."
@@ -280,7 +282,9 @@ export default function Dashboard({
         });
       });
 
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+      const apiKey = process.env.GEMINI_API_KEY;
+      if (!apiKey) { console.error('GEMINI_API_KEY not set'); setIsAiLoading(false); return; }
+      const ai = new GoogleGenAI({ apiKey });
       const prompt = `
         Analyze ${daysCount} days of sleep history: ${JSON.stringify(historicalLogs)}
         Provide a structured "SIA Monthly Analysis" (max 3 sentences).
@@ -289,7 +293,7 @@ export default function Dashboard({
       `;
 
       const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
+        model: "gemini-1.5-flash",
         contents: [{ role: "user", parts: [{ text: prompt }] }],
         config: {
           systemInstruction: "You are 'SIA', a Sleep Intelligence Agent. Provide deep, structured, data-backed long-term sleep analysis."
