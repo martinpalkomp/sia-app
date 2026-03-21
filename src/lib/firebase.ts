@@ -47,8 +47,20 @@ export { initializeApp, type FirebaseApp } from "firebase/app";
 
 // Safely attempt to load the fallback config
 // We use import.meta.glob to avoid build errors if the file is missing
+const AI_STUDIO_CONFIG = {
+  apiKey: "AIzaSyCf1-9pJopZE3pL1gA-pprYsr0fmP9N_eg",
+  authDomain: "gen-lang-client-0504718838.firebaseapp.com",
+  projectId: "gen-lang-client-0504718838",
+  storageBucket: "gen-lang-client-0504718838.firebasestorage.app",
+  messagingSenderId: "75829467332",
+  appId: "1:75829467332:web:2b56ce61496412bd451191",
+  firestoreDatabaseId: "(default)",
+  measurementId: ""
+};
+
 const configs = import.meta.glob('/firebase-applet-config.json', { eager: true });
-const fallbackConfig = (configs['/firebase-applet-config.json'] as any)?.default ?? {};
+const jsonConfig = (configs['/firebase-applet-config.json'] as any)?.default ?? {};
+const fallbackConfig = Object.keys(jsonConfig).length > 0 ? jsonConfig : AI_STUDIO_CONFIG;
 
 const isValidValue = (val: string | undefined): boolean => {
   if (!val || val.trim() === '') return false;
@@ -104,6 +116,15 @@ const app = isFirebaseConfigured ? initializeApp(firebaseConfig) : null;
 
 export const auth = app ? getAuth(app) : null;
 export const googleProvider = new GoogleAuthProvider();
-export const db = app ? (firestoreDatabaseId && firestoreDatabaseId !== '(default)' ? getFirestore(app, firestoreDatabaseId) : getFirestore(app)) : null;
+const isDefaultDb = (id: string) =>
+  !id ||
+  id.trim() === '' ||
+  id.replace(/['"]/g, '').trim() === '(default)';
+
+export const db = app
+  ? isDefaultDb(firestoreDatabaseId)
+    ? getFirestore(app)
+    : getFirestore(app, firestoreDatabaseId)
+  : null;
 export const storage = app ? getStorage(app) : null;
 export const functions = app ? getFunctions(app) : null;

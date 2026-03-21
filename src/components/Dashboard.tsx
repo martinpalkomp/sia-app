@@ -226,7 +226,7 @@ export default function Dashboard({
       `;
 
       const response = await ai.models.generateContent({
-        model: "gemini-1.5-flash",
+        model: "gemini-2.0-flash-lite",
         contents: [{ role: "user", parts: [{ text: prompt }] }],
         config: {
           systemInstruction: "You are 'SIA', a Sleep Intelligence Agent. Provide punchy, clinical, data-backed weekly sleep insights."
@@ -293,7 +293,7 @@ export default function Dashboard({
       `;
 
       const response = await ai.models.generateContent({
-        model: "gemini-1.5-flash",
+        model: "gemini-2.0-flash-lite",
         contents: [{ role: "user", parts: [{ text: prompt }] }],
         config: {
           systemInstruction: "You are 'SIA', a Sleep Intelligence Agent. Provide deep, structured, data-backed long-term sleep analysis."
@@ -331,30 +331,6 @@ export default function Dashboard({
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* Import Alert */}
-      {logs[selectedDate]?.source === 'import' && (
-        <motion.div 
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-amber-500/10 border border-amber-500/20 p-4 rounded-2xl flex items-center justify-between gap-4"
-        >
-          <div className="flex items-center gap-3 text-left">
-            <div className="w-8 h-8 bg-amber-500/20 rounded-lg flex items-center justify-center text-amber-500 flex-shrink-0">
-              <AlertCircle size={18} />
-            </div>
-            <p className="text-xs text-amber-200/80 font-medium">
-              Data for this night was uploaded via Import. Do you want to manually adjust the data?
-            </p>
-          </div>
-          <button 
-            onClick={onLogClick}
-            className="text-[10px] font-black text-amber-500 uppercase tracking-widest hover:text-amber-400 transition-colors whitespace-nowrap"
-          >
-            Adjust Data
-          </button>
-        </motion.div>
-      )}
 
       {/* Header Section */}
       <section className="flex flex-col md:flex-row md:items-center gap-6 text-left">

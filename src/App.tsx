@@ -828,7 +828,7 @@ export default function App() {
       `;
 
       const response = await ai.models.generateContent({
-        model: "gemini-1.5-pro",
+        model: "gemini-2.0-flash",
         contents: [{ role: "user", parts: [{ text: reportPrompt }] }],
         config: { temperature: 0.2, maxOutputTokens: 2048 }
       });
@@ -1188,6 +1188,33 @@ export default function App() {
               exit={{ opacity: 0, y: -10 }}
               className="space-y-6 relative overflow-hidden"
             >
+              {/* Import Alert */}
+              {currentLog.source === 'import' && (
+                <motion.div 
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="bg-amber-500/10 border border-amber-500/20 p-4 rounded-2xl flex items-center justify-between gap-4"
+                >
+                  <div className="flex items-center gap-3 text-left">
+                    <div className="w-8 h-8 bg-amber-500/20 rounded-lg flex items-center justify-center text-amber-500 flex-shrink-0">
+                      <AlertCircle size={18} />
+                    </div>
+                    <p className="text-xs text-amber-200/80 font-medium">
+                      Data for this night was uploaded via Import. Do you want to manually adjust the data?
+                    </p>
+                  </div>
+                  <button 
+                    onClick={() => {
+                      setInitialTimeline([...currentLog.visualTimeline]);
+                      setIsEditing(true);
+                    }}
+                    className="text-[10px] font-black text-amber-500 uppercase tracking-widest hover:text-amber-400 transition-colors whitespace-nowrap"
+                  >
+                    Adjust Data
+                  </button>
+                </motion.div>
+              )}
+
               {/* Date Selector - Now outside sliding area to stay visible */}
               <div className="flex items-center justify-between bg-zinc-900/50 p-4 rounded-2xl border border-zinc-800">
                 <button 

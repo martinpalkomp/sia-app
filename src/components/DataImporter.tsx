@@ -65,7 +65,7 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
       const response = await ai.models.generateContent({
-        model: "gemini-1.5-flash",
+        model: "gemini-2.0-flash-lite",
         config: {
           systemInstruction: "Extract sleep insights from this text. Return only valid JSON: { summary, estimatedDateRange, extractedInsights (string array), rawDataType }."
         },
@@ -878,6 +878,7 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
                         </div>
                       )}
                       <button 
+                        type="button"
                         onClick={() => setUploadStatus('idle')}
                         className="mt-2 text-[10px] font-bold uppercase tracking-widest text-zinc-400 underline"
                       >
@@ -934,6 +935,7 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
                       <p className="text-sm font-bold uppercase tracking-widest">Import Failed</p>
                       <p className="text-[10px] text-zinc-500">{errorMessage}</p>
                       <button 
+                        type="button"
                         onClick={() => setUploadStatus('idle')}
                         className="mt-2 text-[10px] font-bold uppercase tracking-widest text-zinc-400 underline"
                       >
