@@ -151,6 +151,7 @@ export default function AIInsightsAgent({ logs, user, personalizationProfile, is
   }, [messages]);
 
   const handleSend = async (text: string) => {
+    if (!db) { console.error('Firestore db is null'); return; }
     const SLEEP_KEYWORDS = ['sleep','wake','tired','fatigue','rest','nap','insomnia','dream','bed','night','morning','energy','alert','caffeine','alcohol','exercise','stress','recovery','circadian','melatonin','apnea','snore','restless','quality','duration','log','pattern','habit','analyze','analysis','report','insight','score','data','week','month','trend','improve','recommend','health','wellness'];
 
     if (!SLEEP_KEYWORDS.some(kw => text.toLowerCase().includes(kw))) {
@@ -235,7 +236,9 @@ export default function AIInsightsAgent({ logs, user, personalizationProfile, is
         return;
       }
 
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+      const apiKey = process.env.GEMINI_API_KEY;
+      if (!apiKey) { console.error('GEMINI_API_KEY not set — AI features disabled'); return; }
+      const ai = new GoogleGenAI({ apiKey });
       
       const systemInstruction = `
         You are SIA, a clinical sleep scientist. You are viewing a statistical digest of ${days} days of data. 

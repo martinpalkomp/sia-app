@@ -33,7 +33,9 @@ import {
   Save,
   Wand2,
   Lightbulb,
-  Rocket
+  Rocket,
+  UtensilsCrossed,
+  Sunrise
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { GoogleGenAI } from "@google/genai";
@@ -72,6 +74,7 @@ const Dashboard = lazy(() => import('./components/Dashboard'));
 const PersonalizationWizard = lazy(() => import('./components/PersonalizationWizard'));
 import AccountPage from './components/AccountPage';
 import SleepRibbon from './components/SleepRibbon';
+import SleepPatternCard from './components/SleepPatternCard';
 import DataImporter from './components/DataImporter';
 import { AvatarFrame } from './components/UI';
 
@@ -155,7 +158,7 @@ export default function App() {
   const [logs, setLogs] = useState<Record<string, DailyLog>>({});
   const [selectedDate, setSelectedDate] = useState(getTodayDate());
   const [direction, setDirection] = useState(0);
-  const [view, setView] = useState<'dashboard' | 'log' | 'weekly' | 'monthly' | 'custom' | 'ai' | 'corrections' | 'legal' | 'account' | 'import'>('weekly');
+  const [view, setView] = useState<'dashboard' | 'log' | 'weekly' | 'monthly' | 'custom' | 'ai' | 'corrections' | 'legal' | 'account' | 'import'>('dashboard');
   const [customRange, setCustomRange] = useState({ start: getTodayDate(), end: getTodayDate() });
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [clinicalReport, setClinicalReport] = useState<string | null>(null);
@@ -520,7 +523,10 @@ export default function App() {
       medication: { taken: false, type: '', time: '' },
       exercise: { completed: false, type: '', time: '' },
       screensInBed: false,
-      stressLevel: 3
+      stressLevel: 3,
+      lastMealTime: '',
+      naturalWake: false,
+      moodScore: 3
     };
 
     const log = (logs[selectedDate] || {
@@ -1742,6 +1748,47 @@ export default function App() {
                       <span>High</span>
                     </div>
                   </div>
+
+                  {/* Last Meal */}
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 text-zinc-300">
+                      <UtensilsCrossed size={18} className="text-orange-400" />
+                      <span className="text-sm font-medium">Last Meal</span>
+                    </div>
+                    <input 
+                      type="time" 
+                      value={currentLog.factors.lastMealTime || ''} 
+                      onChange={(e) => updateFactors({ lastMealTime: e.target.value })}
+                      className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-white focus:ring-1 focus:ring-indigo-500/50 outline-none"
+                    />
+                  </div>
+
+                  {/* Natural Wake */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-zinc-300 group relative">
+                      <Sunrise size={18} className="text-yellow-400" />
+                      <span className="text-sm font-medium">Natural Wake</span>
+                      <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block bg-zinc-800 text-white text-[10px] px-2 py-1 rounded shadow-lg whitespace-nowrap z-10">
+                        Did you wake up without an alarm?
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => updateFactors({ naturalWake: !currentLog.factors.naturalWake })}
+                      className={`w-10 h-5 rounded-full transition-colors relative ${currentLog.factors.naturalWake ? 'bg-indigo-600' : 'bg-zinc-700'}`}
+                    >
+                      <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${currentLog.factors.naturalWake ? 'left-6' : 'left-1'}`} />
+                    </button>
+                  </div>
+
+                  {/* Morning Mood */}
+                  <SliderInput 
+                    label="Morning Mood" 
+                    value={currentLog.factors.moodScore || 3} 
+                    onChange={(val) => updateFactors({ moodScore: val })} 
+                    min={1}
+                    max={5}
+                    icon={Sun}
+                  />
                 </div>
               </section>
 
@@ -2056,6 +2103,9 @@ export default function App() {
                   );
                 })}
               </div>
+
+              {/* Sleep Pattern Summary Card */}
+              <SleepPatternCard logs={activeDates.map(date => logs[date]).filter(Boolean)} />
             </motion.div>
           )}
         </AnimatePresence>

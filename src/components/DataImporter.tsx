@@ -59,12 +59,15 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const saveUnstructuredData = async (content: string, fileName: string) => {
+    if (!db) { setUploadStatus('error'); setErrorMessage('Database not available — check Firebase configuration'); return; }
     setUploadStatus('idle'); // Show processing state
     
     // Step 1: Try AI extraction — failure must never block Step 2
     let extracted = { summary: null, estimatedDateRange: null, extractedInsights: [], rawDataType: 'unknown' };
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+      const apiKey = process.env.GEMINI_API_KEY;
+      if (!apiKey) { console.error('GEMINI_API_KEY not set — AI features disabled'); return; }
+      const ai = new GoogleGenAI({ apiKey });
       const response = await ai.models.generateContent({
         model: "gemini-2.0-flash-lite",
         config: {
@@ -170,6 +173,7 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
   };
 
   const processImportedData = async (data: any[], forceOverwrite = false) => {
+    if (!db) { setUploadStatus('error'); setErrorMessage('Database not available — check Firebase configuration'); return; }
     setUploadStatus('idle');
     setErrorMessage('');
     setCleaningReport(null);
@@ -617,7 +621,7 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
       { Date: '2026-03-20', Bedtime: '23:15', Waketime: '07:30', Status_Code: 'SLEEP', SQ: 8, R: 7, L: 7, Remarks: 'Slept well.' },
       { Date: '2026-03-20', Bedtime: '07:30', Waketime: '08:00', Status_Code: 'AWAKE-IN', SQ: '', R: '', L: '', Remarks: '← AWAKE-IN: no scores needed. Same date as the SLEEP row above.' },
       { Date: '2026-03-21', Bedtime: '22:45', Waketime: '02:30', Status_Code: 'SLEEP', SQ: '', R: '', L: '', Remarks: '' },
-      { Date: '2026-03-21', Bedtime: '02:45', Waketime: '07:00', Status_Code: 'AWAKE-IN', SQ: 6, R: 5, L: 6, Remarks: 'Woke mid-sleep, hard to fall back.' },
+      { Date: '2026-03-21', Bedtime: '02:45', Waketime: '07:00', Status_Code: 'AWAKE-IN', SQ: '', R: '', L: '', Remarks: 'Woke mid-sleep, hard to fall back.' },
     ];
 
     sampleData.forEach(item => {

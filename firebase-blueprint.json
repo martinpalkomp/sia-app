@@ -60,7 +60,10 @@
               }
             },
             "screensInBed": { "type": "boolean" },
-            "stressLevel": { "type": "integer" }
+            "stressLevel": { "type": "integer" },
+            "lastMealTime": { "type": "string", "pattern": "HH:mm", "description": "Time of last meal before sleep" },
+            "naturalWake": { "type": "boolean", "description": "True if woke without alarm" },
+            "moodScore": { "type": "integer", "description": "1-5 subjective mood on waking" }
           }
         },
         "summaryMetrics": {
@@ -133,6 +136,9 @@
     "/users/{userId}/ai_corrections/{correctionId}": {
       "schema": "AICorrection",
       "description": "AI-suggested corrections and user feedback."
+    },
+    "/users/{userId}/chats/{messageId}": {
+      "description": "AI chat history messages. Each document has role (user/assistant), content (string), and createdAt (timestamp)."
     },
     "/_sia_system/connection_test": {
       "description": "System-level connection test document."

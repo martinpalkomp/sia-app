@@ -27,6 +27,7 @@ const REMARKS = [
  * Seeds 60 days of realistic sleep data for testing.
  */
 export const seedTestData = async (userId: string, onComplete?: () => void) => {
+  if (!db) throw new Error('Firestore is not initialized');
   const batch = writeBatch(db);
   const today = new Date();
 
@@ -91,6 +92,7 @@ export const seedTestData = async (userId: string, onComplete?: () => void) => {
  * Purges all user data from sleep_logs, daily_metrics, and unstructured_data.
  */
 export const purgeUserData = async (userId: string, onComplete?: () => void) => {
+  if (!db) throw new Error('Firestore is not initialized');
   const collections = [
     'sleep_logs',
     'daily_metrics',

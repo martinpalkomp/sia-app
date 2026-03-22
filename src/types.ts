@@ -27,6 +27,9 @@ export interface FullLog extends BaseLog {
     exercise: { completed: boolean; type: string; time: string };
     screensInBed: boolean;
     stressLevel: number; // 1-5
+    lastMealTime?: string;     // HH:mm — time of last meal before sleep
+    naturalWake?: boolean;     // true = woke without alarm, false = alarm woke user
+    moodScore?: number;        // 1-5 subjective mood on waking
   };
 }
 
@@ -89,6 +92,9 @@ export interface DailyLog extends Partial<FullLog>, Partial<SummaryLog> {
     exercise: { completed: boolean; type: string; time: string };
     screensInBed: boolean;
     stressLevel: number; // 1-5
+    lastMealTime?: string;     // HH:mm — time of last meal before sleep
+    naturalWake?: boolean;     // true = woke without alarm, false = alarm woke user
+    moodScore?: number;        // 1-5 subjective mood on waking
   };
   modifiedBySync?: boolean[];
   source?: 'manual' | 'import';
