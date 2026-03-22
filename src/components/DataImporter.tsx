@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import Papa from 'papaparse';
 import { read, utils, writeFile } from 'xlsx';
+import ExcelJS from 'exceljs';
 import { parse, format, isValid } from 'date-fns';
 import { GoogleGenAI } from "@google/genai";
 import { 
@@ -181,6 +182,7 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
       let cleanedCount = 0;
       const logsToSave: Record<string, DailyLog> = {};
       const metricsCaptured = new Set<string>();
+      const metricsSetForDate = new Set<string>();
       
       // 1. Validation & Sanitization with Fuzzy Matching
       const validRows = cleanedData.filter((row, idx) => {
@@ -304,10 +306,10 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
           const statusStr = statusVal.toString().toUpperCase();
           if (statusStr === '1' || statusStr.includes('SLEEP')) {
             state = 'sleep';
-          } else if (statusStr === '2' || statusStr.includes('AWAKE IN') || statusStr === 'AWAKE') {
-            state = 'awake-in';
           } else if (statusStr === '0' || statusStr.includes('AWAKE OUT')) {
             state = 'awake-out';
+          } else if (statusStr === '2' || statusStr.includes('AWAKE') || statusStr.includes('WAKE')) {
+            state = 'awake-in';
           }
         }
 
@@ -317,32 +319,40 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
           logsToSave[date] = defaultLog(date);
         }
 
-        // Map Clinical Metrics
+        // Map Clinical Metrics (Rule 2: Only first valid row)
         const sqVal = parseInt(row.SQ);
-        if (!isNaN(sqVal) && logsToSave[date].sleep_quality === 5) {
+        const sqKey = `${date}_SQ`;
+        if (!isNaN(sqVal) && !metricsSetForDate.has(sqKey)) {
           logsToSave[date].sleep_quality = sqVal;
+          metricsSetForDate.add(sqKey);
           metricsCaptured.add('SQ');
         }
 
         const rVal = parseInt(row.R);
-        if (!isNaN(rVal) && logsToSave[date].morning_alertness === 5) {
+        const rKey = `${date}_R`;
+        if (!isNaN(rVal) && !metricsSetForDate.has(rKey)) {
           logsToSave[date].morning_alertness = rVal;
+          metricsSetForDate.add(rKey);
           metricsCaptured.add('R');
         }
 
         const lVal = parseInt(row.L);
-        if (!isNaN(lVal) && logsToSave[date].daytime_energy === 5) {
+        const lKey = `${date}_L`;
+        if (!isNaN(lVal) && !metricsSetForDate.has(lKey)) {
           logsToSave[date].daytime_energy = lVal;
+          metricsSetForDate.add(lKey);
           metricsCaptured.add('L');
         }
         
-        // Map Remarks
+        // Map Remarks (Rule 3: Merge remarks)
         let remarks = row.Remarks || '';
         if (unmapped.length > 0) {
           remarks += (remarks ? ' ' : '') + unmapped.map((u: string) => `[Unmapped: ${u}]`).join(' ');
         }
         if (remarks) {
-          logsToSave[date].daily_remarks = remarks;
+          logsToSave[date].daily_remarks = logsToSave[date].daily_remarks
+            ? logsToSave[date].daily_remarks + ' ' + remarks
+            : remarks;
         }
 
         const startIndex = timeToIndex(start);
@@ -565,32 +575,142 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
     }
   };
 
-  const downloadTemplate = () => {
+  const downloadTemplate = async () => {
+    const workbook = new ExcelJS.Workbook();
+    
+    // Data Sheet
+    const dataSheet = workbook.addWorksheet('Data');
     const headers = ['Date', 'Bedtime', 'Waketime', 'Status_Code', 'SQ', 'R', 'L', 'Remarks'];
+    
+    // Header Row
+    const headerRow = dataSheet.addRow(headers);
+    headerRow.eachCell((cell) => {
+      cell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FF2D2B55' }
+      };
+      cell.font = {
+        color: { argb: 'FFFFFFFF' },
+        bold: true
+      };
+      cell.alignment = { vertical: 'middle', horizontal: 'center' };
+    });
+
+    // Rule Row (Format Hints)
+    const ruleRow = dataSheet.addRow(['YYYY-MM-DD', 'HH:MM', 'HH:MM', 'SLEEP / AWAKE-IN', '0-10', '0-10', '0-10', 'Notes']);
+    ruleRow.eachCell((cell) => {
+      cell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFD1D5DB' } // Grey
+      };
+      cell.font = {
+        italic: true,
+        size: 9,
+        color: { argb: 'FF374151' }
+      };
+      cell.alignment = { vertical: 'middle', horizontal: 'center' };
+    });
+
     const sampleData = [
       { Date: '2026-03-20', Bedtime: '23:15', Waketime: '07:30', Status_Code: 'SLEEP', SQ: 8, R: 7, L: 7, Remarks: 'Slept well.' },
+      { Date: '2026-03-20', Bedtime: '07:30', Waketime: '08:00', Status_Code: 'AWAKE-IN', SQ: '', R: '', L: '', Remarks: '← AWAKE-IN: no scores needed. Same date as the SLEEP row above.' },
       { Date: '2026-03-21', Bedtime: '22:45', Waketime: '02:30', Status_Code: 'SLEEP', SQ: '', R: '', L: '', Remarks: '' },
       { Date: '2026-03-21', Bedtime: '02:45', Waketime: '07:00', Status_Code: 'AWAKE-IN', SQ: 6, R: 5, L: 6, Remarks: 'Woke mid-sleep, hard to fall back.' },
     ];
 
-    const instructions = [
-      { Instruction: 'Date', Description: 'The date the sleep session started (YYYY-MM-DD).' },
-      { Instruction: 'Bedtime', Description: 'The time you went to bed (HH:mm).' },
-      { Instruction: 'Waketime', Description: 'The time you woke up (HH:mm).' },
-      { Instruction: 'Status_Code', Description: 'SLEEP for main sleep, AWAKE-IN for wakeups, AWAKE-OUT for end of sleep.' },
-      { Instruction: 'SQ/R/L', Description: 'Scale 0-10 for Sleep Quality, Restedness, and Energy.' },
-      { Instruction: 'Remarks', Description: 'Any notes about the night.' },
-      { Instruction: '20:00 Cycle', Description: 'Dates are based on the 20:00 to 20:00 cycle. Sleep starting at 01:00 on March 21st belongs to the March 20th log.' },
+    sampleData.forEach(item => {
+      const row = dataSheet.addRow([item.Date, item.Bedtime, item.Waketime, item.Status_Code, item.SQ, item.R, item.L, item.Remarks]);
+      if (item.Status_Code === 'SLEEP') {
+        row.eachCell((cell) => {
+          cell.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FFE8E6FF' } // Light purple
+          };
+        });
+      } else if (item.Status_Code === 'AWAKE-IN') {
+        row.eachCell((cell) => {
+          cell.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FFFFF8E1' } // Amber
+          };
+        });
+      }
+    });
+
+    dataSheet.columns = headers.map(() => ({ width: 15 }));
+    dataSheet.getColumn(8).width = 60; // Remarks column wider
+
+    // Instructions Sheet
+    const instSheet = workbook.addWorksheet('Instructions');
+    
+    instSheet.addRow(['SIA SLEEP LOG INSTRUCTIONS (v3)']).font = { bold: true, size: 14 };
+    instSheet.addRow([]);
+    
+    const basicInstructions = [
+      ['Column', 'Description'],
+      ['Date', 'The date the sleep session started (YYYY-MM-DD).'],
+      ['Bedtime', 'The time you went to bed (HH:mm).'],
+      ['Waketime', 'The time you woke up (HH:mm).'],
+      ['Status_Code', 'SLEEP for main sleep, AWAKE-IN for wakeups.'],
+      ['SQ/R/L', 'Scale 0-10 for Sleep Quality, Restedness, and Energy.'],
+      ['Remarks', 'Any notes about the night.'],
     ];
+    
+    basicInstructions.forEach((data, i) => {
+      const row = instSheet.addRow(data);
+      if (i === 0) row.font = { bold: true };
+    });
+    instSheet.addRow([]);
 
-    const wb = utils.book_new();
-    const wsData = utils.json_to_sheet(sampleData, { header: headers });
-    const wsInstructions = utils.json_to_sheet(instructions);
+    // HOW TO LOG A NIGHT WITH WAKE-UPS
+    const wakeUpHeader = instSheet.addRow(['HOW TO LOG A NIGHT WITH WAKE-UPS']);
+    wakeUpHeader.font = { bold: true, color: { argb: 'FF065F46' } };
+    wakeUpHeader.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC6F6D5' } }; // Green
 
-    utils.book_append_sheet(wb, wsData, "Data");
-    utils.book_append_sheet(wb, wsInstructions, "Instructions");
+    const wakeUpRows = [
+      ['Date', 'Bedtime', 'Waketime', 'Status_Code', 'Remarks'],
+      ['2026-03-20', '23:00', '03:00', 'SLEEP', 'First part of night'],
+      ['2026-03-20', '03:30', '07:00', 'AWAKE-IN', 'Woke up for 30 mins, then back to sleep'],
+    ];
+    wakeUpRows.forEach((data, i) => {
+      const row = instSheet.addRow(data);
+      row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC6F6D5' } };
+      if (i === 0) row.font = { bold: true };
+    });
+    instSheet.addRow([]);
 
-    writeFile(wb, "sia_sleep_log_template.xlsx");
+    // COMMON MISTAKES
+    const mistakesHeader = instSheet.addRow(['COMMON MISTAKES']);
+    mistakesHeader.font = { bold: true, color: { argb: 'FF92400E' } };
+    mistakesHeader.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF8E1' } }; // Amber
+
+    const mistakeRows = [
+      ['Mistake', 'Why it fails'],
+      ['Wrong Date', 'Using the next day\'s date for wakeups. All sleep until 20:00 belongs to the previous day.'],
+      ['Quoted Times', 'Using "23:00" instead of 23:00. Use plain text or time format.'],
+      ['Scores on AWAKE-IN', 'Adding SQ/R/L scores to AWAKE-IN rows. Scores should only be on the primary SLEEP row.'],
+    ];
+    mistakeRows.forEach((data, i) => {
+      const row = instSheet.addRow(data);
+      row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF8E1' } };
+      if (i === 0) row.font = { bold: true };
+    });
+
+    instSheet.columns = [{ width: 25 }, { width: 80 }];
+
+    // Generate and download
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = window.URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = 'sia_sleep_log_template_v3.xlsx';
+    anchor.click();
+    window.URL.revokeObjectURL(url);
   };
 
   return (

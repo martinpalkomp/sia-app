@@ -6,93 +6,136 @@
       "type": "object",
       "properties": {
         "date": { "type": "string", "format": "date" },
+        "isIgnored": { "type": "boolean" },
+        "sleep_quality": { "type": "integer" },
+        "morning_alertness": { "type": "integer" },
+        "daytime_energy": { "type": "integer" },
+        "daily_remarks": { "type": "string" },
         "sleepEvents": {
           "type": "array",
           "items": {
             "type": "object",
             "properties": {
-              "type": { "type": "string", "enum": ["sleep", "wake", "restless"] },
+              "id": { "type": "string" },
+              "type": { "type": "string", "enum": ["sleep", "awake-in", "awake-out"] },
               "start": { "type": "string", "pattern": "HH:mm" },
               "end": { "type": "string", "pattern": "HH:mm" }
             },
-            "required": ["type", "start", "end"]
+            "required": ["id", "type", "start", "end"]
           }
         },
-        "sleep_quality": { "type": "integer" },
-        "morning_alertness": { "type": "integer" },
-        "daytime_energy": { "type": "integer" },
-        "remarks": { "type": "string" },
-        "source": { "type": "string" }
+        "factors": {
+          "type": "object",
+          "properties": {
+            "caffeine": {
+              "type": "object",
+              "properties": {
+                "consumed": { "type": "boolean" },
+                "amount": { "type": "number" },
+                "lastIntake": { "type": "string" }
+              }
+            },
+            "alcohol": {
+              "type": "object",
+              "properties": {
+                "consumed": { "type": "boolean" },
+                "drinks": { "type": "number" },
+                "lastIntake": { "type": "string" }
+              }
+            },
+            "medication": {
+              "type": "object",
+              "properties": {
+                "taken": { "type": "boolean" },
+                "type": { "type": "string" },
+                "time": { "type": "string" }
+              }
+            },
+            "exercise": {
+              "type": "object",
+              "properties": {
+                "completed": { "type": "boolean" },
+                "type": { "type": "string" },
+                "time": { "type": "string" }
+              }
+            },
+            "screensInBed": { "type": "boolean" },
+            "stressLevel": { "type": "integer" }
+          }
+        },
+        "summaryMetrics": {
+          "type": "object",
+          "properties": {
+            "sleep_quality": { "type": "integer" },
+            "morning_alertness": { "type": "integer" },
+            "daytime_energy": { "type": "integer" },
+            "importedDuration": { "type": "number" },
+            "importedInBed": { "type": "number" }
+          }
+        },
+        "source": { "type": "string", "enum": ["manual", "import"] },
+        "updatedAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["date", "sleepEvents"]
+      "required": ["date", "isIgnored", "sleep_quality", "morning_alertness", "daytime_energy"]
     },
-    "UnstructuredData": {
-      "title": "Unstructured Data",
-      "description": "Raw text or malformed data uploaded by the user.",
+    "PersonalizationProfile": {
+      "title": "Personalization Profile",
+      "description": "User's sleep goals, demographics, and clinical data.",
       "type": "object",
       "properties": {
-        "fileName": { "type": "string" },
-        "content": { "type": "string" },
-        "uploadDate": { "type": "string", "format": "date-time" },
-        "status": { "type": "string", "enum": ["raw_text"] },
-        "source": { "type": "string" }
-      },
-      "required": ["fileName", "content", "uploadDate", "status"]
+        "demographics": { "type": "object" },
+        "goals": { "type": "array", "items": { "type": "string" } },
+        "psqi": { "type": "object" },
+        "clinical": { "type": "object" },
+        "allowsAnonymizedSharing": { "type": "boolean" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
     },
-    "Feedback": {
-      "title": "Feedback",
-      "description": "User feedback or bug reports.",
-      "type": "object",
-      "properties": {
-        "userId": { "type": "string" },
-        "userName": { "type": "string" },
-        "category": { "type": "string", "enum": ["Bug Report", "Feature Request", "Data Issue", "UI/UX", "Other"] },
-        "message": { "type": "string" },
-        "timestamp": { "type": "string", "format": "date-time" },
-        "status": { "type": "string", "enum": ["open", "resolved"] },
-        "version": { "type": "string" },
-        "attachedLogs": { "type": "object" }
-      },
-      "required": ["userId", "userName", "category", "message", "timestamp", "status", "version"]
-    },
-    "DailyMetrics": {
-      "title": "Daily Metrics",
-      "description": "Clinical sleep metrics for a specific date.",
+    "AICorrection": {
+      "title": "AI Correction",
+      "description": "Corrections made by the user to AI-suggested sleep logs.",
       "type": "object",
       "properties": {
         "date": { "type": "string", "format": "date" },
-        "sleep_quality": { "type": "integer" },
-        "morning_alertness": { "type": "integer" },
-        "daytime_energy": { "type": "integer" },
-        "daily_remarks": { "type": "string" },
-        "source": { "type": "string" },
+        "originalTimeline": { "type": "array" },
+        "suggestedTimeline": { "type": "array" },
+        "reason": { "type": "string" },
+        "applied": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "Basic user account information.",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string", "format": "uri" },
+        "createdAt": { "type": "string", "format": "date-time" },
         "updatedAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["date", "sleep_quality", "morning_alertness", "daytime_energy"]
+      }
     }
   },
   "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User profile document."
+    },
+    "/users/{userId}/personalization/profile": {
+      "schema": "PersonalizationProfile",
+      "description": "User's personalization settings."
+    },
     "/users/{userId}/sleep_logs/{date}": {
       "schema": "SleepLog",
-      "description": "Event-based sleep ledger. Each document represents one 24-hour cycle starting at 20:00."
+      "description": "Daily sleep logs and metrics."
     },
-    "/users/{userId}/personalization/{docId}": {
-      "description": "User personalization profile and wizard preferences."
+    "/users/{userId}/ai_corrections/{correctionId}": {
+      "schema": "AICorrection",
+      "description": "AI-suggested corrections and user feedback."
     },
-    "/users/{userId}/ai_corrections/{docId}": {
-      "description": "User corrections to AI suggestions used for pattern learning."
-    },
-    "/users/{userId}/daily_metrics/{date}": {
-      "schema": "DailyMetrics",
-      "description": "Clinical sleep metrics for a specific date."
-    },
-    "/users/{userId}/unstructured_data/{docId}": {
-      "schema": "UnstructuredData",
-      "description": "Collection of raw, unstructured data uploads."
-    },
-    "/feedback/{feedbackId}": {
-      "schema": "Feedback",
-      "description": "Global collection of user feedback."
+    "/_sia_system/connection_test": {
+      "description": "System-level connection test document."
     }
   }
 }

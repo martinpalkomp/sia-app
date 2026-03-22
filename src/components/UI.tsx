@@ -63,13 +63,13 @@ export const MetricDisplay: React.FC<MetricDisplayProps> = ({ title, value, unit
   
   return (
     <div className={className}>
-      <p className="metric-title">{title}</p>
+      <p className="text-[8px] md:text-[10px] font-black uppercase tracking-[0.2em] text-clinical-text-muted mb-1">{title}</p>
       <div className="flex items-center h-10">
         {isMissing ? (
           <div className="h-8 w-20 rounded-lg animate-sia-pulse" />
         ) : (
           <div className="flex items-baseline">
-            <span className="metric-value">{value}</span>
+            <span className="text-2xl md:text-3xl font-black text-clinical-text tracking-tighter leading-none">{value}</span>
             {unit && <span className="metric-unit">{unit}</span>}
           </div>
         )}

@@ -170,7 +170,10 @@ export default function Dashboard({
 
   const greeting = useMemo(() => {
     if (isFirstVisit) {
-      return "Hello! I am SIA, your Sleep Intelligence Assistant. Ready to evaluate your sleep patterns and track your progress?";
+      return {
+        prefix: "Hello! I am SIA, your Sleep Intelligence Assistant.",
+        suffix: "Ready to evaluate your sleep patterns and track your progress?"
+      };
     }
 
     const hour = new Date().getHours();
@@ -188,7 +191,7 @@ export default function Dashboard({
       suffix = `Based on your schedule, you usually head to bed around ${averageBedtime}. Ready to wind down?`;
     }
 
-    return `${prefix}... ${suffix}`;
+    return { prefix, suffix };
   }, [isFirstVisit, averageBedtime]);
 
   const insightDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -342,8 +345,8 @@ export default function Dashboard({
           <AvatarFrame 
             src="https://i.imgur.com/MnI5hn3.png" 
             alt="SIA Avatar" 
-            size="lg"
-            className={`shadow-xl aspect-square object-cover rounded-full ${isEnhanced ? 'shadow-violet-500/20 border-violet-500/30' : 'shadow-indigo-500/10'}`}
+            size="md"
+            className={`shadow-xl aspect-square object-cover rounded-full md:w-24 md:h-24 ${isEnhanced ? 'shadow-violet-500/20 border-violet-500/30' : 'shadow-indigo-500/10'}`}
           />
         </motion.div>
 
@@ -351,86 +354,101 @@ export default function Dashboard({
           <motion.h1 
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
-            className="text-2xl md:text-5xl font-black tracking-tighter text-white leading-[0.95] flex flex-wrap items-center gap-x-4 gap-y-2"
+            className="text-2xl md:text-5xl font-black tracking-tight md:tracking-tighter text-white leading-snug md:leading-[0.95] flex flex-wrap items-center gap-x-4 gap-y-4 md:gap-y-2"
           >
-            <span className="bg-clinical-primary text-[9px] md:text-[10px] px-2 py-0.5 rounded-full uppercase tracking-widest align-middle h-fit self-center">Sleep Intelligence Agent</span>
-            {greeting}
+            <span className="bg-clinical-primary text-[9px] md:text-[10px] px-2 py-0.5 rounded-full uppercase tracking-widest align-middle h-fit self-center mb-1 md:mb-0">Sleep Intelligence Agent</span>
+            <span className="block md:inline">{greeting.prefix}</span>
+            <span className="text-zinc-500 text-xl md:text-5xl font-medium md:font-black block md:inline">... {greeting.suffix}</span>
           </motion.h1>
           <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4 pt-4">
-            <p className="text-zinc-500 text-sm font-medium">I've analyzed your sleep intelligence for the last 7 days.</p>
           </div>
         </div>
       </section>
 
       {/* Section 1: The Vital Signs (Metrics) */}
       <section className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card className={`flex flex-col justify-between hover:border-indigo-500/50 group hover:-translate-y-1 hover:shadow-indigo-500/10 transition-all duration-300 min-h-[160px] animate-sia-pulse ${isEnhanced ? 'bg-gradient-to-br from-zinc-900 to-indigo-950/30 border-indigo-500/10' : ''}`}>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
+          <Card className="flex flex-col justify-center border-zinc-800/50 bg-zinc-900/30 p-3 md:p-4 min-h-[140px] md:min-h-[160px] hover:border-zinc-700/50 transition-colors">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
+              <span className="text-[8px] md:text-[10px] text-zinc-500 uppercase tracking-widest font-bold">Status Report</span>
+            </div>
+            <p className="text-zinc-400 text-[10px] md:text-sm font-medium leading-relaxed">
+              I've analyzed your sleep intelligence for the last 7 days.
+            </p>
+          </Card>
+
+          <Card className={`flex flex-col justify-between hover:border-indigo-500/50 group hover:-translate-y-1 hover:shadow-indigo-500/10 transition-all duration-300 min-h-[140px] md:min-h-[160px] animate-sia-pulse ${isEnhanced ? 'bg-gradient-to-br from-zinc-900 to-indigo-950/30 border-indigo-500/10' : ''}`}>
             <div className="flex justify-between items-start">
-              <div className="w-10 h-10 bg-indigo-500/10 rounded-xl flex items-center justify-center text-indigo-400 border border-indigo-500/20 aspect-square object-cover">
-                <Sparkles size={20} />
+              <div className="w-8 h-8 md:w-10 md:h-10 bg-indigo-500/10 rounded-lg md:rounded-xl flex items-center justify-center text-indigo-400 border border-indigo-500/20">
+                <Sparkles size={18} className="md:w-5 md:h-5" />
               </div>
-              <TrendingUp size={16} className="text-zinc-700 group-hover:text-indigo-400 transition-colors" />
+              <TrendingUp size={14} className="text-zinc-700 group-hover:text-indigo-400 transition-colors md:w-4 md:h-4" />
             </div>
             <MetricDisplay 
               title={`Avg Quality`} 
               value={stats?.avgSq || '--'} 
               unit="/10" 
-              className="mt-8 text-left"
+              className="mt-4 md:mt-8 text-left"
             />
           </Card>
 
-          <Card className={`flex flex-col justify-between hover:border-amber-500/50 group hover:-translate-y-1 hover:shadow-amber-500/10 transition-all duration-300 min-h-[160px] animate-sia-pulse ${isEnhanced ? 'bg-gradient-to-br from-zinc-900 to-amber-950/20 border-amber-500/10' : ''}`}>
+          <Card className={`flex flex-col justify-between hover:border-amber-500/50 group hover:-translate-y-1 hover:shadow-amber-500/10 transition-all duration-300 min-h-[140px] md:min-h-[160px] animate-sia-pulse ${isEnhanced ? 'bg-gradient-to-br from-zinc-900 to-amber-950/20 border-amber-500/10' : ''}`}>
             <div className="flex justify-between items-start">
-              <div className="w-10 h-10 bg-amber-500/10 rounded-xl flex items-center justify-center text-amber-400 border border-amber-500/20 aspect-square object-cover">
-                <Moon size={20} />
+              <div className="w-8 h-8 md:w-10 md:h-10 bg-amber-500/10 rounded-lg md:rounded-xl flex items-center justify-center text-amber-400 border border-amber-500/20">
+                <Moon size={18} className="md:w-5 md:h-5" />
               </div>
-              <TrendingUp size={16} className="text-zinc-700 group-hover:text-amber-400 transition-colors" />
+              <TrendingUp size={14} className="text-zinc-700 group-hover:text-amber-400 transition-colors md:w-4 md:h-4" />
             </div>
             <MetricDisplay 
               title={`Restedness`} 
               value={stats?.avgR || '--'} 
               unit="/10" 
-              className="mt-8 text-left"
+              className="mt-4 md:mt-8 text-left"
             />
           </Card>
 
-          <Card className={`flex flex-col justify-between hover:border-emerald-500/50 group hover:-translate-y-1 hover:shadow-emerald-500/10 transition-all duration-300 min-h-[160px] animate-sia-pulse ${isEnhanced ? 'bg-gradient-to-br from-zinc-900 to-emerald-950/20 border-emerald-500/10' : ''}`}>
+          <Card className={`flex flex-col justify-between hover:border-emerald-500/50 group hover:-translate-y-1 hover:shadow-emerald-500/10 transition-all duration-300 min-h-[140px] md:min-h-[160px] animate-sia-pulse ${isEnhanced ? 'bg-gradient-to-br from-zinc-900 to-emerald-950/20 border-emerald-500/10' : ''}`}>
             <div className="flex justify-between items-start">
-              <div className="w-10 h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center text-emerald-400 border border-emerald-500/20 aspect-square object-cover">
-                <Zap size={20} />
+              <div className="w-8 h-8 md:w-10 md:h-10 bg-emerald-500/10 rounded-lg md:rounded-xl flex items-center justify-center text-emerald-400 border border-emerald-500/20">
+                <Zap size={18} className="md:w-5 md:h-5" />
               </div>
-              <TrendingUp size={16} className="text-zinc-700 group-hover:text-emerald-400 transition-colors" />
+              <TrendingUp size={14} className="text-zinc-700 group-hover:text-emerald-400 transition-colors md:w-4 md:h-4" />
             </div>
             <MetricDisplay 
               title={`Energy Level`} 
               value={stats?.avgL || '--'} 
               unit="/10" 
-              className="mt-8 text-left"
+              className="mt-4 md:mt-8 text-left"
             />
           </Card>
-        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Card className="flex items-center gap-6 hover:border-indigo-500/30 transition-colors">
-            <div className="w-12 h-12 bg-indigo-500/10 rounded-2xl flex items-center justify-center text-indigo-400 border border-indigo-500/20">
-              <Clock size={24} />
+          <Card className={`flex flex-col justify-between hover:border-indigo-500/50 group hover:-translate-y-1 hover:shadow-indigo-500/10 transition-all duration-300 min-h-[140px] md:min-h-[160px] animate-sia-pulse ${isEnhanced ? 'bg-gradient-to-br from-zinc-900 to-indigo-950/30 border-indigo-500/10' : ''}`}>
+            <div className="flex justify-between items-start">
+              <div className="w-8 h-8 md:w-10 md:h-10 bg-indigo-500/10 rounded-lg md:rounded-xl flex items-center justify-center text-indigo-400 border border-indigo-500/20">
+                <Clock size={18} className="md:w-5 md:h-5" />
+              </div>
+              <TrendingUp size={14} className="text-zinc-700 group-hover:text-indigo-400 transition-colors md:w-4 md:h-4" />
             </div>
             <MetricDisplay 
               title="Avg Sleep Duration" 
               value={stats?.avgDuration || '--'} 
-              className="text-left"
+              className="mt-4 md:mt-8 text-left"
             />
           </Card>
-          <Card className="flex items-center gap-6 hover:border-violet-500/30 transition-colors">
-            <div className="w-12 h-12 bg-violet-500/10 rounded-2xl flex items-center justify-center text-violet-400 border border-violet-500/20">
-              <BarChart3 size={24} />
+
+          <Card className={`flex flex-col justify-between hover:border-violet-500/50 group hover:-translate-y-1 hover:shadow-violet-500/10 transition-all duration-300 min-h-[140px] md:min-h-[160px] animate-sia-pulse ${isEnhanced ? 'bg-gradient-to-br from-zinc-900 to-violet-950/20 border-violet-500/10' : ''}`}>
+            <div className="flex justify-between items-start">
+              <div className="w-8 h-8 md:w-10 md:h-10 bg-violet-500/10 rounded-lg md:rounded-xl flex items-center justify-center text-violet-400 border border-violet-500/20">
+                <BarChart3 size={18} className="md:w-5 md:h-5" />
+              </div>
+              <TrendingUp size={14} className="text-zinc-700 group-hover:text-violet-400 transition-colors md:w-4 md:h-4" />
             </div>
             <MetricDisplay 
               title="Avg Efficiency" 
               value={stats?.avgEfficiency || '--'} 
               unit="%" 
-              className="text-left"
+              className="mt-4 md:mt-8 text-left"
             />
           </Card>
         </div>
