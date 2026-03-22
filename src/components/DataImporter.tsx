@@ -69,7 +69,7 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
       if (!apiKey) { console.error('GEMINI_API_KEY not set — AI features disabled'); return; }
       const ai = new GoogleGenAI({ apiKey });
       const response = await ai.models.generateContent({
-        model: "gemini-2.0-flash-lite",
+        model: "gemini-1.5-flash-latest",
         config: {
           systemInstruction: "Extract sleep insights from this text. Return only valid JSON: { summary, estimatedDateRange, extractedInsights (string array), rawDataType }."
         },
@@ -560,7 +560,16 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
             try {
               const buffer = new Uint8Array(e.target?.result as ArrayBuffer);
               const workbook = read(buffer, { type: 'array', cellDates: true });
-              const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+              
+              // Priority: 'Sleep Logs' (export) → 'Data' (template) → first sheet (fallback)
+              // Also skip any sheet named 🔒 Summary, User, Instructions, or Unstructured Notes
+              const skipSheets = ['🔒 Summary', 'User', 'Instructions', 'Unstructured Notes'];
+              const sheetName =
+                workbook.SheetNames.includes('Sleep Logs') ? 'Sleep Logs' :
+                workbook.SheetNames.includes('Data') ? 'Data' :
+                workbook.SheetNames.find(name => !skipSheets.includes(name)) || workbook.SheetNames[0];
+              
+              const worksheet = workbook.Sheets[sheetName];
               const json = utils.sheet_to_json(worksheet, { defval: "" });
               resolve(json);
             } catch (err) { reject(err); }
@@ -584,9 +593,14 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
     
     // Data Sheet
     const dataSheet = workbook.addWorksheet('Data');
-    const headers = ['Date', 'Bedtime', 'Waketime', 'Status_Code', 'SQ', 'R', 'L', 'Remarks'];
+    const headers = [
+      'Date', 'Bedtime', 'Waketime', 'Status_Code', 'SQ', 'R', 'L', 'Remarks', 
+      'Caffeine_Y', 'Caffeine_Cups', 'Caffeine_LastIntake', 'Alcohol_Y', 'Alcohol_Drinks', 'Alcohol_LastIntake', 
+      'Medication_Y', 'Medication_Type', 'Medication_Time', 'Exercise_Y', 'Exercise_Type', 'Exercise_Time', 
+      'Screens_Y', 'Stress_1to5', 'LastMeal_Time', 'NaturalWake_Y', 'MorningMood_1to5'
+    ];
     
-    // Header Row
+    // Row 1 — header row: background #2D2B55, white bold Arial text, centered.
     const headerRow = dataSheet.addRow(headers);
     headerRow.eachCell((cell) => {
       cell.fill = {
@@ -596,123 +610,144 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
       };
       cell.font = {
         color: { argb: 'FFFFFFFF' },
-        bold: true
+        bold: true,
+        name: 'Arial'
       };
       cell.alignment = { vertical: 'middle', horizontal: 'center' };
     });
 
-    // Rule Row (Format Hints)
-    const ruleRow = dataSheet.addRow(['YYYY-MM-DD', 'HH:MM', 'HH:MM', 'SLEEP / AWAKE-IN', '0-10', '0-10', '0-10', 'Notes']);
+    // Row 2 — rule row: grey background #E8E8E8, italic grey text showing format hints
+    const hints = [
+      'YYYY-MM-DD', 'HH:mm', 'HH:mm', 'SLEEP/AWAKE-IN', '0-10', '0-10', '0-10', 'Text', 
+      'yes/no', 'number', 'HH:mm', 'yes/no', 'number', 'HH:mm', 'yes/no', 'text', 'HH:mm', 
+      'yes/no', 'text', 'HH:mm', 'yes/no', '1-5', 'HH:mm', 'yes/no', '1-5'
+    ];
+    const ruleRow = dataSheet.addRow(hints);
     ruleRow.eachCell((cell) => {
       cell.fill = {
         type: 'pattern',
         pattern: 'solid',
-        fgColor: { argb: 'FFD1D5DB' } // Grey
+        fgColor: { argb: 'FFE8E8E8' }
       };
       cell.font = {
         italic: true,
-        size: 9,
-        color: { argb: 'FF374151' }
+        color: { argb: 'FF808080' }
       };
       cell.alignment = { vertical: 'middle', horizontal: 'center' };
     });
 
-    const sampleData = [
-      { Date: '2026-03-20', Bedtime: '23:15', Waketime: '07:30', Status_Code: 'SLEEP', SQ: 8, R: 7, L: 7, Remarks: 'Slept well.' },
-      { Date: '2026-03-20', Bedtime: '07:30', Waketime: '08:00', Status_Code: 'AWAKE-IN', SQ: '', R: '', L: '', Remarks: '← AWAKE-IN: no scores needed. Same date as the SLEEP row above.' },
-      { Date: '2026-03-21', Bedtime: '22:45', Waketime: '02:30', Status_Code: 'SLEEP', SQ: '', R: '', L: '', Remarks: '' },
-      { Date: '2026-03-21', Bedtime: '02:45', Waketime: '07:00', Status_Code: 'AWAKE-IN', SQ: '', R: '', L: '', Remarks: 'Woke mid-sleep, hard to fall back.' },
+    // Rows 3-5 — three sample rows
+    const sampleRows = [
+      ['2026-03-20', '23:00', '07:30', 'SLEEP', 8, 5, 7, 'Slept well', 'yes', 2, '14:00', 'no', '', '', 'yes', 'Lormazepam', '22:00', 'yes', 'Cardio', '17:00', 'no', 2, '19:30', 'yes', 4],
+      ['2026-03-20', '07:30', '08:00', 'AWAKE-IN', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
+      ['2026-03-21', '23:30', '07:00', 'SLEEP', 6, 4, 5, 'Stressed day', 'yes', 3, '15:30', 'yes', 2, '20:00', 'no', '', '', 'no', '', '', 'yes', 4, '20:00', 'no', 2]
     ];
 
-    sampleData.forEach(item => {
-      const row = dataSheet.addRow([item.Date, item.Bedtime, item.Waketime, item.Status_Code, item.SQ, item.R, item.L, item.Remarks]);
-      if (item.Status_Code === 'SLEEP') {
-        row.eachCell((cell) => {
-          cell.fill = {
-            type: 'pattern',
-            pattern: 'solid',
-            fgColor: { argb: 'FFE8E6FF' } // Light purple
-          };
-        });
-      } else if (item.Status_Code === 'AWAKE-IN') {
-        row.eachCell((cell) => {
-          cell.fill = {
-            type: 'pattern',
-            pattern: 'solid',
-            fgColor: { argb: 'FFFFF8E1' } // Amber
-          };
-        });
-      }
+    sampleRows.forEach((rowData) => {
+      const row = dataSheet.addRow(rowData);
+      const isSleep = rowData[3] === 'SLEEP';
+      const fillColor = isSleep ? 'FFE8E6FF' : 'FFFFF8E1';
+      row.eachCell((cell) => {
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: fillColor }
+        };
+      });
     });
 
-    dataSheet.columns = headers.map(() => ({ width: 15 }));
-    dataSheet.getColumn(8).width = 60; // Remarks column wider
+    // Freeze panes at row 3
+    dataSheet.views = [
+      { state: 'frozen', xSplit: 0, ySplit: 2, topLeftCell: 'A3' }
+    ];
+
+    // Set column widths
+    dataSheet.columns = [
+      { width: 13 }, // Date
+      { width: 9 },  // Bedtime
+      { width: 9 },  // Waketime
+      { width: 13 }, // Status_Code
+      { width: 5 },  // SQ
+      { width: 5 },  // R
+      { width: 5 },  // L
+      { width: 22 }, // Remarks
+      { width: 10 }, // Caffeine_Y
+      { width: 12 }, // Caffeine_Cups
+      { width: 12 }, // Caffeine_LastIntake
+      { width: 10 }, // Alcohol_Y
+      { width: 12 }, // Alcohol_Drinks
+      { width: 12 }, // Alcohol_LastIntake
+      { width: 10 }, // Medication_Y
+      { width: 16 }, // Medication_Type
+      { width: 12 }, // Medication_Time
+      { width: 10 }, // Exercise_Y
+      { width: 16 }, // Exercise_Type
+      { width: 12 }, // Exercise_Time
+      { width: 10 }, // Screens_Y
+      { width: 12 }, // Stress_1to5
+      { width: 12 }, // LastMeal_Time
+      { width: 10 }, // NaturalWake_Y
+      { width: 12 }  // MorningMood_1to5
+    ];
 
     // Instructions Sheet
     const instSheet = workbook.addWorksheet('Instructions');
-    
-    instSheet.addRow(['SIA SLEEP LOG INSTRUCTIONS (v3)']).font = { bold: true, size: 14 };
-    instSheet.addRow([]);
-    
-    const basicInstructions = [
-      ['Column', 'Description'],
+    const instHeaders = ['COLUMN', 'FORMAT & NOTES'];
+    const instHeaderRow = instSheet.addRow(instHeaders);
+    instHeaderRow.eachCell((cell) => {
+      cell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FF2D2B55' }
+      };
+      cell.font = {
+        color: { argb: 'FFFFFFFF' },
+        bold: true,
+        name: 'Arial'
+      };
+      cell.alignment = { vertical: 'middle', horizontal: 'center' };
+    });
+
+    const instructionRows = [
       ['Date', 'The date the sleep session started (YYYY-MM-DD).'],
       ['Bedtime', 'The time you went to bed (HH:mm).'],
       ['Waketime', 'The time you woke up (HH:mm).'],
-      ['Status_Code', 'SLEEP for main sleep, AWAKE-IN for wakeups.'],
-      ['SQ/R/L', 'Scale 0-10 for Sleep Quality, Restedness, and Energy.'],
+      ['Status_Code', 'SLEEP for main sleep, AWAKE-IN for wakeups mid-sleep.'],
+      ['SQ', 'Sleep Quality (0-10).'],
+      ['R', 'Restedness (0-10).'],
+      ['L', 'Energy Level (0-10).'],
       ['Remarks', 'Any notes about the night.'],
+      ['Caffeine_Y', 'Did you consume caffeine? (yes/no)'],
+      ['Caffeine_Cups', 'Number of cups/servings.'],
+      ['Caffeine_LastIntake', 'Time of last caffeine intake (HH:mm).'],
+      ['Alcohol_Y', 'Did you consume alcohol? (yes/no)'],
+      ['Alcohol_Drinks', 'Number of drinks.'],
+      ['Alcohol_LastIntake', 'Time of last alcohol intake (HH:mm).'],
+      ['Medication_Y', 'Did you take sleep medication? (yes/no)'],
+      ['Medication_Type', 'Type of medication.'],
+      ['Medication_Time', 'Time medication was taken (HH:mm).'],
+      ['Exercise_Y', 'Did you exercise? (yes/no)'],
+      ['Exercise_Type', 'Type of exercise.'],
+      ['Exercise_Time', 'Time of exercise (HH:mm).'],
+      ['Screens_Y', 'Did you use screens in bed? (yes/no)'],
+      ['Stress_1to5', 'Stress level during the day (1-5).'],
+      ['LastMeal_Time', 'Time of last meal (HH:mm).'],
+      ['NaturalWake_Y', 'Did you wake up naturally? (yes/no)'],
+      ['MorningMood_1to5', 'Mood upon waking (1-5).'],
+      ['DISCLAIMER', 'SIA tracks patterns to help you understand your sleep habits. This is not medical advice. Share this data with your doctor for clinical interpretation.']
     ];
-    
-    basicInstructions.forEach((data, i) => {
-      const row = instSheet.addRow(data);
-      if (i === 0) row.font = { bold: true };
-    });
-    instSheet.addRow([]);
 
-    // HOW TO LOG A NIGHT WITH WAKE-UPS
-    const wakeUpHeader = instSheet.addRow(['HOW TO LOG A NIGHT WITH WAKE-UPS']);
-    wakeUpHeader.font = { bold: true, color: { argb: 'FF065F46' } };
-    wakeUpHeader.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC6F6D5' } }; // Green
+    instructionRows.forEach(row => instSheet.addRow(row));
+    instSheet.getColumn(1).width = 25;
+    instSheet.getColumn(2).width = 80;
 
-    const wakeUpRows = [
-      ['Date', 'Bedtime', 'Waketime', 'Status_Code', 'Remarks'],
-      ['2026-03-20', '23:00', '03:00', 'SLEEP', 'First part of night'],
-      ['2026-03-20', '03:30', '07:00', 'AWAKE-IN', 'Woke up for 30 mins, then back to sleep'],
-    ];
-    wakeUpRows.forEach((data, i) => {
-      const row = instSheet.addRow(data);
-      row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC6F6D5' } };
-      if (i === 0) row.font = { bold: true };
-    });
-    instSheet.addRow([]);
-
-    // COMMON MISTAKES
-    const mistakesHeader = instSheet.addRow(['COMMON MISTAKES']);
-    mistakesHeader.font = { bold: true, color: { argb: 'FF92400E' } };
-    mistakesHeader.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF8E1' } }; // Amber
-
-    const mistakeRows = [
-      ['Mistake', 'Why it fails'],
-      ['Wrong Date', 'Using the next day\'s date for wakeups. All sleep until 20:00 belongs to the previous day.'],
-      ['Quoted Times', 'Using "23:00" instead of 23:00. Use plain text or time format.'],
-      ['Scores on AWAKE-IN', 'Adding SQ/R/L scores to AWAKE-IN rows. Scores should only be on the primary SLEEP row.'],
-    ];
-    mistakeRows.forEach((data, i) => {
-      const row = instSheet.addRow(data);
-      row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF8E1' } };
-      if (i === 0) row.font = { bold: true };
-    });
-
-    instSheet.columns = [{ width: 25 }, { width: 80 }];
-
-    // Generate and download
+    // Download logic
     const buffer = await workbook.xlsx.writeBuffer();
     const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     const url = window.URL.createObjectURL(blob);
     const anchor = document.createElement('a');
     anchor.href = url;
-    anchor.download = 'sia_sleep_log_template_v3.xlsx';
+    anchor.download = 'sia_sleep_log_template.xlsx';
     anchor.click();
     window.URL.revokeObjectURL(url);
   };

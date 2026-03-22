@@ -229,7 +229,7 @@ export default function Dashboard({
       `;
 
       const response = await ai.models.generateContent({
-        model: "gemini-2.0-flash-lite",
+        model: "gemini-1.5-flash-latest",
         contents: [{ role: "user", parts: [{ text: prompt }] }],
         config: {
           systemInstruction: "You are 'SIA', a Sleep Intelligence Agent. Provide punchy, clinical, data-backed weekly sleep insights."
@@ -296,7 +296,7 @@ export default function Dashboard({
       `;
 
       const response = await ai.models.generateContent({
-        model: "gemini-2.0-flash-lite",
+        model: "gemini-1.5-flash-latest",
         contents: [{ role: "user", parts: [{ text: prompt }] }],
         config: {
           systemInstruction: "You are 'SIA', a Sleep Intelligence Agent. Provide deep, structured, data-backed long-term sleep analysis."
