@@ -115,6 +115,23 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
     if (h === 'r' || h.includes('rest') || h.includes('awakening')) return 'R';
     if (h === 'l' || h.includes('energy') || h.includes('level')) return 'L';
     if (h.includes('remark') || h.includes('note') || h.includes('comment')) return 'Remarks';
+    if (h === 'caffeine_y' || h === 'caffeine') return 'Caffeine_Y';
+    if (h === 'caffeine_cups' || h === 'cups') return 'Caffeine_Cups';
+    if (h === 'caffeine_lastintake' || h === 'caffeine_time') return 'Caffeine_LastIntake';
+    if (h === 'alcohol_y' || h === 'alcohol') return 'Alcohol_Y';
+    if (h === 'alcohol_drinks' || h === 'drinks') return 'Alcohol_Drinks';
+    if (h === 'alcohol_lastintake' || h === 'alcohol_time') return 'Alcohol_LastIntake';
+    if (h === 'medication_y' || h === 'medication') return 'Medication_Y';
+    if (h === 'medication_type') return 'Medication_Type';
+    if (h === 'medication_time') return 'Medication_Time';
+    if (h === 'exercise_y' || h === 'exercise') return 'Exercise_Y';
+    if (h === 'exercise_type') return 'Exercise_Type';
+    if (h === 'exercise_time') return 'Exercise_Time';
+    if (h === 'screens_y' || h === 'screens') return 'Screens_Y';
+    if (h === 'stress_1to5' || h === 'stress') return 'Stress';
+    if (h === 'lastmeal_time' || h === 'lastmeal' || h === 'last_meal') return 'LastMeal';
+    if (h === 'naturalwake_y' || h === 'naturalwake' || h === 'natural_wake') return 'NaturalWake';
+    if (h === 'morningmood_1to5' || h === 'morningmood' || h === 'morning_mood') return 'MoodScore';
     return null;
   };
 
@@ -203,9 +220,13 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
         });
 
         let date = mappedRow.Date;
-        const start = mappedRow.Start_Time;
-        const end = mappedRow.End_Time;
+        let start = mappedRow.Start_Time;
+        let end = mappedRow.End_Time;
         const status = mappedRow.Status_Code;
+
+        const normalizeTime = (t: string) => t?.toString().trim() === '24:00' ? '00:00' : t?.toString().trim();
+        start = normalizeTime(start);
+        end = normalizeTime(end);
 
         // Check for legacy format
         if (status && !showLegacyToast) {
@@ -224,7 +245,12 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
 
         // Robust Date Parsing
         let parsedDate: Date | null = null;
-        const dateStr = date.toString().trim();
+        const dateStr = date?.toString().trim() || '';
+        
+        if (!dateStr) {
+          skippedRows.push(`Row ${idx + 1}: Missing date — skipped`);
+          return false;
+        }
         
         // Try YYYY-MM-DD
         if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
@@ -322,6 +348,7 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
         if (!logsToSave[date]) {
           logsToSave[date] = defaultLog(date);
         }
+        const log = logsToSave[date];
 
         // Map Clinical Metrics (Rule 2: Only first valid row)
         const sqVal = parseInt(row.SQ);
@@ -358,6 +385,24 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
             ? logsToSave[date].daily_remarks + ' ' + remarks
             : remarks;
         }
+
+        if (row.Caffeine_Y) log.factors.caffeine.consumed = row.Caffeine_Y?.toString().toLowerCase() === 'yes';
+        if (row.Caffeine_Cups) log.factors.caffeine.amount = parseInt(row.Caffeine_Cups) || 0;
+        if (row.Caffeine_LastIntake) log.factors.caffeine.lastIntake = row.Caffeine_LastIntake.toString();
+        if (row.Alcohol_Y) log.factors.alcohol.consumed = row.Alcohol_Y?.toString().toLowerCase() === 'yes';
+        if (row.Alcohol_Drinks) log.factors.alcohol.drinks = parseInt(row.Alcohol_Drinks) || 0;
+        if (row.Alcohol_LastIntake) log.factors.alcohol.lastIntake = row.Alcohol_LastIntake.toString();
+        if (row.Medication_Y) log.factors.medication.taken = row.Medication_Y?.toString().toLowerCase() === 'yes';
+        if (row.Medication_Type) log.factors.medication.type = row.Medication_Type.toString();
+        if (row.Medication_Time) log.factors.medication.time = row.Medication_Time.toString();
+        if (row.Exercise_Y) log.factors.exercise.completed = row.Exercise_Y?.toString().toLowerCase() === 'yes';
+        if (row.Exercise_Type) log.factors.exercise.type = row.Exercise_Type.toString();
+        if (row.Exercise_Time) log.factors.exercise.time = row.Exercise_Time.toString();
+        if (row.Screens_Y) log.factors.screensInBed = row.Screens_Y?.toString().toLowerCase() === 'yes';
+        if (row.Stress) log.factors.stressLevel = parseInt(row.Stress) || 3;
+        if (row.LastMeal) log.factors.lastMealTime = row.LastMeal.toString();
+        if (row.NaturalWake) log.factors.naturalWake = row.NaturalWake?.toString().toLowerCase() === 'yes';
+        if (row.MoodScore) log.factors.moodScore = parseInt(row.MoodScore) || 3;
 
         const startIndex = timeToIndex(start);
         const endIndex = timeToIndex(end);
