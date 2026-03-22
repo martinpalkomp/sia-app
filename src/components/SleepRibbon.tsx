@@ -51,7 +51,7 @@ const SleepRibbon: React.FC<SleepRibbonProps> = ({
             width = ((endMins - startMins) / 1440) * 100;
           }
 
-          const colorClass = event.type === 'sleep' ? 'bg-indigo-500' : 'bg-zinc-700';
+          const colorClass = event.type === 'sleep' ? 'bg-emerald-500' : 'bg-indigo-500';
           const label = event.type === 'sleep' ? 'Sleep' : 'Awake In Bed';
 
           return (

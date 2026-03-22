@@ -69,7 +69,7 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
       if (!apiKey) { console.error('GEMINI_API_KEY not set — AI features disabled'); return; }
       const ai = new GoogleGenAI({ apiKey });
       const response = await ai.models.generateContent({
-        model: "gemini-1.5-flash-latest",
+        model: "gemini-2.0-flash-lite",
         config: {
           systemInstruction: "Extract sleep insights from this text. Return only valid JSON: { summary, estimatedDateRange, extractedInsights (string array), rawDataType }."
         },
@@ -331,7 +331,7 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
         const end = row.End_Time;
         const statusVal = row.Status_Code?.toString().toUpperCase();
         
-        let state: SleepState = 'sleep'; // Default to sleep for new format
+        let state: SleepState = 'awake-in'; // safe default — unknown periods are awake-in
         if (statusVal) {
           const statusStr = statusVal.toString().toUpperCase();
           if (statusStr === '1' || statusStr.includes('SLEEP')) {

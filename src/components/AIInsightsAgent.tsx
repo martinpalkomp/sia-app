@@ -275,7 +275,7 @@ export default function AIInsightsAgent({ logs, user, personalizationProfile, is
       );
 
       const apiCallPromise = ai.models.generateContent({
-        model: "gemini-1.5-flash-latest",
+        model: "gemini-2.0-flash-lite",
         contents: [
           { role: "user", parts: [{ text: text }] }
         ],

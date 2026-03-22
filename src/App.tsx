@@ -224,11 +224,19 @@ export default function App() {
     // Apply predicted sleep range if available
     if ((suggestion as any).predictedSleepRange) {
       const { start, end } = (suggestion as any).predictedSleepRange;
-      const newTimeline = Array(TOTAL_SLOTS).fill('awake-out');
+      const newTimeline = [...currentLog.visualTimeline];
+      
+      // Clear existing sleep to avoid overlapping or messy timeline
+      for (let i = 0; i < TOTAL_SLOTS; i++) {
+        if (newTimeline[i] === 'sleep') newTimeline[i] = 'awake-out';
+      }
+      
       for (let i = start; i <= end; i++) {
         newTimeline[i] = 'sleep';
       }
-      updateLog({ timeline: newTimeline });
+      
+      const newEvents = convertGridToEvents(newTimeline);
+      updateLog({ sleepEvents: newEvents });
     }
     
     setToast({ message: 'Routine applied! You can still make adjustments.', type: 'success' });
@@ -834,7 +842,7 @@ export default function App() {
       `;
 
       const response = await ai.models.generateContent({
-        model: "gemini-1.5-flash-latest",
+        model: "gemini-2.0-flash-lite",
         contents: [{ role: "user", parts: [{ text: reportPrompt }] }],
         config: { temperature: 0.2, maxOutputTokens: 2048 }
       });

@@ -199,7 +199,7 @@ export default function Dashboard({
 
   const generateQuickInsight = async () => {
     const logsCount = Object.keys(logs).length;
-    if (logsCount < 3 || aiInsight) return;
+    if (!logs || logsCount < 1 || !process.env.GEMINI_API_KEY || aiInsight) return;
     
     setIsAiLoading(true);
     try {
@@ -229,7 +229,7 @@ export default function Dashboard({
       `;
 
       const response = await ai.models.generateContent({
-        model: "gemini-1.5-flash-latest",
+        model: "gemini-2.0-flash-lite",
         contents: [{ role: "user", parts: [{ text: prompt }] }],
         config: {
           systemInstruction: "You are 'SIA', a Sleep Intelligence Agent. Provide punchy, clinical, data-backed weekly sleep insights."
@@ -245,7 +245,7 @@ export default function Dashboard({
   };
 
   useEffect(() => {
-    const key = Object.keys(logs).sort().join(',');
+    const key = `${logsCount}-${Object.keys(logs).length > 2 ? 'bulk' : 'single'}`;
     if (key === lastInsightKeyRef.current) return;
     if (insightDebounceRef.current) clearTimeout(insightDebounceRef.current);
     insightDebounceRef.current = setTimeout(async () => {
@@ -263,14 +263,14 @@ export default function Dashboard({
     try {
       const daysCount = personalizationProfile ? 180 : 30;
       const logsRef = collection(db, 'users', user.uid, 'sleep_logs');
-      const q = query(
-        logsRef,
-        where('type', '==', 'log'),
-        orderBy('date', 'desc'),
-        limit(daysCount)
-      );
       
-      const querySnapshot = await getDocs(q);
+      let querySnapshot = await getDocs(query(logsRef, where('type', '==', 'log'), orderBy('date', 'desc'), limit(daysCount)));
+      
+      if (querySnapshot.size < 3) {
+        // Fallback: fetch without type filter to catch imported logs missing the field
+        querySnapshot = await getDocs(query(logsRef, orderBy('date', 'desc'), limit(daysCount)));
+      }
+      
       const historicalLogs: any[] = [];
       querySnapshot.forEach(doc => {
         const data = doc.data() as DailyLog;
@@ -296,7 +296,7 @@ export default function Dashboard({
       `;
 
       const response = await ai.models.generateContent({
-        model: "gemini-1.5-flash-latest",
+        model: "gemini-2.0-flash-lite",
         contents: [{ role: "user", parts: [{ text: prompt }] }],
         config: {
           systemInstruction: "You are 'SIA', a Sleep Intelligence Agent. Provide deep, structured, data-backed long-term sleep analysis."
