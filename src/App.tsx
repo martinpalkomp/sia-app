@@ -199,11 +199,15 @@ export default function App() {
     setToast({ message: 'Sync Complete', type: 'success' });
   };
 
-  const changeDate = (days: number) => {
-    setDirection(days);
-    const d = new Date(selectedDate);
-    d.setDate(d.getDate() + days);
-    setSelectedDate(d.toISOString().split('T')[0]);
+  const changeDate = (val: number | string) => {
+    if (typeof val === 'number') {
+      setDirection(val);
+      const d = new Date(selectedDate);
+      d.setDate(d.getDate() + val);
+      setSelectedDate(d.toISOString().split('T')[0]);
+    } else {
+      setSelectedDate(val);
+    }
     // Reset prefill state when changing date
     setPrefillUsed(false);
     setOriginalSuggestion(null);
@@ -1168,6 +1172,7 @@ export default function App() {
                         setView('log');
                       }}
                       onViewChange={setView}
+                      onDateChange={changeDate}
                       onOpenPersonalization={() => setShowPersonalizationWizard(true)}
                       onOpenSleepGuide={() => setShowSleepGuide(true)}
                       refreshAllData={refreshAllData}
@@ -1243,7 +1248,7 @@ export default function App() {
                     type="date" 
                     className="absolute inset-0 opacity-0 cursor-pointer z-10" 
                     value={selectedDate}
-                    onChange={(e) => setSelectedDate(e.target.value)}
+                    onChange={(e) => changeDate(e.target.value)}
                   />
                   <h2 className="text-lg font-bold text-white tracking-tight group-hover:text-indigo-400 transition-colors">
                     {formatDisplayDate(selectedDate)}

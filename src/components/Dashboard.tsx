@@ -14,7 +14,9 @@ import {
   Brain,
   Sparkles,
   Loader2,
-  Settings
+  Settings,
+  Trash2,
+  ChevronLeft
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { DailyLog, SleepState, SleepEvent } from '../types';
@@ -34,8 +36,11 @@ import {
   where, 
   orderBy, 
   limit, 
-  getDocs 
+  getDocs,
+  doc,
+  deleteDoc
 } from '../lib/firebase';
+import { getTodayDate, formatDisplayDate } from '../utils/dateUtils';
 
 interface DashboardProps {
   logs: Record<string, DailyLog>;
@@ -47,6 +52,7 @@ interface DashboardProps {
   onViewChange: (view: any) => void;
   onOpenPersonalization: () => void;
   onOpenSleepGuide: () => void;
+  onDateChange: (date: string | number) => void;
   refreshAllData: () => void;
   isRefreshing: boolean;
 }
@@ -61,6 +67,7 @@ export default function Dashboard({
   onViewChange,
   onOpenPersonalization,
   onOpenSleepGuide,
+  onDateChange,
   refreshAllData,
   isRefreshing
 }: DashboardProps) {
@@ -198,8 +205,8 @@ export default function Dashboard({
   const lastInsightKeyRef = useRef<string>('');
 
   const generateQuickInsight = async () => {
+    if (!logs || Object.keys(logs).length < 1 || !process.env.GEMINI_API_KEY || aiInsight) return;
     const logsCount = Object.keys(logs).length;
-    if (!logs || logsCount < 1 || !process.env.GEMINI_API_KEY || aiInsight) return;
     
     setIsAiLoading(true);
     try {
@@ -245,7 +252,8 @@ export default function Dashboard({
   };
 
   useEffect(() => {
-    const key = `${logsCount}-${Object.keys(logs).length > 2 ? 'bulk' : 'single'}`;
+    const logsCount = Object.keys(logs).length;
+    const key = `${logsCount}-${logsCount > 2 ? 'bulk' : 'single'}`;
     if (key === lastInsightKeyRef.current) return;
     if (insightDebounceRef.current) clearTimeout(insightDebounceRef.current);
     insightDebounceRef.current = setTimeout(async () => {
@@ -313,8 +321,63 @@ export default function Dashboard({
 
   const isEnhanced = !!personalizationProfile;
 
+  const handleResetDay = async () => {
+    if (!user || !selectedDate || !db) return;
+    try {
+      await deleteDoc(doc(db, 'users', user.uid, 'sleep_logs', selectedDate));
+      refreshAllData();
+    } catch (error) {
+      console.error("Reset failed:", error);
+    }
+  };
+
   return (
     <div className="space-y-8 pb-12 relative">
+      {/* Date Navigation */}
+      <div className="flex items-center justify-between bg-zinc-900/50 p-4 rounded-2xl border border-zinc-800">
+        <button 
+          onClick={() => onDateChange(-1)}
+          className="p-2 hover:bg-zinc-800 rounded-full transition-colors text-zinc-400"
+        >
+          <ChevronLeft size={20} />
+        </button>
+        
+        <div className="flex items-center gap-4">
+          <div className="text-center relative group">
+            <input 
+              type="date" 
+              className="absolute inset-0 opacity-0 cursor-pointer z-10" 
+              value={selectedDate}
+              onChange={(e) => onDateChange(e.target.value)}
+            />
+            <h2 className="text-lg font-bold text-white tracking-tight group-hover:text-indigo-400 transition-colors">
+              {formatDisplayDate(selectedDate)}
+            </h2>
+            <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">
+              {selectedDate === getTodayDate() ? 'TODAY' : 'HISTORICAL LOG'}
+            </p>
+          </div>
+
+          {logs[selectedDate] && (
+            <button 
+              onClick={handleResetDay}
+              className="p-2 hover:bg-red-900/20 text-zinc-500 hover:text-red-400 rounded-xl transition-all border border-zinc-800 hover:border-red-500/30 flex items-center gap-2"
+              title="Reset Day"
+            >
+              <Trash2 size={16} />
+              <span className="text-[10px] font-black uppercase tracking-widest hidden md:inline">Reset</span>
+            </button>
+          )}
+        </div>
+
+        <button 
+          onClick={() => onDateChange(1)}
+          className="p-2 hover:bg-zinc-800 rounded-full transition-colors text-zinc-400"
+        >
+          <ChevronRight size={20} />
+        </button>
+      </div>
+
       {/* Refresh Overlay */}
       <AnimatePresence>
         {isRefreshing && (
