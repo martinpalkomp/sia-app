@@ -14,7 +14,8 @@ import {
   Brain,
   ArrowRight,
   ExternalLink,
-  CheckCircle2
+  CheckCircle2,
+  Zap
 } from 'lucide-react';
 import { motion, AnimatePresence, useScroll, useSpring } from 'motion/react';
 
@@ -29,7 +30,8 @@ const SECTIONS = [
   { id: 'laws', title: 'The Two Laws of Sleep', shortTitle: '3. Laws', icon: <Sparkles size={18} /> },
   { id: 'environment', title: 'How to Prep the Perfect Sleep Environment', shortTitle: '4. Env', icon: <Moon size={18} /> },
   { id: 'schedule', title: 'Structuring Your Day for Better Sleep', shortTitle: '5. Schedule', icon: <Sun size={18} /> },
-  { id: 'conclusion', title: 'Getting to Know Yourself is the Best First Step', shortTitle: '6. Self', icon: <CheckCircle2 size={18} /> },
+  { id: 'tools', title: 'Sleep Support Tools: What Works and Why', shortTitle: '6. Tools', icon: <Zap size={18} /> },
+  { id: 'conclusion', title: 'Getting to Know Yourself is the Best First Step', shortTitle: '7. Self', icon: <CheckCircle2 size={18} /> },
 ];
 
 export default function SleepGuideInteractive({ onClose, onOpenPersonalization }: SleepGuideInteractiveProps) {
@@ -441,10 +443,124 @@ export default function SleepGuideInteractive({ onClose, onOpenPersonalization }
             </div>
           </section>
 
-          {/* Section 6: Conclusion */}
-          <section id="guide-section-conclusion" className="space-y-8">
+          {/* Section 6: Sleep Support Tools */}
+          <section id="guide-section-tools" className="space-y-8">
             <div className="space-y-4">
               <span className="text-indigo-400 text-xs font-black uppercase tracking-[0.3em]">Section 06</span>
+              <h2 className="text-2xl md:text-5xl font-black text-white tracking-tighter leading-[0.95]">
+                Sleep Support Tools: What Works and Why
+              </h2>
+              <p className="text-lg text-zinc-400 leading-relaxed">
+                Not all sleep gadgets are created equal. Here's what the science actually supports — and what's just marketing.
+              </p>
+            </div>
+
+            {/* Interventions */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-black uppercase tracking-widest text-indigo-400">Active Interventions</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="p-6 bg-zinc-900 border border-zinc-800 rounded-3xl space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-amber-500/10 text-amber-400 rounded-xl flex items-center justify-center"><Sun size={20} /></div>
+                    <h4 className="font-bold text-white">Light Therapy</h4>
+                  </div>
+                  <p className="text-xs text-zinc-500 leading-relaxed">10,000 lux for 20–30 minutes within an hour of waking suppresses residual melatonin and anchors your circadian clock. Timing is critical — evening use has the opposite effect and delays your rhythm by up to 3 hours.</p>
+                  <div className="flex gap-2 flex-wrap">
+                    <span className="text-[9px] font-bold px-2 py-0.5 bg-emerald-500/10 text-emerald-400 rounded-full border border-emerald-500/20">SAD treatment</span>
+                    <span className="text-[9px] font-bold px-2 py-0.5 bg-emerald-500/10 text-emerald-400 rounded-full border border-emerald-500/20">Jet lag</span>
+                    <span className="text-[9px] font-bold px-2 py-0.5 bg-emerald-500/10 text-emerald-400 rounded-full border border-emerald-500/20">Delayed sleep phase</span>
+                  </div>
+                </div>
+                <div className="p-6 bg-zinc-900 border border-zinc-800 rounded-3xl space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-blue-500/10 text-blue-400 rounded-xl flex items-center justify-center"><Thermometer size={20} /></div>
+                    <h4 className="font-bold text-white">Thermal Regulation</h4>
+                  </div>
+                  <p className="text-xs text-zinc-500 leading-relaxed">Core body temperature must drop 1–2°C to initiate sleep. Cooling mattress pads or a warm bath 90 minutes before bed (which triggers a rebound temperature drop) are among the most evidence-backed interventions for increasing deep sleep duration.</p>
+                  <div className="flex gap-2 flex-wrap">
+                    <span className="text-[9px] font-bold px-2 py-0.5 bg-blue-500/10 text-blue-400 rounded-full border border-blue-500/20">N3 deep sleep</span>
+                    <span className="text-[9px] font-bold px-2 py-0.5 bg-blue-500/10 text-blue-400 rounded-full border border-blue-500/20">RHR reduction</span>
+                  </div>
+                </div>
+                <div className="p-6 bg-zinc-900 border border-zinc-800 rounded-3xl space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-purple-500/10 text-purple-400 rounded-xl flex items-center justify-center"><VolumeX size={20} /></div>
+                    <h4 className="font-bold text-white">Acoustic Masking</h4>
+                  </div>
+                  <p className="text-xs text-zinc-500 leading-relaxed">White or pink noise works by masking peak noise events — it's the sudden contrast in sound that triggers arousal, not sustained noise. Pink noise (weighted toward lower frequencies) has also shown promise in amplifying slow-wave sleep in clinical settings.</p>
+                  <div className="flex gap-2 flex-wrap">
+                    <span className="text-[9px] font-bold px-2 py-0.5 bg-purple-500/10 text-purple-400 rounded-full border border-purple-500/20">Fragmentation</span>
+                    <span className="text-[9px] font-bold px-2 py-0.5 bg-purple-500/10 text-purple-400 rounded-full border border-purple-500/20">Memory consolidation</span>
+                  </div>
+                </div>
+                <div className="p-6 bg-zinc-900 border border-zinc-800 rounded-3xl space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-emerald-500/10 text-emerald-400 rounded-xl flex items-center justify-center"><Brain size={20} /></div>
+                    <h4 className="font-bold text-white">Breathing & Mindfulness</h4>
+                  </div>
+                  <p className="text-xs text-zinc-500 leading-relaxed">Controlled breathing (4-7-8, box breathing) activates the parasympathetic nervous system and reduces cortisol within minutes. Consistent pre-sleep practice — 15 minutes minimum — measurably reduces sleep onset latency in people with high stress indices.</p>
+                  <div className="flex gap-2 flex-wrap">
+                    <span className="text-[9px] font-bold px-2 py-0.5 bg-emerald-500/10 text-emerald-400 rounded-full border border-emerald-500/20">Sleep onset</span>
+                    <span className="text-[9px] font-bold px-2 py-0.5 bg-emerald-500/10 text-emerald-400 rounded-full border border-emerald-500/20">HRV improvement</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Passive aids */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-black uppercase tracking-widest text-zinc-500">Passive Aids</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="p-6 bg-zinc-900 border border-zinc-800 rounded-3xl space-y-2">
+                  <h4 className="font-bold text-white text-sm">Sleep Mask / Blackout</h4>
+                  <p className="text-xs text-zinc-500 leading-relaxed">Even small amounts of light through closed eyelids suppress melatonin. A well-fitted mask or blackout curtains remove the single most disruptive circadian input.</p>
+                </div>
+                <div className="p-6 bg-zinc-900 border border-zinc-800 rounded-3xl space-y-2">
+                  <h4 className="font-bold text-white text-sm">Weighted Blanket</h4>
+                  <p className="text-xs text-zinc-500 leading-relaxed">Deep pressure stimulation mimics the calming effect of being held. Most effective for anxiety-related sleep onset difficulty. Less evidence for healthy sleepers.</p>
+                </div>
+                <div className="p-6 bg-zinc-900 border border-zinc-800 rounded-3xl space-y-2">
+                  <h4 className="font-bold text-white text-sm">Earplugs / Sleep Buds</h4>
+                  <p className="text-xs text-zinc-500 leading-relaxed">High-fidelity earplugs (not foam) block disruptive peaks while allowing you to hear alarms. Effective in noisy environments where white noise alone is insufficient.</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Wearables */}
+            <div className="p-8 bg-indigo-600/10 border border-indigo-500/20 rounded-[2rem] space-y-4">
+              <h3 className="text-lg font-bold text-white">A Note on Sleep Trackers</h3>
+              <p className="text-sm text-zinc-400 leading-relaxed">
+                Wearables (smart rings, watches, fitness bands) estimate sleep stages using movement and heart rate — they do not measure brain waves directly. Accuracy for deep sleep and REM detection varies significantly by device and individual. Their real value is in <strong className="text-white">trend detection over time</strong>, not single-night precision. Used consistently alongside a sleep log like SIA, they add a useful second signal.
+              </p>
+              <div className="grid grid-cols-3 gap-4 mt-4">
+                <div className="text-center">
+                  <p className="text-xs font-bold text-emerald-400 uppercase tracking-widest">Most accurate</p>
+                  <p className="text-xs text-zinc-500 mt-1">Smart rings (optical + motion)</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-xs font-bold text-amber-400 uppercase tracking-widest">Moderate</p>
+                  <p className="text-xs text-zinc-500 mt-1">Smartwatches</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-xs font-bold text-red-400 uppercase tracking-widest">Least accurate</p>
+                  <p className="text-xs text-zinc-500 mt-1">Phone apps (mic/accel)</p>
+                </div>
+              </div>
+            </div>
+
+            {/* SIA note */}
+            <div className="p-6 bg-zinc-900/50 border border-zinc-800 rounded-2xl flex items-start gap-4">
+              <Sparkles size={18} className="text-indigo-400 mt-0.5 flex-shrink-0" />
+              <p className="text-sm text-zinc-400 leading-relaxed">
+                <strong className="text-white">SIA tracks which tools you use each night</strong> — and correlates them with your sleep quality, fragmentation, and morning mood over time. Over weeks, SIA can tell you which specific tools are genuinely working for your biology, not just in general research populations.
+              </p>
+            </div>
+          </section>
+
+          {/* Section 7: Conclusion */}
+          <section id="guide-section-conclusion" className="space-y-8">
+            <div className="space-y-4">
+              <span className="text-indigo-400 text-xs font-black uppercase tracking-[0.3em]">Section 07</span>
               <h2 className="text-2xl md:text-5xl font-black text-white tracking-tighter leading-[0.95]">Getting to Know Yourself is the Best First Step</h2>
               <p className="text-lg text-zinc-400 leading-relaxed">
                 The science provides the framework, but the exact timing of these biological events is entirely unique to you.

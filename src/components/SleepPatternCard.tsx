@@ -14,6 +14,8 @@ interface SleepPatternCardProps {
 }
 
 const SleepPatternCard: React.FC<SleepPatternCardProps> = ({ logs }) => {
+  if (!logs || !Array.isArray(logs) || logs.length === 0) return null;
+
   // We assume logs are sorted by date desc or represent the period.
   const recentLogs = logs.slice().sort((a, b) => b.date.localeCompare(a.date)).slice(0, 7);
   

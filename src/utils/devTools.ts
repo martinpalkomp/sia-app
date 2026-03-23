@@ -44,6 +44,19 @@ export const seedTestData = async (userId: string, onComplete?: () => void) => {
     const start = `${startHour.toString().padStart(2, '0')}:${startMin.toString().padStart(2, '0')}`;
     const end = `${endHour.toString().padStart(2, '0')}:${endMin.toString().padStart(2, '0')}`;
     
+    const ALL_GADGETS = ['light_therapy','breathing_trainer','pre_sleep_heating','aromatherapy','meditation_app','cooling_pad','white_noise','sleep_mask','earplugs','weighted_blanket','smart_ring','smartwatch_tracking','fitness_band','phone_sleep_app'] as const;
+    const TIMED_GADGETS = ['light_therapy','breathing_trainer','pre_sleep_heating','aromatherapy'];
+    const TIME_OPTIONS = ['morning','afternoon','evening','before_bed_15','before_bed_30','all_night'] as const;
+
+    const seedGadgets = ALL_GADGETS
+      .filter(() => Math.random() > 0.75) // ~25% chance each gadget appears
+      .slice(0, 3) // max 3 gadgets per night
+      .map(type => ({
+        type,
+        ...(TIMED_GADGETS.includes(type) ? { durationMinutes: [15,30,45,60][Math.floor(Math.random()*4)] } : {}),
+        ...(type === 'light_therapy' ? { timeOfUse: TIME_OPTIONS[Math.floor(Math.random()*3)] } : {}),
+      }));
+
     const sleepEvents = [
       { id: `seed-${i}-1`, type: 'sleep' as const, start, end }
     ];
@@ -63,7 +76,8 @@ export const seedTestData = async (userId: string, onComplete?: () => void) => {
         medication: { taken: false, type: '', time: '' },
         exercise: { completed: Math.random() > 0.5, type: 'Cardio', time: '17:00' },
         screensInBed: Math.random() > 0.4,
-        stressLevel: 1 + Math.floor(Math.random() * 3)
+        stressLevel: 1 + Math.floor(Math.random() * 3),
+        sleepGadgets: seedGadgets
       },
       source: 'manual'
     };

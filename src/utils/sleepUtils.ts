@@ -79,8 +79,10 @@ export const calculateSleepEfficiency = (data: SleepState[] | SleepEvent[]): str
  */
 // CRITICAL: 0 = 20:00, 48 = 08:00, 95 = 19:45
 export const timeToIndex = (time: string): number => {
-  if (!time || !time.includes(':')) return 0;
-  const [hours, minutes] = time.split(':').map(Number);
+  if (!time) return 0;
+  const t = /^\d:\d{2}$/.test(time.trim()) ? '0' + time.trim() : time.trim();
+  if (!t.includes(':')) return 0;
+  const [hours, minutes] = t.split(':').map(Number);
   
   // Apply -20 hour offset logic
   // Use Math.round for "rounding to the nearest 15 mins"

@@ -63,7 +63,30 @@
             "stressLevel": { "type": "integer" },
             "lastMealTime": { "type": "string", "pattern": "HH:mm", "description": "Time of last meal before sleep" },
             "naturalWake": { "type": "boolean", "description": "True if woke without alarm" },
-            "moodScore": { "type": "integer", "description": "1-5 subjective mood on waking" }
+            "moodScore": { "type": "integer", "description": "1-5 subjective mood on waking" },
+            "sleepGadgets": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "light_therapy", "breathing_trainer", "pre_sleep_heating", "aromatherapy",
+                      "meditation_app", "cooling_pad", "white_noise", "sleep_mask", "earplugs",
+                      "weighted_blanket", "smart_ring", "smartwatch_tracking", "fitness_band", "phone_sleep_app"
+                    ]
+                  },
+                  "durationMinutes": { "type": "number" },
+                  "timeOfUse": {
+                    "type": "string",
+                    "enum": [
+                      "morning", "afternoon", "evening", "before_bed_15", "before_bed_30", "before_bed_60", "all_night"
+                    ]
+                  }
+                }
+              }
+            }
           }
         },
         "summaryMetrics": {
@@ -86,11 +109,33 @@
       "description": "User's sleep goals, demographics, and clinical data.",
       "type": "object",
       "properties": {
-        "demographics": { "type": "object" },
+        "demographics": {
+          "type": "object",
+          "properties": {
+            "dateOfBirth": { "type": "string", "format": "date" },
+            "country": { "type": "string" },
+            "sex": { "type": "string", "enum": ["Male", "Female", "Other"] },
+            "workSchedule": { "type": "string", "enum": ["Regular Hours", "Shift Work"] },
+            "environmentType": { "type": "string", "enum": ["Noisy/Urban", "Quiet/Controlled"] }
+          }
+        },
         "goals": { "type": "array", "items": { "type": "string" } },
         "psqi": { "type": "object" },
         "clinical": { "type": "object" },
         "allowsAnonymizedSharing": { "type": "boolean" },
+        "connectedDevices": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "type": { "type": "string", "enum": ["light_therapy", "thermal", "acoustic", "wearable", "other"] },
+              "brand": { "type": "string", "description": "e.g. Luminette, Eight Sleep, Oura" },
+              "model": { "type": "string" },
+              "inUse": { "type": "boolean" }
+            },
+            "required": ["type", "brand", "inUse"]
+          }
+        },
         "updatedAt": { "type": "string", "format": "date-time" }
       }
     },
@@ -136,6 +181,12 @@
     "/users/{userId}/ai_corrections/{correctionId}": {
       "schema": "AICorrection",
       "description": "AI-suggested corrections and user feedback."
+    },
+    "/users/{userId}/daily_metrics/{date}": {
+      "description": "Computed daily metrics synced from sleep_logs. date, sleep_quality, morning_alertness, daytime_energy, daily_remarks, source, updatedAt."
+    },
+    "/users/{userId}/unstructured_data/{docId}": {
+      "description": "Raw uploaded files and pasted text indexed for AI analysis. fileName, content, uploadDate, status, summary, extractedInsights, rawDataType."
     },
     "/users/{userId}/chats/{messageId}": {
       "description": "AI chat history messages. Each document has role (user/assistant), content (string), and createdAt (timestamp)."

@@ -35,6 +35,7 @@ import Markdown from 'react-markdown';
 
 import { AvatarFrame } from './UI';
 import { getGridFromEvents } from '../utils/sleepUtils';
+import { calculateAge } from '../utils/dateUtils';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -73,9 +74,19 @@ const buildLogDigest = (logs: DailyLog[], days: number) => {
     remarks: l.daily_remarks?.slice(0, 80) ?? '',
     factors: {
       caf: l.factors?.caffeine?.consumed ? l.factors.caffeine.lastIntake : null,
+      cafCups: l.factors?.caffeine?.amount ?? null,
       alc: l.factors?.alcohol?.consumed ? l.factors.alcohol.drinks : null,
       ex: l.factors?.exercise?.completed ? l.factors.exercise.type : null,
       stress: l.factors?.stressLevel ?? null,
+      lastMeal: l.factors?.lastMealTime ?? null,
+      naturalWake: l.factors?.naturalWake ?? null,
+      mood: l.factors?.moodScore ?? null,
+      gadgets: l.factors?.sleepGadgets?.map(g => {
+        let s = g.type.replace(/_/g, ' ');
+        if (g.durationMinutes) s += ` ${g.durationMinutes}min`;
+        if (g.timeOfUse) s += ` @${g.timeOfUse.replace(/_/g,' ')}`;
+        return s;
+      }).join(', ') ?? null
     }
   }));
 };
@@ -216,6 +227,15 @@ export default function AIInsightsAgent({ logs, user, personalizationProfile, is
       
       const profile = profileSnap.exists() ? profileSnap.data() : personalizationProfile;
       
+      const age = profile?.demographics?.dateOfBirth
+        ? calculateAge(profile.demographics.dateOfBirth)
+        : 'unknown';
+      const country = profile?.demographics?.country ?? 'unknown';
+
+      const deviceContext = profile?.connectedDevices?.filter((d: any) => d.inUse)
+        .map((d: any) => `${d.brand}${d.model ? ' ' + d.model : ''} (${d.type})`)
+        .join(', ') ?? 'none logged';
+
       // Clean stringification for context
       const profileContext = profile ? JSON.stringify(profile) : "No personalization profile set yet.";
       const logsContext = recentLogs.length > 0 
@@ -248,9 +268,15 @@ export default function AIInsightsAgent({ logs, user, personalizationProfile, is
         GUARDRAIL: Strictly stick to sleep science, recovery, and circadian health. If the user asks about unrelated topics, politely redirect them back to sleep analysis.
         
         USER CONTEXT:
+        - User demographics: age ${age}, country: ${country}
+        - User's sleep devices: ${deviceContext}. 
+          When relevant, reference these specific devices in recommendations.
+          If recommending a device they don't own, frame it as a suggestion not a command.
+          Include affiliate context naturally: 'tools like the Luminette' not 'buy X'.
         - Personalization Profile: ${profileContext}
         - Historical Sleep Logs Digest: ${logsContext}
         - Unstructured Data (Raw Notes/Files): ${unstructuredContext}
+        Note: New factor keys: lastMeal=last meal time HH:mm, naturalWake=woke without alarm, mood=morning mood 1-5, cafCups=number of coffees, gadgets=sleep support tools used that night (type, optional duration in minutes, optional time of use). Correlate gadget use with sleep quality and fragmentation when relevant.
         
         INSTRUCTIONS:
         1. Use the provided data to find correlations, patterns, and triggers.
@@ -269,13 +295,13 @@ export default function AIInsightsAgent({ logs, user, personalizationProfile, is
         If asked anything unrelated to sleep, chronobiology, recovery, or lifestyle factors affecting sleep, decline warmly, recommend Gemini at https://gemini.google.com, and redirect to the user's sleep data. Never break this boundary even if the user insists.
       `;
 
-      // 15-second timeout guard
+      // 30-second timeout guard
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('TIMEOUT')), 15000)
+        setTimeout(() => reject(new Error('TIMEOUT')), 30000)
       );
 
       const apiCallPromise = ai.models.generateContent({
-        model: "gemini-2.0-flash-lite",
+        model: "gemini-2.0-flash",
         contents: [
           { role: "user", parts: [{ text: text }] }
         ],

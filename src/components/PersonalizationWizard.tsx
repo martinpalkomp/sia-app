@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { format } from 'date-fns';
 import { 
   Sparkles, 
   ChevronRight, 
@@ -19,6 +20,7 @@ import {
 } from 'lucide-react';
 import { User, db, doc, setDoc, serverTimestamp } from '../lib/firebase';
 import { PersonalizationProfile } from '../types';
+import { calculateAge } from '../utils/dateUtils';
 import EthicalDataPledge from './EthicalDataPledge';
 
 interface PersonalizationWizardProps {
@@ -38,6 +40,15 @@ const GOALS = [
 const WORK_SCHEDULES = ['Regular Hours', 'Shift Work'];
 const ENVIRONMENT_TYPES = ['Noisy/Urban', 'Quiet/Controlled'];
 
+const DEVICE_OPTIONS = [
+  { id: 'luminette', label: 'Luminette / light therapy glasses', type: 'light_therapy', brand: 'Luminette' },
+  { id: 'smart-lighting', label: 'Philips Hue or smart lighting', type: 'light_therapy', brand: 'Smart Lighting' },
+  { id: 'thermal', label: 'Eight Sleep / ChiliPad / thermal mattress', type: 'thermal', brand: 'Thermal Mattress' },
+  { id: 'oura', label: 'Oura Ring', type: 'wearable', brand: 'Oura' },
+  { id: 'watch', label: 'Apple Watch / Garmin', type: 'wearable', brand: 'Watch' },
+  { id: 'acoustic', label: 'White/pink noise device', type: 'acoustic', brand: 'Acoustic Device' },
+];
+
 const NEURO_FACTORS = [
   { id: 'rls', label: 'RLS (Restless Legs)' },
   { id: 'plm', label: 'Periodic Limb Movements' },
@@ -48,7 +59,7 @@ export default function PersonalizationWizard({ user, onComplete, onClose }: Per
   const [step, setStep] = useState(0);
   const [data, setData] = useState<PersonalizationProfile>({
     demographics: {
-      age: 30,
+      dateOfBirth: '1994-01-01',
       sex: 'Male',
       workSchedule: 'Regular Hours',
       environmentType: 'Quiet/Controlled',
@@ -74,11 +85,12 @@ export default function PersonalizationWizard({ user, onComplete, onClose }: Per
       },
       notes: '',
     },
-    allowsAnonymizedSharing: true
+    allowsAnonymizedSharing: true,
+    connectedDevices: []
   });
   const [isSaving, setIsSaving] = useState(false);
 
-  const totalSteps = 5;
+  const totalSteps = 6;
 
   const handleGoalToggle = (goalId: string) => {
     setData(prev => ({
@@ -99,6 +111,50 @@ export default function PersonalizationWizard({ user, onComplete, onClose }: Per
           : [...(prev.clinical?.neurological || []), factorId]
       }
     }));
+  };
+
+  const handleDeviceToggle = (option: typeof DEVICE_OPTIONS[0]) => {
+    setData(prev => {
+      const devices = prev.connectedDevices || [];
+      const exists = devices.find(d => d.brand === option.brand && d.type === option.type);
+      
+      if (exists) {
+        return {
+          ...prev,
+          connectedDevices: devices.filter(d => !(d.brand === option.brand && d.type === option.type))
+        };
+      } else {
+        return {
+          ...prev,
+          connectedDevices: [...devices, { type: option.type as any, brand: option.brand, inUse: true }]
+        };
+      }
+    });
+  };
+
+  const handleOtherDeviceChange = (val: string) => {
+    setData(prev => {
+      const devices = prev.connectedDevices || [];
+      const otherIndex = devices.findIndex(d => d.type === 'other');
+      
+      if (val.trim() === '') {
+        return {
+          ...prev,
+          connectedDevices: devices.filter(d => d.type !== 'other')
+        };
+      }
+      
+      if (otherIndex > -1) {
+        const newDevices = [...devices];
+        newDevices[otherIndex] = { ...newDevices[otherIndex], brand: val };
+        return { ...prev, connectedDevices: newDevices };
+      } else {
+        return {
+          ...prev,
+          connectedDevices: [...devices, { type: 'other', brand: val, inUse: true }]
+        };
+      }
+    });
   };
 
   const handleSave = async () => {
@@ -139,6 +195,16 @@ export default function PersonalizationWizard({ user, onComplete, onClose }: Per
 
   const nextStep = () => setStep(s => Math.min(s + 1, totalSteps - 1));
   const prevStep = () => setStep(s => Math.max(s - 1, 0));
+
+  const updateDemographics = (key: string, value: any) => {
+    setData(prev => ({
+      ...prev,
+      demographics: {
+        ...prev.demographics,
+        [key]: value
+      }
+    }));
+  };
 
   const getSleepinessLabel = (val: number) => {
     if (val <= 3) return "Normal alertness";
@@ -195,25 +261,29 @@ export default function PersonalizationWizard({ user, onComplete, onClose }: Per
                 >
                   <div className="space-y-2">
                     <h3 className="text-lg font-bold text-white">Demographics</h3>
-                    <p className="text-sm text-zinc-400">Basic information to help SIA adjust sleep norms for your age and environment.</p>
+                    <p className="text-sm text-zinc-400">Basic information to help SIA adjust sleep norms for your {calculateAge(data.demographics.dateOfBirth)} years of life and environment.</p>
                   </div>
 
                   <div className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Age</label>
-                        <input 
-                          type="number" 
-                          value={data.demographics.age}
-                          onChange={(e) => setData(prev => ({ ...prev, demographics: { ...prev.demographics, age: parseInt(e.target.value) || 0 } }))}
-                          className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-3 text-white focus:border-indigo-500 outline-none transition-colors"
+                        <label className="text-xs text-zinc-400 uppercase tracking-widest font-bold">Date of Birth</label>
+                        <input
+                          type="date"
+                          value={data.demographics.dateOfBirth ?? ''}
+                          onChange={e => updateDemographics('dateOfBirth', e.target.value)}
+                          max={format(new Date(), 'yyyy-MM-dd')}
+                          className="w-full mt-1 bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white text-sm"
                         />
+                        <p className="text-[10px] text-zinc-600 mt-1">
+                          SIA uses your age to calibrate sleep cycle expectations — deep sleep patterns shift naturally with each decade of life.
+                        </p>
                       </div>
                       <div className="space-y-2">
                         <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Biological Sex</label>
                         <select 
                           value={data.demographics.sex}
-                          onChange={(e) => setData(prev => ({ ...prev, demographics: { ...prev.demographics, sex: e.target.value as any } }))}
+                          onChange={(e) => updateDemographics('sex', e.target.value)}
                           className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-3 text-white focus:border-indigo-500 outline-none transition-colors appearance-none"
                         >
                           <option value="Male">Male</option>
@@ -230,7 +300,7 @@ export default function PersonalizationWizard({ user, onComplete, onClose }: Per
                           {WORK_SCHEDULES.map(sched => (
                             <button
                               key={sched}
-                              onClick={() => setData(prev => ({ ...prev, demographics: { ...prev.demographics, workSchedule: sched as any } }))}
+                              onClick={() => updateDemographics('workSchedule', sched)}
                               className={`flex items-center gap-3 p-3 rounded-xl border text-sm transition-all ${
                                 data.demographics.workSchedule === sched 
                                   ? 'bg-indigo-600/20 border-indigo-500 text-white' 
@@ -249,7 +319,7 @@ export default function PersonalizationWizard({ user, onComplete, onClose }: Per
                           {ENVIRONMENT_TYPES.map(env => (
                             <button
                               key={env}
-                              onClick={() => setData(prev => ({ ...prev, demographics: { ...prev.demographics, environmentType: env as any } }))}
+                              onClick={() => updateDemographics('environmentType', env)}
                               className={`flex items-center gap-3 p-3 rounded-xl border text-sm transition-all ${
                                 data.demographics.environmentType === env 
                                   ? 'bg-indigo-600/20 border-indigo-500 text-white' 
@@ -262,6 +332,20 @@ export default function PersonalizationWizard({ user, onComplete, onClose }: Per
                           ))}
                         </div>
                       </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-xs text-zinc-400 uppercase tracking-widest font-bold">Country</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Czech Republic"
+                        value={data.demographics.country ?? ''}
+                        onChange={e => updateDemographics('country', e.target.value)}
+                        className="w-full mt-1 bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white text-sm"
+                      />
+                      <p className="text-[10px] text-zinc-600 mt-1">
+                        Used to contextualise seasonal light patterns and regional sleep norms.
+                      </p>
                     </div>
                   </div>
                 </motion.div>
@@ -510,6 +594,59 @@ export default function PersonalizationWizard({ user, onComplete, onClose }: Per
                   </div>
                 </motion.div>
               )}
+
+              {step === 5 && (
+                <motion.div
+                  key="step-environment"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  className="space-y-6"
+                >
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-lg font-bold text-white">Your Sleep Environment</h3>
+                      <span className="text-[10px] font-black bg-indigo-500/20 text-indigo-400 px-2 py-0.5 rounded uppercase tracking-widest">Optional</span>
+                    </div>
+                    <p className="text-sm text-zinc-400">Optional — helps SIA give hardware-specific recommendations. You can skip this if you don't use any devices.</p>
+                  </div>
+
+                  <div className="space-y-3">
+                    {DEVICE_OPTIONS.map(option => {
+                      const isSelected = data.connectedDevices?.some(d => d.brand === option.brand && d.type === option.type);
+                      return (
+                        <button
+                          key={option.id}
+                          onClick={() => handleDeviceToggle(option)}
+                          className={`w-full flex items-center gap-4 p-4 rounded-2xl border transition-all ${
+                            isSelected 
+                              ? 'bg-indigo-600/20 border-indigo-500 text-white shadow-lg shadow-indigo-500/10' 
+                              : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:border-zinc-700'
+                          }`}
+                        >
+                          <div className={`w-6 h-6 rounded-lg flex items-center justify-center border ${
+                            isSelected ? 'bg-indigo-500 border-indigo-400 text-white' : 'bg-zinc-800 border-zinc-700 text-transparent'
+                          }`}>
+                            <Check size={14} />
+                          </div>
+                          <span className="font-bold text-sm text-left">{option.label}</span>
+                        </button>
+                      );
+                    })}
+
+                    <div className="space-y-2 pt-2">
+                      <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Other Device</label>
+                      <input 
+                        type="text"
+                        placeholder="e.g. Weighted blanket, specific humidifier..."
+                        value={data.connectedDevices?.find(d => d.type === 'other')?.brand || ''}
+                        onChange={(e) => handleOtherDeviceChange(e.target.value)}
+                        className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-3 text-white focus:border-indigo-500 outline-none transition-colors text-sm"
+                      />
+                    </div>
+                  </div>
+                </motion.div>
+              )}
             </AnimatePresence>
           </div>
 
@@ -534,18 +671,28 @@ export default function PersonalizationWizard({ user, onComplete, onClose }: Per
                 <ChevronRight size={16} />
               </button>
             ) : (
-              <button
-                onClick={handleSave}
-                disabled={isSaving}
-                className="flex items-center gap-2 bg-indigo-600 text-white px-8 py-3 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-indigo-500 transition-all shadow-lg shadow-indigo-500/20 disabled:opacity-50"
-              >
-                {isSaving ? (
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                ) : (
-                  <Save size={16} />
+              <div className="flex items-center gap-3">
+                {step === 5 && (
+                  <button
+                    onClick={handleSave}
+                    className="text-zinc-500 hover:text-white text-xs font-black uppercase tracking-widest px-4 py-3"
+                  >
+                    Skip
+                  </button>
                 )}
-                Get better results now
-              </button>
+                <button
+                  onClick={handleSave}
+                  disabled={isSaving}
+                  className="flex items-center gap-2 bg-indigo-600 text-white px-8 py-3 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-indigo-500 transition-all shadow-lg shadow-indigo-500/20 disabled:opacity-50"
+                >
+                  {isSaving ? (
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    <Save size={16} />
+                  )}
+                  Get better results now
+                </button>
+              </div>
             )}
           </div>
         </div>

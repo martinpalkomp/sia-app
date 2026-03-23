@@ -10,6 +10,7 @@ import {
 } from 'firebase/firestore';
 import { User } from 'firebase/auth';
 import { DailyLog, PersonalizationProfile } from '../types';
+import { calculateAge } from './dateUtils';
 
 export async function exportUserData(user: User, db: any) {
   const workbook = new ExcelJS.Workbook();
@@ -21,7 +22,7 @@ export async function exportUserData(user: User, db: any) {
     'Date', 'Bedtime', 'Waketime', 'Status_Code', 'SQ', 'R', 'L', 'Remarks', 
     'Caffeine_Y', 'Caffeine_Cups', 'Caffeine_LastIntake', 'Alcohol_Y', 'Alcohol_Drinks', 'Alcohol_LastIntake', 
     'Medication_Y', 'Medication_Type', 'Medication_Time', 'Exercise_Y', 'Exercise_Type', 'Exercise_Time', 
-    'Screens_Y', 'Stress_1to5', 'LastMeal_Time', 'NaturalWake_Y', 'MorningMood_1to5'
+    'Screens_Y', 'Stress_1to5', 'LastMeal_Time', 'NaturalWake_Y', 'MorningMood_1to5', 'Sleep_Gadgets'
   ];
 
   const headerRow = sleepLogsSheet.addRow(headers);
@@ -45,11 +46,15 @@ export async function exportUserData(user: User, db: any) {
   const logsSnap = await getDocs(q);
   const logs = logsSnap.docs.map(d => d.data() as DailyLog);
 
+  // Track whether we've written factors for this date yet
+  const writtenFactorDates = new Set<string>();
+
   logs.forEach(log => {
     if (!log.sleepEvents || log.sleepEvents.length === 0) return;
 
-    log.sleepEvents.forEach((event, index) => {
-      const isFirstSleep = index === 0 && event.type === 'sleep';
+    log.sleepEvents.forEach((event) => {
+      const shouldWriteFactors = event.type === 'sleep' && !writtenFactorDates.has(log.date);
+      if (shouldWriteFactors) writtenFactorDates.add(log.date);
       const factors = log.factors;
 
       const rowData = [
@@ -57,27 +62,33 @@ export async function exportUserData(user: User, db: any) {
         event.start,
         event.end,
         event.type.toUpperCase(),
-        isFirstSleep ? log.sleep_quality : '',
-        isFirstSleep ? log.morning_alertness : '',
-        isFirstSleep ? log.daytime_energy : '',
-        isFirstSleep ? log.daily_remarks : '',
-        isFirstSleep ? (factors?.caffeine?.consumed ? 'yes' : 'no') : '',
-        isFirstSleep ? (factors?.caffeine?.amount ?? '') : '',
-        isFirstSleep ? (factors?.caffeine?.lastIntake ?? '') : '',
-        isFirstSleep ? (factors?.alcohol?.consumed ? 'yes' : 'no') : '',
-        isFirstSleep ? (factors?.alcohol?.drinks ?? '') : '',
-        isFirstSleep ? (factors?.alcohol?.lastIntake ?? '') : '',
-        isFirstSleep ? (factors?.medication?.taken ? 'yes' : 'no') : '',
-        isFirstSleep ? (factors?.medication?.type ?? '') : '',
-        isFirstSleep ? (factors?.medication?.time ?? '') : '',
-        isFirstSleep ? (factors?.exercise?.completed ? 'yes' : 'no') : '',
-        isFirstSleep ? (factors?.exercise?.type ?? '') : '',
-        isFirstSleep ? (factors?.exercise?.time ?? '') : '',
-        isFirstSleep ? (factors?.screensInBed ? 'yes' : 'no') : '',
-        isFirstSleep ? (factors?.stressLevel ?? '') : '',
-        isFirstSleep ? (factors?.lastMealTime ?? '') : '',
-        isFirstSleep ? (factors?.naturalWake ? 'yes' : 'no') : '',
-        isFirstSleep ? (factors?.moodScore ?? '') : ''
+        shouldWriteFactors ? log.sleep_quality : '',
+        shouldWriteFactors ? log.morning_alertness : '',
+        shouldWriteFactors ? log.daytime_energy : '',
+        shouldWriteFactors ? log.daily_remarks : '',
+        shouldWriteFactors ? (factors?.caffeine?.consumed ? 'yes' : 'no') : '',
+        shouldWriteFactors ? (factors?.caffeine?.amount ?? '') : '',
+        shouldWriteFactors ? (factors?.caffeine?.lastIntake ?? '') : '',
+        shouldWriteFactors ? (factors?.alcohol?.consumed ? 'yes' : 'no') : '',
+        shouldWriteFactors ? (factors?.alcohol?.drinks ?? '') : '',
+        shouldWriteFactors ? (factors?.alcohol?.lastIntake ?? '') : '',
+        shouldWriteFactors ? (factors?.medication?.taken ? 'yes' : 'no') : '',
+        shouldWriteFactors ? (factors?.medication?.type ?? '') : '',
+        shouldWriteFactors ? (factors?.medication?.time ?? '') : '',
+        shouldWriteFactors ? (factors?.exercise?.completed ? 'yes' : 'no') : '',
+        shouldWriteFactors ? (factors?.exercise?.type ?? '') : '',
+        shouldWriteFactors ? (factors?.exercise?.time ?? '') : '',
+        shouldWriteFactors ? (factors?.screensInBed ? 'yes' : 'no') : '',
+        shouldWriteFactors ? (factors?.stressLevel ?? '') : '',
+        shouldWriteFactors ? (factors?.lastMealTime ?? '') : '',
+        shouldWriteFactors ? (factors?.naturalWake ? 'yes' : 'no') : '',
+        shouldWriteFactors ? (factors?.moodScore ?? '') : '',
+        shouldWriteFactors ? (log.factors?.sleepGadgets?.map(g => {
+          let s = g.type;
+          if (g.durationMinutes) s += `(${g.durationMinutes}min)`;
+          if (g.timeOfUse) s += `@${g.timeOfUse}`;
+          return s;
+        }).join(',') ?? '') : ''
       ];
 
       const row = sleepLogsSheet.addRow(rowData);
@@ -96,7 +107,7 @@ export async function exportUserData(user: User, db: any) {
   sleepLogsSheet.columns = [
     { width: 13 }, { width: 9 }, { width: 9 }, { width: 13 }, { width: 5 }, { width: 5 }, { width: 5 }, { width: 22 },
     { width: 10 }, { width: 12 }, { width: 12 }, { width: 10 }, { width: 12 }, { width: 12 }, { width: 10 }, { width: 16 },
-    { width: 12 }, { width: 10 }, { width: 16 }, { width: 12 }, { width: 10 }, { width: 12 }, { width: 12 }, { width: 10 }, { width: 12 }
+    { width: 12 }, { width: 10 }, { width: 16 }, { width: 12 }, { width: 10 }, { width: 12 }, { width: 12 }, { width: 10 }, { width: 12 }, { width: 30 }
   ];
 
   // --- SHEET 2: User ---
@@ -117,7 +128,9 @@ export async function exportUserData(user: User, db: any) {
     ['Email', user.email || '—'],
     ['Export Date', today],
     ['--- Demographics ---', ''],
-    ['Age', profile?.demographics?.age ?? '—'],
+    ['Date of Birth', profile?.demographics?.dateOfBirth ?? '—'],
+    ['Age', profile?.demographics?.dateOfBirth ? calculateAge(profile.demographics.dateOfBirth) : '—'],
+    ['Country', profile?.demographics?.country ?? '—'],
     ['Sex', profile?.demographics?.sex ?? '—'],
     ['Work Schedule', profile?.demographics?.workSchedule ?? '—'],
     ['Environment', profile?.demographics?.environmentType ?? '—'],

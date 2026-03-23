@@ -30,6 +30,11 @@ export interface FullLog extends BaseLog {
     lastMealTime?: string;     // HH:mm — time of last meal before sleep
     naturalWake?: boolean;     // true = woke without alarm, false = alarm woke user
     moodScore?: number;        // 1-5 subjective mood on waking
+    sleepGadgets?: Array<{
+      type: 'light_therapy' | 'breathing_trainer' | 'pre_sleep_heating' | 'aromatherapy' | 'meditation_app' | 'cooling_pad' | 'white_noise' | 'sleep_mask' | 'earplugs' | 'weighted_blanket' | 'smart_ring' | 'smartwatch_tracking' | 'fitness_band' | 'phone_sleep_app';
+      durationMinutes?: number;
+      timeOfUse?: 'morning' | 'afternoon' | 'evening' | 'before_bed_15' | 'before_bed_30' | 'before_bed_60' | 'all_night';
+    }>;
   };
 }
 
@@ -45,7 +50,8 @@ export interface SummaryLog extends BaseLog {
 
 export interface PersonalizationProfile {
   demographics: {
-    age: number;
+    dateOfBirth: string;   // replaces age — YYYY-MM-DD
+    country?: string;      // ISO country name e.g. "Czech Republic"
     sex: 'Male' | 'Female' | 'Other';
     workSchedule: 'Regular Hours' | 'Shift Work';
     environmentType: 'Noisy/Urban' | 'Quiet/Controlled';
@@ -72,6 +78,12 @@ export interface PersonalizationProfile {
     notes: string;
   };
   allowsAnonymizedSharing?: boolean;
+  connectedDevices?: Array<{
+    type: 'light_therapy' | 'thermal' | 'acoustic' | 'wearable' | 'other';
+    brand: string;        // e.g. "Luminette", "Eight Sleep", "Oura"
+    model?: string;
+    inUse: boolean;
+  }>;
   updatedAt?: any;
 }
 
@@ -95,6 +107,11 @@ export interface DailyLog extends Partial<FullLog>, Partial<SummaryLog> {
     lastMealTime?: string;     // HH:mm — time of last meal before sleep
     naturalWake?: boolean;     // true = woke without alarm, false = alarm woke user
     moodScore?: number;        // 1-5 subjective mood on waking
+    sleepGadgets?: Array<{
+      type: 'light_therapy' | 'breathing_trainer' | 'pre_sleep_heating' | 'aromatherapy' | 'meditation_app' | 'cooling_pad' | 'white_noise' | 'sleep_mask' | 'earplugs' | 'weighted_blanket' | 'smart_ring' | 'smartwatch_tracking' | 'fitness_band' | 'phone_sleep_app';
+      durationMinutes?: number;
+      timeOfUse?: 'morning' | 'afternoon' | 'evening' | 'before_bed_15' | 'before_bed_30' | 'before_bed_60' | 'all_night';
+    }>;
   };
   modifiedBySync?: boolean[];
   source?: 'manual' | 'import';

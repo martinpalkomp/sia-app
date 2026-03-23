@@ -132,6 +132,7 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
     if (h === 'lastmeal_time' || h === 'lastmeal' || h === 'last_meal') return 'LastMeal';
     if (h === 'naturalwake_y' || h === 'naturalwake' || h === 'natural_wake') return 'NaturalWake';
     if (h === 'morningmood_1to5' || h === 'morningmood' || h === 'morning_mood') return 'MoodScore';
+    if (h === 'sleep_gadgets' || h === 'gadgets' || h.includes('gadget')) return 'Sleep_Gadgets';
     return null;
   };
 
@@ -224,7 +225,14 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
         let end = mappedRow.End_Time;
         const status = mappedRow.Status_Code;
 
-        const normalizeTime = (t: string) => t?.toString().trim() === '24:00' ? '00:00' : t?.toString().trim();
+        const normalizeTime = (t: string): string => {
+          if (!t) return t;
+          const str = t.toString().trim();
+          if (str === '24:00') return '00:00';
+          // Add leading zero if hour is single digit e.g. "8:00" → "08:00"
+          if (/^\d:\d{2}$/.test(str)) return '0' + str;
+          return str;
+        };
         start = normalizeTime(start);
         end = normalizeTime(end);
 
@@ -403,6 +411,20 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
         if (row.LastMeal) log.factors.lastMealTime = row.LastMeal.toString();
         if (row.NaturalWake) log.factors.naturalWake = row.NaturalWake?.toString().toLowerCase() === 'yes';
         if (row.MoodScore) log.factors.moodScore = parseInt(row.MoodScore) || 3;
+        
+        if (row.Sleep_Gadgets && typeof row.Sleep_Gadgets === 'string' && row.Sleep_Gadgets.trim()) {
+          const gadgetStrings = row.Sleep_Gadgets.split(',').map((s: string) => s.trim()).filter(Boolean);
+          logsToSave[date].factors.sleepGadgets = gadgetStrings.map((g: string) => {
+            const timeMatch = g.match(/@(\w+)$/);
+            const durMatch = g.match(/\((\d+)min\)/);
+            const type = g.replace(/\(\d+min\)/, '').replace(/@\w+$/, '').trim();
+            return {
+              type: type as any,
+              ...(durMatch ? { durationMinutes: parseInt(durMatch[1]) } : {}),
+              ...(timeMatch ? { timeOfUse: timeMatch[1] as any } : {})
+            };
+          });
+        }
 
         const startIndex = timeToIndex(start);
         const endIndex = timeToIndex(end);
@@ -642,7 +664,7 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
       'Date', 'Bedtime', 'Waketime', 'Status_Code', 'SQ', 'R', 'L', 'Remarks', 
       'Caffeine_Y', 'Caffeine_Cups', 'Caffeine_LastIntake', 'Alcohol_Y', 'Alcohol_Drinks', 'Alcohol_LastIntake', 
       'Medication_Y', 'Medication_Type', 'Medication_Time', 'Exercise_Y', 'Exercise_Type', 'Exercise_Time', 
-      'Screens_Y', 'Stress_1to5', 'LastMeal_Time', 'NaturalWake_Y', 'MorningMood_1to5'
+      'Screens_Y', 'Stress_1to5', 'LastMeal_Time', 'NaturalWake_Y', 'MorningMood_1to5', 'Sleep_Gadgets'
     ];
     
     // Row 1 — header row: background #2D2B55, white bold Arial text, centered.
@@ -665,7 +687,7 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
     const hints = [
       'YYYY-MM-DD', 'HH:mm', 'HH:mm', 'SLEEP/AWAKE-IN', '0-10', '0-10', '0-10', 'Text', 
       'yes/no', 'number', 'HH:mm', 'yes/no', 'number', 'HH:mm', 'yes/no', 'text', 'HH:mm', 
-      'yes/no', 'text', 'HH:mm', 'yes/no', '1-5', 'HH:mm', 'yes/no', '1-5'
+      'yes/no', 'text', 'HH:mm', 'yes/no', '1-5', 'HH:mm', 'yes/no', '1-5', 'gadget1,gadget2(30min)@morning'
     ];
     const ruleRow = dataSheet.addRow(hints);
     ruleRow.eachCell((cell) => {
@@ -683,9 +705,9 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
 
     // Rows 3-5 — three sample rows
     const sampleRows = [
-      ['2026-03-20', '23:00', '07:30', 'SLEEP', 8, 5, 7, 'Slept well', 'yes', 2, '14:00', 'no', '', '', 'yes', 'Lormazepam', '22:00', 'yes', 'Cardio', '17:00', 'no', 2, '19:30', 'yes', 4],
-      ['2026-03-20', '07:30', '08:00', 'AWAKE-IN', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
-      ['2026-03-21', '23:30', '07:00', 'SLEEP', 6, 4, 5, 'Stressed day', 'yes', 3, '15:30', 'yes', 2, '20:00', 'no', '', '', 'no', '', '', 'yes', 4, '20:00', 'no', 2]
+      ['2026-03-20', '23:00', '07:30', 'SLEEP', 8, 5, 7, 'Slept well', 'yes', 2, '14:00', 'no', '', '', 'yes', 'Lormazepam', '22:00', 'yes', 'Cardio', '17:00', 'no', 2, '19:30', 'yes', 4, 'light_therapy(30min)@morning'],
+      ['2026-03-20', '07:30', '08:00', 'AWAKE-IN', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
+      ['2026-03-21', '23:30', '07:00', 'SLEEP', 6, 4, 5, 'Stressed day', 'yes', 3, '15:30', 'yes', 2, '20:00', 'no', '', '', 'no', '', '', 'yes', 4, '20:00', 'no', 2, '']
     ];
 
     sampleRows.forEach((rowData) => {
@@ -732,7 +754,8 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
       { width: 12 }, // Stress_1to5
       { width: 12 }, // LastMeal_Time
       { width: 10 }, // NaturalWake_Y
-      { width: 12 }  // MorningMood_1to5
+      { width: 12 }, // MorningMood_1to5
+      { width: 30 }  // Sleep_Gadgets
     ];
 
     // Instructions Sheet
@@ -779,6 +802,7 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
       ['LastMeal_Time', 'Time of last meal (HH:mm).'],
       ['NaturalWake_Y', 'Did you wake up naturally? (yes/no)'],
       ['MorningMood_1to5', 'Mood upon waking (1-5).'],
+      ['Sleep_Gadgets', 'Comma-separated list of gadgets. Format: type or type(durationMin) or type(durationMin)@timeOfUse. Types: light_therapy, breathing_trainer, pre_sleep_heating, aromatherapy, meditation_app, cooling_pad, white_noise, sleep_mask, earplugs, weighted_blanket, smart_ring, smartwatch_tracking, fitness_band, phone_sleep_app.'],
       ['DISCLAIMER', 'SIA tracks patterns to help you understand your sleep habits. This is not medical advice. Share this data with your doctor for clinical interpretation.']
     ];
 

@@ -35,7 +35,19 @@ import {
   Lightbulb,
   Rocket,
   UtensilsCrossed,
-  Sunrise
+  Sunrise,
+  Wind,
+  Flame,
+  Leaf,
+  Flower2,
+  Snowflake,
+  Volume2,
+  EyeOff,
+  Ear,
+  Bed,
+  Circle,
+  Watch,
+  Activity
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { GoogleGenAI } from "@google/genai";
@@ -184,6 +196,15 @@ export default function App() {
   const [originalSuggestion, setOriginalSuggestion] = useState<Partial<DailyLog> | null>(null);
   const [isImporting, setIsImporting] = useState(false);
   const [showPrefillConfirm, setShowPrefillConfirm] = useState(false);
+  const [isSleepToolsExpanded, setIsSleepToolsExpanded] = useState(false);
+
+  useEffect(() => {
+    if (currentLog.factors.sleepGadgets && currentLog.factors.sleepGadgets.length > 0) {
+      setIsSleepToolsExpanded(true);
+    } else {
+      setIsSleepToolsExpanded(false);
+    }
+  }, [selectedDate]);
 
   const historyCount = useMemo(() => Object.keys(logs).length, [logs]);
 
@@ -538,7 +559,8 @@ export default function App() {
       stressLevel: 3,
       lastMealTime: '',
       naturalWake: false,
-      moodScore: 3
+      moodScore: 3,
+      sleepGadgets: []
     };
 
     const log = (logs[selectedDate] || {
@@ -595,6 +617,36 @@ export default function App() {
 
   const updateFactors = (updates: Partial<DailyLog['factors']>) => {
     updateLog({ factors: { ...currentLog.factors, ...updates } });
+  };
+
+  const toggleGadget = (type: string) => {
+    const currentGadgets = currentLog.factors.sleepGadgets || [];
+    const exists = currentGadgets.find(g => g.type === type);
+    
+    if (exists) {
+      updateFactors({
+        sleepGadgets: currentGadgets.filter(g => g.type !== type)
+      });
+    } else {
+      updateFactors({
+        sleepGadgets: [...currentGadgets, { type: type as any }]
+      });
+    }
+  };
+
+  const updateGadgetDetails = (type: string, updates: any) => {
+    const currentGadgets = currentLog.factors.sleepGadgets || [];
+    updateFactors({
+      sleepGadgets: currentGadgets.map(g => g.type === type ? { ...g, ...updates } : g)
+    });
+  };
+
+  const isGadgetSelected = (type: string) => {
+    return (currentLog.factors.sleepGadgets || []).some(g => g.type === type);
+  };
+
+  const getGadget = (type: string) => {
+    return (currentLog.factors.sleepGadgets || []).find(g => g.type === type);
   };
 
   const setSlotState = (index: number, state: SleepState) => {
@@ -1803,6 +1855,270 @@ export default function App() {
                     icon={Sun}
                   />
                 </div>
+              </section>
+
+              {/* Sleep support tools Section */}
+              <section className="bg-zinc-900/50 border border-zinc-800 rounded-3xl overflow-hidden">
+                <button 
+                  onClick={() => setIsSleepToolsExpanded(!isSleepToolsExpanded)}
+                  className="w-full p-6 flex items-center justify-between hover:bg-zinc-800/30 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-indigo-500/10 flex items-center justify-center">
+                      <Wand2 size={18} className="text-indigo-400" />
+                    </div>
+                    <div className="text-left">
+                      <h2 className="text-sm font-bold text-white">Sleep support tools</h2>
+                      <p className="text-[10px] text-zinc-500 uppercase tracking-wider font-medium">Interventions & Aids</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    {currentLog.factors.sleepGadgets && currentLog.factors.sleepGadgets.length > 0 && (
+                      <span className="px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-400 text-[10px] font-bold">
+                        {currentLog.factors.sleepGadgets.length}
+                      </span>
+                    )}
+                    <motion.div
+                      animate={{ rotate: isSleepToolsExpanded ? 180 : 0 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <ChevronDown size={20} className="text-zinc-500" />
+                    </motion.div>
+                  </div>
+                </button>
+
+                <AnimatePresence>
+                  {isSleepToolsExpanded && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.3, ease: "easeInOut" }}
+                      className="px-6 pb-6 space-y-8"
+                    >
+                      {/* Sub-section 1: Interventions */}
+                      <div className="space-y-4">
+                        <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500 border-b border-zinc-800/50 pb-2">Interventions</h3>
+                        <div className="grid grid-cols-1 gap-4">
+                          {/* Light Therapy */}
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors ${isGadgetSelected('light_therapy') ? 'bg-yellow-500/20 text-yellow-400' : 'bg-zinc-800 text-zinc-500'}`}>
+                                  <Lightbulb size={16} />
+                                </div>
+                                <span className="text-sm font-medium text-zinc-300">Light Therapy</span>
+                              </div>
+                              <button 
+                                onClick={() => toggleGadget('light_therapy')}
+                                className={`w-10 h-5 rounded-full transition-colors relative ${isGadgetSelected('light_therapy') ? 'bg-indigo-600' : 'bg-zinc-700'}`}
+                              >
+                                <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${isGadgetSelected('light_therapy') ? 'left-6' : 'left-1'}`} />
+                              </button>
+                            </div>
+                            {isGadgetSelected('light_therapy') && (
+                              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="pl-11 space-y-4 pt-1">
+                                <div className="space-y-2">
+                                  <label className="text-[10px] text-zinc-500 uppercase font-bold">Duration</label>
+                                  <div className="flex gap-2">
+                                    {[15, 30, 45, 60].map(min => (
+                                      <button
+                                        key={min}
+                                        onClick={() => updateGadgetDetails('light_therapy', { durationMinutes: min })}
+                                        className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all ${getGadget('light_therapy')?.durationMinutes === min ? 'bg-indigo-500 text-white' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}
+                                      >
+                                        {min}m
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                                <div className="space-y-2">
+                                  <label className="text-[10px] text-zinc-500 uppercase font-bold">Time of use</label>
+                                  <div className="flex gap-2">
+                                    {['morning', 'afternoon', 'evening'].map(time => (
+                                      <button
+                                        key={time}
+                                        onClick={() => updateGadgetDetails('light_therapy', { timeOfUse: time })}
+                                        className={`px-3 py-1.5 rounded-lg text-[10px] font-bold capitalize transition-all ${getGadget('light_therapy')?.timeOfUse === time ? 'bg-indigo-500 text-white' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}
+                                      >
+                                        {time}
+                                      </button>
+                                    ))}
+                                  </div>
+                                  <p className="text-[9px] text-zinc-500 italic">Morning use anchors your rhythm · Evening use delays it</p>
+                                </div>
+                              </motion.div>
+                            )}
+                          </div>
+
+                          {/* Breathing Trainer */}
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors ${isGadgetSelected('breathing_trainer') ? 'bg-blue-500/20 text-blue-400' : 'bg-zinc-800 text-zinc-500'}`}>
+                                  <Wind size={16} />
+                                </div>
+                                <span className="text-sm font-medium text-zinc-300">Breathing Trainer</span>
+                              </div>
+                              <button 
+                                onClick={() => toggleGadget('breathing_trainer')}
+                                className={`w-10 h-5 rounded-full transition-colors relative ${isGadgetSelected('breathing_trainer') ? 'bg-indigo-600' : 'bg-zinc-700'}`}
+                              >
+                                <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${isGadgetSelected('breathing_trainer') ? 'left-6' : 'left-1'}`} />
+                              </button>
+                            </div>
+                            {isGadgetSelected('breathing_trainer') && (
+                              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="pl-11 space-y-2 pt-1">
+                                <label className="text-[10px] text-zinc-500 uppercase font-bold">Duration</label>
+                                <div className="flex gap-2">
+                                  {[15, 30, 45].map(min => (
+                                    <button
+                                      key={min}
+                                      onClick={() => updateGadgetDetails('breathing_trainer', { durationMinutes: min })}
+                                      className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all ${getGadget('breathing_trainer')?.durationMinutes === min ? 'bg-indigo-500 text-white' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}
+                                    >
+                                      {min}m
+                                    </button>
+                                  ))}
+                                </div>
+                              </motion.div>
+                            )}
+                          </div>
+
+                          {/* Pre-sleep Heating */}
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors ${isGadgetSelected('pre_sleep_heating') ? 'bg-orange-500/20 text-orange-400' : 'bg-zinc-800 text-zinc-500'}`}>
+                                  <Flame size={16} />
+                                </div>
+                                <span className="text-sm font-medium text-zinc-300">Pre-sleep Heating</span>
+                              </div>
+                              <button 
+                                onClick={() => toggleGadget('pre_sleep_heating')}
+                                className={`w-10 h-5 rounded-full transition-colors relative ${isGadgetSelected('pre_sleep_heating') ? 'bg-indigo-600' : 'bg-zinc-700'}`}
+                              >
+                                <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${isGadgetSelected('pre_sleep_heating') ? 'left-6' : 'left-1'}`} />
+                              </button>
+                            </div>
+                            {isGadgetSelected('pre_sleep_heating') && (
+                              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="pl-11 space-y-2 pt-1">
+                                <label className="text-[10px] text-zinc-500 uppercase font-bold">Used before bed</label>
+                                <div className="flex gap-2">
+                                  {[15, 30, 60].map(min => (
+                                    <button
+                                      key={min}
+                                      onClick={() => updateGadgetDetails('pre_sleep_heating', { timeOfUse: `before_bed_${min}` })}
+                                      className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all ${getGadget('pre_sleep_heating')?.timeOfUse === `before_bed_${min}` ? 'bg-indigo-500 text-white' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}
+                                    >
+                                      {min}m before
+                                    </button>
+                                  ))}
+                                </div>
+                                <p className="text-[9px] text-zinc-500 italic">Pre-sleep warming triggers the cooling response that initiates sleep</p>
+                              </motion.div>
+                            )}
+                          </div>
+
+                          {/* Aromatherapy */}
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors ${isGadgetSelected('aromatherapy') ? 'bg-emerald-500/20 text-emerald-400' : 'bg-zinc-800 text-zinc-500'}`}>
+                                  <Leaf size={16} />
+                                </div>
+                                <span className="text-sm font-medium text-zinc-300">Aromatherapy</span>
+                              </div>
+                              <button 
+                                onClick={() => toggleGadget('aromatherapy')}
+                                className={`w-10 h-5 rounded-full transition-colors relative ${isGadgetSelected('aromatherapy') ? 'bg-indigo-600' : 'bg-zinc-700'}`}
+                              >
+                                <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${isGadgetSelected('aromatherapy') ? 'left-6' : 'left-1'}`} />
+                              </button>
+                            </div>
+                            {isGadgetSelected('aromatherapy') && (
+                              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="pl-11 space-y-2 pt-1">
+                                <label className="text-[10px] text-zinc-500 uppercase font-bold">Duration</label>
+                                <div className="flex gap-2">
+                                  {[15, 30, 45].map(min => (
+                                    <button
+                                      key={min}
+                                      onClick={() => updateGadgetDetails('aromatherapy', { durationMinutes: min })}
+                                      className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all ${getGadget('aromatherapy')?.durationMinutes === min ? 'bg-indigo-500 text-white' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}
+                                    >
+                                      {min}m
+                                    </button>
+                                  ))}
+                                </div>
+                              </motion.div>
+                            )}
+                          </div>
+
+                          {/* Meditation App */}
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors ${isGadgetSelected('meditation_app') ? 'bg-purple-500/20 text-purple-400' : 'bg-zinc-800 text-zinc-500'}`}>
+                                <Flower2 size={16} />
+                              </div>
+                              <span className="text-sm font-medium text-zinc-300">Meditation App</span>
+                            </div>
+                            <button 
+                              onClick={() => toggleGadget('meditation_app')}
+                              className={`w-10 h-5 rounded-full transition-colors relative ${isGadgetSelected('meditation_app') ? 'bg-indigo-600' : 'bg-zinc-700'}`}
+                            >
+                              <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${isGadgetSelected('meditation_app') ? 'left-6' : 'left-1'}`} />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Sub-section 2: Passive aids */}
+                      <div className="space-y-4">
+                        <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500 border-b border-zinc-800/50 pb-2">Passive aids</h3>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                          {[
+                            { id: 'cooling_pad', label: 'Cooling Pad', icon: Snowflake, color: 'text-blue-400' },
+                            { id: 'white_noise', label: 'White Noise', icon: Volume2, color: 'text-zinc-400' },
+                            { id: 'sleep_mask', label: 'Sleep Mask', icon: EyeOff, color: 'text-zinc-400' },
+                            { id: 'earplugs', label: 'Earplugs', icon: Ear, color: 'text-zinc-400' },
+                            { id: 'weighted_blanket', label: 'Weighted Blanket', icon: Bed, color: 'text-zinc-400' }
+                          ].map(aid => (
+                            <button
+                              key={aid.id}
+                              onClick={() => toggleGadget(aid.id)}
+                              className={`flex flex-col items-center gap-2 p-3 rounded-2xl border transition-all ${isGadgetSelected(aid.id) ? 'bg-indigo-500/10 border-indigo-500/50' : 'bg-zinc-800/50 border-zinc-800 hover:border-zinc-700'}`}
+                            >
+                              <aid.icon size={20} className={isGadgetSelected(aid.id) ? aid.color : 'text-zinc-600'} />
+                              <span className={`text-[10px] font-bold text-center ${isGadgetSelected(aid.id) ? 'text-white' : 'text-zinc-500'}`}>{aid.label}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Sub-section 3: Sleep tracking */}
+                      <div className="space-y-4">
+                        <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500 border-b border-zinc-800/50 pb-2">Sleep tracking</h3>
+                        <div className="grid grid-cols-2 gap-3">
+                          {[
+                            { id: 'smart_ring', label: 'Smart Ring', icon: Circle, color: 'text-zinc-300' },
+                            { id: 'smartwatch_tracking', label: 'Smartwatch', icon: Watch, color: 'text-zinc-300' },
+                            { id: 'fitness_band', label: 'Fitness Band', icon: Activity, color: 'text-zinc-300' },
+                            { id: 'phone_sleep_app', label: 'Phone App', icon: Smartphone, color: 'text-zinc-300' }
+                          ].map(tracker => (
+                            <button
+                              key={tracker.id}
+                              onClick={() => toggleGadget(tracker.id)}
+                              className={`flex items-center gap-3 p-3 rounded-2xl border transition-all ${isGadgetSelected(tracker.id) ? 'bg-indigo-500/10 border-indigo-500/50' : 'bg-zinc-800/50 border-zinc-800 hover:border-zinc-700'}`}
+                            >
+                              <tracker.icon size={18} className={isGadgetSelected(tracker.id) ? tracker.color : 'text-zinc-600'} />
+                              <span className={`text-[10px] font-bold ${isGadgetSelected(tracker.id) ? 'text-white' : 'text-zinc-500'}`}>{tracker.label}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </section>
 
               {/* Metrics Section */}

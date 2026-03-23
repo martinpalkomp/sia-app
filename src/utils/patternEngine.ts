@@ -167,6 +167,26 @@ export const getSuggestedLog = (
         confidencePoints += 1;
       }
     }
+
+    // Gadget suggestion (same day of week)
+    if (sameDayOfWeekLogs.length >= 3) {
+      const gadgetCounts = new Map<string, number>();
+      const gadgetDetails = new Map<string, any>();
+      sameDayOfWeekLogs.forEach(l => {
+        l.factors?.sleepGadgets?.forEach(g => {
+          gadgetCounts.set(g.type, (gadgetCounts.get(g.type) ?? 0) + 1);
+          if (!gadgetDetails.has(g.type)) gadgetDetails.set(g.type, g);
+        });
+      });
+      const suggestedGadgets = Array.from(gadgetCounts.entries())
+        .filter(([, count]) => count / sameDayOfWeekLogs.length >= 0.6)
+        .map(([type]) => gadgetDetails.get(type));
+      if (suggestedGadgets.length > 0) {
+        suggestion.factors!.sleepGadgets = suggestedGadgets;
+        reasons.push(`+ ${suggestedGadgets.map(g => g.type.replace(/_/g,' ')).join(', ')} (weekly pattern)`);
+        confidencePoints += 1;
+      }
+    }
   }
 
   // 2. Schedule Detection (Same day of week for 3+ weeks)
@@ -225,7 +245,7 @@ export const getSuggestedLog = (
 
       // Add pre-sleep awake-in if user typically has one (>60% of same-day logs)
       if (awakeInRanges.length / sameDayOfWeekLogs.length >= 0.6) {
-        const typicalAwakeIn = awakeInRanges[0][0]; // use most recent as template
+        const typicalAwakeIn = awakeInRanges[0]?.[0]; // use most recent as template
         if (typicalAwakeIn) {
           suggestedEvents.push({
             id: 'suggested-awake-1',

@@ -29,6 +29,7 @@ import DataManager from './DataManager';
 import FeedbackForm from './FeedbackForm';
 import AdminFeedback from './AdminFeedback';
 import { exportUserData } from '../utils/DataExporter';
+import { calculateAge, getAgeDecade } from '../utils/dateUtils';
 
 interface AccountPageProps {
   user: User;
@@ -255,7 +256,15 @@ export default function AccountPage({ user, personalizationProfile, onModifyAsse
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Age</span>
-              <span className="text-sm font-black text-white">{personalizationProfile?.demographics?.age || 'Not set'}</span>
+              <span className="text-sm font-black text-white">
+                {personalizationProfile?.demographics?.dateOfBirth 
+                  ? getAgeDecade(personalizationProfile.demographics.dateOfBirth) 
+                  : 'Not set'}
+              </span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Country</span>
+              <span className="text-sm font-black text-white">{personalizationProfile?.demographics?.country || 'Not set'}</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Biological Sex</span>

@@ -1,8 +1,9 @@
-import { DailyLog } from '../types';
+import { DailyLog, PersonalizationProfile } from '../types';
 // Note: parseISO and differenceInMinutes are imported as requested, 
 // though the current implementation uses manual splitting for time calculations.
 // Keeping them for potential future use or if the user expects them to be there.
 import { parseISO, differenceInMinutes } from 'date-fns';
+import { calculateAge } from './dateUtils';
 
 /**
  * Calculates the fragmentation index, which is the number of sleep interruptions per hour.
@@ -101,15 +102,20 @@ export interface DiagnosticSummary {
   bedtimeConsistencyHours: number;
   naturalWake: boolean | null;
   moodScore: number | null;
+  currentAge: number;
+  country: string | null;
+  gadgetsUsedLastNight: string[];
+  lightTherapyMorningRate: number; // % of logs with morning light therapy
 }
 
 /**
  * Builds a complete diagnostic summary for a given log and history.
  * @param log - The current daily sleep log.
  * @param recentLogs - An array of recent daily sleep logs.
+ * @param profile - Optional personalization profile.
  * @returns A DiagnosticSummary object.
  */
-export const buildDiagnosticSummary = (log: DailyLog, recentLogs: DailyLog[]): DiagnosticSummary => ({
+export const buildDiagnosticSummary = (log: DailyLog, recentLogs: DailyLog[], profile?: PersonalizationProfile): DiagnosticSummary => ({
   fragmentationIndex: calculateFragmentationIndex(log),
   totalSleepHours: calculateTotalSleepHours(log),
   socialJetlagHours: calculateSocialJetlag(log, recentLogs),
@@ -117,4 +123,13 @@ export const buildDiagnosticSummary = (log: DailyLog, recentLogs: DailyLog[]): D
   bedtimeConsistencyHours: calculateBedtimeConsistency(recentLogs),
   naturalWake: log.factors?.naturalWake ?? null,
   moodScore: log.factors?.moodScore ?? null,
+  currentAge: profile?.demographics?.dateOfBirth
+    ? calculateAge(profile.demographics.dateOfBirth)
+    : 0,
+  country: profile?.demographics?.country ?? null,
+  gadgetsUsedLastNight: log.factors?.sleepGadgets?.map(g => g.type) ?? [],
+  lightTherapyMorningRate: (() => {
+    const ltLogs = recentLogs.filter(l => l.factors?.sleepGadgets?.some(g => g.type === 'light_therapy' && g.timeOfUse === 'morning'));
+    return recentLogs.length > 0 ? Math.round((ltLogs.length / recentLogs.length) * 100) : 0;
+  })(),
 });

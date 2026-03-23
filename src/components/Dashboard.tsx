@@ -9,21 +9,15 @@ import {
   Clock,
   TrendingUp,
   AlertCircle,
-  X,
-  BookOpen,
   Brain,
   Sparkles,
   Loader2,
-  Settings,
-  Trash2,
-  ChevronLeft
+  Settings
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { DailyLog, SleepState, SleepEvent } from '../types';
 import { GoogleGenAI } from "@google/genai";
-import { SLEEP_FACTS } from '../data/sleepFacts';
 import { Card, AvatarFrame, MetricDisplay } from './UI';
-import SleepGuideCard from './SleepGuideCard';
 import { calculateSleepDuration, calculateSleepEfficiency, formatDuration, getGridFromEvents, getMinutesFrom2000 } from '../utils/sleepUtils';
 import { calculateSafeAverage } from '../utils/statsEngine';
 import { getSlotLabel } from '../constants';
@@ -41,6 +35,7 @@ import {
   deleteDoc
 } from '../lib/firebase';
 import { getTodayDate, formatDisplayDate } from '../utils/dateUtils';
+import SleepGuideCard from './SleepGuideCard';
 
 interface DashboardProps {
   logs: Record<string, DailyLog>;
@@ -74,9 +69,7 @@ export default function Dashboard({
   const [aiInsight, setAiInsight] = useState<string | null>(null);
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [isDeepAnalysis, setIsDeepAnalysis] = useState(false);
-  const [showAllFacts, setShowAllFacts] = useState(false);
   const [isFirstVisit, setIsFirstVisit] = useState(false);
-  const [factAnchor, setFactAnchor] = useState<string | null>(null);
 
   // Check for first visit
   useEffect(() => {
@@ -116,34 +109,6 @@ export default function Dashboard({
     const m = Math.round((totalMinutesFromMidnight % 60) / 15) * 15; // Round to nearest 15 mins
     return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
   }, [logs]);
-
-  // Pick a random fact on mount
-  const siaFact = useMemo(() => {
-    const randomIndex = Math.floor(Math.random() * SLEEP_FACTS.length);
-    return SLEEP_FACTS[randomIndex];
-  }, []);
-
-  const handleOpenFact = (id: string) => {
-    setFactAnchor(id);
-    setShowAllFacts(true);
-  };
-
-  // Scroll to anchor when modal opens
-  useEffect(() => {
-    if (showAllFacts && factAnchor) {
-      const timer = setTimeout(() => {
-        const el = document.getElementById(`fact-${factAnchor}`);
-        if (el) {
-          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          el.classList.add('ring-2', 'ring-indigo-500', 'ring-offset-4', 'ring-offset-zinc-900');
-          setTimeout(() => {
-            el.classList.remove('ring-2', 'ring-indigo-500', 'ring-offset-4', 'ring-offset-zinc-900');
-          }, 2000);
-        }
-      }, 400); // Wait for modal animation
-      return () => clearTimeout(timer);
-    }
-  }, [showAllFacts, factAnchor]);
 
   // Get last 7 days of logs relative to selectedDate
   const periodDates = useMemo(() => {
@@ -321,63 +286,21 @@ export default function Dashboard({
 
   const isEnhanced = !!personalizationProfile;
 
-  const handleResetDay = async () => {
-    if (!user || !selectedDate || !db) return;
-    try {
-      await deleteDoc(doc(db, 'users', user.uid, 'sleep_logs', selectedDate));
-      refreshAllData();
-    } catch (error) {
-      console.error("Reset failed:", error);
-    }
-  };
+  const recentGadgets = useMemo(() => {
+    const counts = new Map<string, number>();
+    Object.values(logs).slice(-7).forEach(log => {
+      log.factors?.sleepGadgets?.forEach(g => {
+        counts.set(g.type, (counts.get(g.type) ?? 0) + 1);
+      });
+    });
+    return Array.from(counts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 4)
+      .map(([type]) => type);
+  }, [logs]);
 
   return (
     <div className="space-y-8 pb-12 relative">
-      {/* Date Navigation */}
-      <div className="flex items-center justify-between bg-zinc-900/50 p-4 rounded-2xl border border-zinc-800">
-        <button 
-          onClick={() => onDateChange(-1)}
-          className="p-2 hover:bg-zinc-800 rounded-full transition-colors text-zinc-400"
-        >
-          <ChevronLeft size={20} />
-        </button>
-        
-        <div className="flex items-center gap-4">
-          <div className="text-center relative group">
-            <input 
-              type="date" 
-              className="absolute inset-0 opacity-0 cursor-pointer z-10" 
-              value={selectedDate}
-              onChange={(e) => onDateChange(e.target.value)}
-            />
-            <h2 className="text-lg font-bold text-white tracking-tight group-hover:text-indigo-400 transition-colors">
-              {formatDisplayDate(selectedDate)}
-            </h2>
-            <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">
-              {selectedDate === getTodayDate() ? 'TODAY' : 'HISTORICAL LOG'}
-            </p>
-          </div>
-
-          {logs[selectedDate] && (
-            <button 
-              onClick={handleResetDay}
-              className="p-2 hover:bg-red-900/20 text-zinc-500 hover:text-red-400 rounded-xl transition-all border border-zinc-800 hover:border-red-500/30 flex items-center gap-2"
-              title="Reset Day"
-            >
-              <Trash2 size={16} />
-              <span className="text-[10px] font-black uppercase tracking-widest hidden md:inline">Reset</span>
-            </button>
-          )}
-        </div>
-
-        <button 
-          onClick={() => onDateChange(1)}
-          className="p-2 hover:bg-zinc-800 rounded-full transition-colors text-zinc-400"
-        >
-          <ChevronRight size={20} />
-        </button>
-      </div>
-
       {/* Refresh Overlay */}
       <AnimatePresence>
         {isRefreshing && (
@@ -564,32 +487,6 @@ export default function Dashboard({
 
       {/* Section 3: Engagement & Actions */}
       <section className="space-y-6">
-        <Card 
-          onClick={() => handleOpenFact(siaFact.id)}
-          className="flex flex-col justify-between cursor-pointer hover:bg-zinc-800/50 transition-colors group bg-zinc-900 border-zinc-800"
-        >
-          <div className="flex items-start gap-4">
-            <div className="w-10 h-10 bg-indigo-500/10 rounded-xl flex items-center justify-center text-xl border border-indigo-500/20 group-hover:border-indigo-500/40 transition-colors">
-              {siaFact.icon}
-            </div>
-            <div>
-              <p className="metric-title">SIA Fact of the Day • {siaFact.category}</p>
-              <h4 className="text-sm font-bold text-white mt-0.5 group-hover:text-indigo-400 transition-colors">{siaFact.title}</h4>
-              <p className="text-xs text-zinc-400 mt-2 leading-relaxed font-medium line-clamp-2">{siaFact.description}</p>
-            </div>
-          </div>
-          <button 
-            onClick={(e) => {
-              e.stopPropagation();
-              setShowAllFacts(true);
-            }}
-            className="mt-4 flex items-center gap-2 text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] hover:text-white transition-colors self-end"
-          >
-            <BookOpen size={14} />
-            View All Facts
-          </button>
-        </Card>
-
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Card 
             onClick={onLogClick}
@@ -643,7 +540,7 @@ export default function Dashboard({
         </div>
         
         <div className="grid grid-cols-1 gap-6">
-          <SleepGuideCard onClick={onOpenSleepGuide} />
+          <SleepGuideCard onClick={onOpenSleepGuide} gadgetSummary={recentGadgets} />
           
           {!personalizationProfile && (
             <Card 
@@ -714,78 +611,6 @@ export default function Dashboard({
           )}
         </div>
       </section>
-
-
-      {/* All Facts Modal */}
-      <AnimatePresence>
-        {showAllFacts && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setShowAllFacts(false)}
-              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
-            />
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="relative w-full max-w-2xl bg-zinc-900 border border-zinc-800 rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[80vh]"
-            >
-              <div className="p-6 border-b border-zinc-800 flex items-center justify-between bg-zinc-900/50 backdrop-blur-md sticky top-0 z-10">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center">
-                    <BookOpen className="text-white" size={20} />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-bold">Sleep Intelligence Library</h3>
-                    <p className="text-[10px] text-zinc-500 uppercase tracking-widest">Factors Affecting Sleep Quality</p>
-                  </div>
-                </div>
-                <button 
-                  onClick={() => setShowAllFacts(false)}
-                  className="p-2 hover:bg-zinc-800 rounded-full transition-colors text-zinc-400"
-                >
-                  <X size={20} />
-                </button>
-              </div>
-
-              <div className="flex-1 overflow-y-auto p-6 space-y-8 scrollbar-hide">
-                {['Lifestyle', 'Environment', 'Psychology', 'Physiology', 'Behavior'].map((cat) => (
-                  <div key={cat} className="space-y-4">
-                    <h4 className="text-xs font-bold text-indigo-400 uppercase tracking-[0.2em] border-b border-zinc-800 pb-2">{cat} Factors</h4>
-                    <div className="grid gap-4">
-                      {SLEEP_FACTS.filter(f => f.category === cat).map(fact => (
-                        <div 
-                          key={fact.id} 
-                          id={`fact-${fact.id}`}
-                          className="bg-zinc-800/30 border border-zinc-800 p-4 rounded-2xl flex gap-4 transition-all duration-500"
-                        >
-                          <div className="text-2xl flex-shrink-0">{fact.icon}</div>
-                          <div>
-                            <h5 className="text-sm font-bold text-white">{fact.title}</h5>
-                            <p className="text-xs text-zinc-400 mt-1 leading-relaxed">{fact.description}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-                
-                <div className="bg-indigo-600/10 border border-indigo-500/20 p-6 rounded-3xl mt-8">
-                  <h4 className="text-sm font-bold text-indigo-300">SIA's Summary</h4>
-                  <p className="text-xs text-zinc-300 mt-2 leading-relaxed">
-                    Most sleep problems come from three clusters: <strong>Stimulation</strong> (caffeine, screens, stress), 
-                    <strong>Disruption</strong> (noise, light, irregular schedule), and <strong>Internal factors</strong> (pain, hormones, medical conditions).
-                    Improving sleep usually means reducing stimulation in the evening, stabilizing your routine, and optimizing your environment.
-                  </p>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }

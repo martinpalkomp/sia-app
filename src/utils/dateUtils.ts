@@ -1,4 +1,4 @@
-import { format } from 'date-fns';
+import { format, differenceInYears, parseISO } from 'date-fns';
 
 export const getTodayDate = () => {
   const d = new Date();
@@ -55,4 +55,16 @@ export const formatDisplayDate = (dateStr: string) => {
     month: 'short', 
     day: 'numeric' 
   });
+};
+
+export const calculateAge = (dateOfBirth: string): number => {
+  if (!dateOfBirth) return 0;
+  return differenceInYears(new Date(), parseISO(dateOfBirth));
+};
+
+export const getAgeDecade = (dateOfBirth: string): string => {
+  const age = calculateAge(dateOfBirth);
+  if (age === 0) return 'Unknown';
+  const decade = Math.floor(age / 10) * 10;
+  return `${age} (${decade}s)`;
 };
