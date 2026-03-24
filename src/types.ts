@@ -45,6 +45,7 @@ export interface SummaryLog extends BaseLog {
     daytime_energy: number;
     importedDuration: number;
     importedInBed: number;
+    sleep_efficiency: number;
   };
 }
 
@@ -85,6 +86,34 @@ export interface PersonalizationProfile {
     inUse: boolean;
   }>;
   updatedAt?: any;
+}
+
+export interface UnstructuredData {
+  id: string;
+  fileName: string;
+  content: string;
+  uploadDate: string; // ISO string
+  status: string;
+  source: string;
+  summary?: string;
+  estimatedDateRange?: string;
+  extractedInsights?: string[];
+  rawDataType?: string;
+  updatedAt: any;
+}
+
+export interface Insight {
+  id: string;
+  type: 'Pattern' | 'Risk' | 'Recommendation';
+  confidence: number; // 0.0 to 1.0 (Primary confidence used for UI)
+  aiConfidence: number; // Raw confidence from the model
+  computedConfidence: number; // Confidence computed from data coverage
+  summary: string; // Short 1-sentence takeaway
+  details?: string; // Optional longer explanation
+  linkedDates: string[]; // Which log dates triggered this insight
+  createdAt: any; // Firestore timestamp
+  lastUpdated?: any; // Firestore timestamp
+  occurrences: number; // How many times this insight has been triggered/merged
 }
 
 // DailyLog remains for backward compatibility and as the primary state interface

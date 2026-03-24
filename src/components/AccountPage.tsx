@@ -188,33 +188,33 @@ export default function AccountPage({ user, personalizationProfile, onModifyAsse
         />
         <div>
           <h2 className="text-2xl md:text-4xl font-black tracking-tighter text-white leading-[0.95]">{user.displayName}</h2>
-          <p className="text-zinc-500 font-bold uppercase tracking-widest text-[9px] mt-1.5">{user.email}</p>
+          <p className="text-zinc-300 font-bold uppercase tracking-widest text-[9px] mt-1.5">{user.email}</p>
         </div>
       </div>
 
       {/* Status Card */}
-      <Card className={`relative overflow-hidden border-none ${isEnhanced ? 'bg-gradient-to-br from-violet-600 to-indigo-700' : 'bg-zinc-900 border border-zinc-800'}`}>
+      <Card className={`relative overflow-hidden ${isEnhanced ? 'bg-zinc-950 border-violet-500/30 shadow-[0_0_20px_rgba(139,92,246,0.1)]' : 'bg-zinc-900 border border-zinc-800'}`}>
         {isEnhanced && (
           <div className="absolute top-0 right-0 p-6 opacity-10">
-            <ShieldCheck size={120} className="text-white" />
+            <ShieldCheck size={120} className="text-violet-400" />
           </div>
         )}
         <div className="relative z-10 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${isEnhanced ? 'bg-white/20 text-white' : 'bg-zinc-800 text-zinc-500'}`}>
+            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${isEnhanced ? 'bg-violet-500/10 text-violet-400 border border-violet-500/20' : 'bg-zinc-800 text-zinc-300'}`}>
               {isEnhanced ? <ShieldCheck size={24} /> : <Settings size={24} />}
             </div>
             <div>
-              <div className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60 text-white">Account Status</div>
-              <div className="text-xl font-black text-white">Current Version: {isEnhanced ? 'Enhanced' : 'Standard'}</div>
+              <div className={`text-[10px] font-black uppercase tracking-[0.2em] ${isEnhanced ? 'text-violet-300/60' : 'text-zinc-400'}`}>Data Fidelity Tier</div>
+              <div className="text-xl font-black text-white">Fidelity: {isEnhanced ? 'Enhanced Analysis' : 'Baseline'}</div>
             </div>
           </div>
           {!isEnhanced && (
             <button 
               onClick={onModifyAssessment}
-              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-indigo-500/20"
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-indigo-500/20"
             >
-              Upgrade Now
+              Activate Clinical Intelligence
             </button>
           )}
         </div>
@@ -255,7 +255,7 @@ export default function AccountPage({ user, personalizationProfile, onModifyAsse
           </div>
           <div className="space-y-4">
             <div className="flex justify-between items-center">
-              <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Age</span>
+              <span className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Age</span>
               <span className="text-sm font-black text-white">
                 {personalizationProfile?.demographics?.dateOfBirth 
                   ? getAgeDecade(personalizationProfile.demographics.dateOfBirth) 
@@ -263,19 +263,19 @@ export default function AccountPage({ user, personalizationProfile, onModifyAsse
               </span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Country</span>
+              <span className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Country</span>
               <span className="text-sm font-black text-white">{personalizationProfile?.demographics?.country || 'Not set'}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Biological Sex</span>
+              <span className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Biological Sex</span>
               <span className="text-sm font-black text-white">{personalizationProfile?.demographics?.sex || 'Not set'}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Work Schedule</span>
+              <span className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Work Schedule</span>
               <span className="text-sm font-black text-white">{personalizationProfile?.demographics?.workSchedule || 'Not set'}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Environment</span>
+              <span className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Environment</span>
               <span className="text-sm font-black text-white text-right max-w-[150px]">{personalizationProfile?.demographics?.environmentType || 'Not set'}</span>
             </div>
           </div>
@@ -294,7 +294,7 @@ export default function AccountPage({ user, personalizationProfile, onModifyAsse
             </div>
             <div className="text-left">
               <div className="text-sm font-black text-white">Data Ledger</div>
-              <div className="text-[10px] text-zinc-500 uppercase tracking-widest">Manage your imported files and logs</div>
+              <div className="text-[10px] text-zinc-400 uppercase tracking-widest">Manage your imported files and logs</div>
             </div>
           </div>
           <ChevronRight size={20} className="text-zinc-700 group-hover:text-white transition-colors" />
@@ -310,7 +310,7 @@ export default function AccountPage({ user, personalizationProfile, onModifyAsse
             </div>
             <div className="text-left">
               <div className="text-sm font-black text-white">Modify Assessment</div>
-              <div className="text-[10px] text-zinc-500 uppercase tracking-widest">Update your goals and clinical data</div>
+              <div className="text-[10px] text-zinc-400 uppercase tracking-widest">Update your goals and clinical data</div>
             </div>
           </div>
           <ChevronRight size={20} className="text-zinc-700 group-hover:text-white transition-colors" />
@@ -327,7 +327,7 @@ export default function AccountPage({ user, personalizationProfile, onModifyAsse
             </div>
             <div className="text-left">
               <div className="text-sm font-black text-white">Export My Data</div>
-              <div className="text-[10px] text-zinc-500 uppercase tracking-widest">Download all your records as Excel</div>
+              <div className="text-[10px] text-zinc-400 uppercase tracking-widest">Download all your records as Excel</div>
             </div>
           </div>
           {exportSuccess ? (
@@ -336,7 +336,7 @@ export default function AccountPage({ user, personalizationProfile, onModifyAsse
             <ChevronRight size={20} className="text-zinc-700 group-hover:text-white transition-colors" />
           )}
         </button>
-        <div className="text-[10px] text-zinc-500 px-4 -mt-2">
+        <div className="text-[10px] text-zinc-400 px-4 -mt-2">
           Exports all sleep logs, factors, and profile data as a spreadsheet. The Sleep Logs sheet can be reimported if needed. Suitable to share with your doctor.
         </div>
 
@@ -350,7 +350,7 @@ export default function AccountPage({ user, personalizationProfile, onModifyAsse
             </div>
             <div className="text-left">
               <div className="text-sm font-black text-white">Logout</div>
-              <div className="text-[10px] text-zinc-500 uppercase tracking-widest">Sign out of your account</div>
+              <div className="text-[10px] text-zinc-400 uppercase tracking-widest">Sign out of your account</div>
             </div>
           </div>
           <ChevronRight size={20} className="text-zinc-700 group-hover:text-white transition-colors" />
@@ -366,7 +366,7 @@ export default function AccountPage({ user, personalizationProfile, onModifyAsse
             </div>
             <div className="text-left">
               <div className="text-sm font-black text-white">Submit Feedback</div>
-              <div className="text-[10px] text-zinc-500 uppercase tracking-widest">Help SIA learn from your input</div>
+              <div className="text-[10px] text-zinc-400 uppercase tracking-widest">Help SIA learn from your input</div>
             </div>
           </div>
           <ChevronRight size={20} className="text-zinc-700 group-hover:text-white transition-colors" />
@@ -395,7 +395,7 @@ export default function AccountPage({ user, personalizationProfile, onModifyAsse
       {(import.meta.env.DEV || user.email === 'martinpalko.mp@gmail.com') && (
         <div className="pt-8 border-t border-zinc-800">
           <div className="mb-4">
-            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 ml-1">Developer Tools</h3>
+            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 ml-1">Developer Tools</h3>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <button 

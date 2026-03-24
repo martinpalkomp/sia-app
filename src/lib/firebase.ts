@@ -32,6 +32,7 @@ export {
   deleteDoc,
   writeBatch,
   runTransaction,
+  deleteField,
   type Firestore
 } from "firebase/firestore";
 export { 

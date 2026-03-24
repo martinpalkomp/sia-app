@@ -96,7 +96,8 @@
             "morning_alertness": { "type": "integer" },
             "daytime_energy": { "type": "integer" },
             "importedDuration": { "type": "number" },
-            "importedInBed": { "type": "number" }
+            "importedInBed": { "type": "number" },
+            "sleep_efficiency": { "type": "number" }
           }
         },
         "source": { "type": "string", "enum": ["manual", "import"] },
@@ -163,6 +164,20 @@
         "createdAt": { "type": "string", "format": "date-time" },
         "updatedAt": { "type": "string", "format": "date-time" }
       }
+    },
+    "Insight": {
+      "title": "Insight",
+      "description": "An AI-generated insight about the user's sleep patterns.",
+      "type": "object",
+      "properties": {
+        "type": { "type": "string", "enum": ["Pattern", "Risk", "Recommendation"] },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "summary": { "type": "string" },
+        "details": { "type": "string" },
+        "linkedDates": { "type": "array", "items": { "type": "string", "format": "date" } },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["type", "confidence", "summary", "linkedDates", "createdAt"]
     }
   },
   "firestore": {
@@ -190,6 +205,10 @@
     },
     "/users/{userId}/chats/{messageId}": {
       "description": "AI chat history messages. Each document has role (user/assistant), content (string), and createdAt (timestamp)."
+    },
+    "/users/{userId}/insights/{insightId}": {
+      "schema": "Insight",
+      "description": "AI-generated insights and recommendations."
     },
     "/_sia_system/connection_test": {
       "description": "System-level connection test document."

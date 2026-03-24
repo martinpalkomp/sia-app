@@ -85,11 +85,14 @@ export const timeToIndex = (time: string): number => {
   const [hours, minutes] = t.split(':').map(Number);
   
   // Apply -20 hour offset logic
-  // Use Math.round for "rounding to the nearest 15 mins"
-  const index = (((hours + 24 - 20) % 24) * 4) + Math.round(minutes / 15);
+  // Use Math.floor to ensure time snaps to the beginning of the 15-min slot
+  // e.g., 23:59 still belongs to the 23:45 slot (Index 15)
+  const index = (((hours + 24 - 20) % 24) * 4) + Math.floor(minutes / 15);
   
-  // Boundary guard: 0-95
-  return Math.max(0, Math.min(95, index));
+  // Boundary guard: 0-96. 
+  // 96 represents the end of the 24h cycle (20:00 the next day).
+  // This allows loops like i < endIdx to correctly cover the last slot (index 95).
+  return Math.max(0, Math.min(96, index));
 };
 
 /**
@@ -132,6 +135,8 @@ export const getGridFromEvents = (sleepEvents: SleepEvent[] = []): SleepState[] 
  */
 export const convertGridToEvents = (grid: SleepState[]): SleepEvent[] => {
   const sleepEvents: SleepEvent[] = [];
+  if (!grid || grid.length === 0) return [];
+
   let currentType: SleepState | null = null;
   let startIdx = 0;
 
@@ -150,14 +155,21 @@ export const convertGridToEvents = (grid: SleepState[]): SleepEvent[] => {
     }
   }
 
-  // Close last event
+  // Handle the last segment
   if (currentType && currentType !== 'awake-out') {
-    sleepEvents.push({
-      id: crypto.randomUUID(),
-      type: currentType,
-      start: indexToTime(startIdx),
-      end: "20:00" // End of the tracking day
-    });
+    // Continuous Block Merging (Wrap-around):
+    // If the last segment has the same type as the first event of the day (which starts at 20:00),
+    // merge them into a single continuous event.
+    if (sleepEvents.length > 0 && sleepEvents[0].start === "20:00" && sleepEvents[0].type === currentType) {
+      sleepEvents[0].start = indexToTime(startIdx);
+    } else {
+      sleepEvents.push({
+        id: crypto.randomUUID(),
+        type: currentType,
+        start: indexToTime(startIdx),
+        end: "20:00" // End of the tracking day
+      });
+    }
   }
 
   return sleepEvents;

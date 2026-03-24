@@ -77,3 +77,21 @@ export const MetricDisplay: React.FC<MetricDisplayProps> = ({ title, value, unit
     </div>
   );
 };
+
+export const CircadianWaveform: React.FC<{ className?: string }> = ({ className = '' }) => {
+  return (
+    <svg 
+      viewBox="0 0 100 20" 
+      className={`w-full h-auto opacity-20 ${className}`}
+      preserveAspectRatio="none"
+    >
+      <path 
+        d="M0 10 Q 12.5 0, 25 10 T 50 10 T 75 10 T 100 10" 
+        fill="none" 
+        stroke="currentColor" 
+        strokeWidth="1"
+        className="animate-[dash_10s_linear_infinite]"
+      />
+    </svg>
+  );
+};

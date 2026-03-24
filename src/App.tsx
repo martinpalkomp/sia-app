@@ -75,7 +75,9 @@ import {
   snapTo15Min,
   getGridFromEvents,
   convertGridToEvents,
-  migrateTimelineToEvents
+  migrateTimelineToEvents,
+  timeToIndex,
+  indexToTime
 } from './utils/sleepUtils';
 import { calculateSafeAverage } from './utils/statsEngine';
 
@@ -87,6 +89,7 @@ const PersonalizationWizard = lazy(() => import('./components/PersonalizationWiz
 import AccountPage from './components/AccountPage';
 import SleepRibbon from './components/SleepRibbon';
 import SleepPatternCard from './components/SleepPatternCard';
+import { SleepWindow } from './components/SleepWindow';
 import DataImporter from './components/DataImporter';
 import { AvatarFrame } from './components/UI';
 
@@ -197,6 +200,90 @@ export default function App() {
   const [isImporting, setIsImporting] = useState(false);
   const [showPrefillConfirm, setShowPrefillConfirm] = useState(false);
   const [isSleepToolsExpanded, setIsSleepToolsExpanded] = useState(false);
+
+  const currentLog = useMemo(() => {
+    const defaultFactors = {
+      caffeine: { consumed: false, amount: 0, lastIntake: '' },
+      alcohol: { consumed: false, drinks: 0, lastIntake: '' },
+      medication: { taken: false, type: '', time: '' },
+      exercise: { completed: false, type: '', time: '' },
+      screensInBed: false,
+      stressLevel: 3,
+      lastMealTime: '',
+      naturalWake: false,
+      moodScore: 3,
+      sleepGadgets: []
+    };
+
+    const log = (logs[selectedDate] || {
+      date: selectedDate,
+      type: 'log',
+      sleep_quality: 5,
+      morning_alertness: 5,
+      daytime_energy: 5,
+      sleepEvents: [],
+      daily_remarks: '',
+      isIgnored: false,
+      source: 'manual',
+      summaryMetrics: {
+        sleep_quality: 5,
+        morning_alertness: 5,
+        daytime_energy: 5,
+        importedDuration: 0,
+        importedInBed: 0,
+        sleep_efficiency: 0,
+      },
+      factors: defaultFactors
+    }) as DailyLog;
+    
+    // Ensure factors exist for legacy logs
+    if (!log.factors) {
+      log.factors = defaultFactors;
+    }
+    
+    // Migration: If log has timeline but no sleepEvents, migrate it
+    if (!log.sleepEvents || log.sleepEvents.length === 0) {
+      if (log.timeline && log.timeline.length > 0 && !log.timeline.every(s => s === 'awake-out')) {
+        log.sleepEvents = migrateTimelineToEvents(log.timeline);
+      } else {
+        log.sleepEvents = [];
+      }
+    }
+
+    // Generate visual timeline for UI
+    const visualTimeline = getGridFromEvents(log.sleepEvents);
+    
+    return { ...log, visualTimeline };
+  }, [logs, selectedDate]);
+
+  const sleepWindowText = useMemo(() => {
+    if (!currentLog.sleepEvents || currentLog.sleepEvents.length === 0) {
+      return "20:00 to 20:00 (24h Tracking)";
+    }
+    const sleepEvents = currentLog.sleepEvents.filter(e => e.type === 'sleep');
+    if (sleepEvents.length === 0) return "20:00 to 20:00 (24h Tracking)";
+    
+    let minIdx = 96;
+    let maxIdx = -1;
+    let earliestStart = "";
+    let latestEnd = "";
+
+    sleepEvents.forEach(e => {
+      const sIdx = timeToIndex(e.start);
+      const eIdx = timeToIndex(e.end);
+      if (sIdx < minIdx) {
+        minIdx = sIdx;
+        earliestStart = e.start;
+      }
+      if (eIdx > maxIdx) {
+        maxIdx = eIdx;
+        latestEnd = e.end;
+      }
+    });
+
+    if (!earliestStart || !latestEnd) return "20:00 to 20:00 (24h Tracking)";
+    return `${earliestStart} to ${latestEnd}`;
+  }, [currentLog.sleepEvents]);
 
   useEffect(() => {
     if (currentLog.factors.sleepGadgets && currentLog.factors.sleepGadgets.length > 0) {
@@ -478,6 +565,7 @@ export default function App() {
           daytime_energy: log.daytime_energy,
           importedDuration: sleepDuration,
           importedInBed: timeInBed,
+          sleep_efficiency: timeInBed > 0 ? (sleepDuration / timeInBed) * 100 : 0,
         };
 
         try {
@@ -548,60 +636,6 @@ export default function App() {
       }
     }
   };
-
-  const currentLog = useMemo(() => {
-    const defaultFactors = {
-      caffeine: { consumed: false, amount: 0, lastIntake: '' },
-      alcohol: { consumed: false, drinks: 0, lastIntake: '' },
-      medication: { taken: false, type: '', time: '' },
-      exercise: { completed: false, type: '', time: '' },
-      screensInBed: false,
-      stressLevel: 3,
-      lastMealTime: '',
-      naturalWake: false,
-      moodScore: 3,
-      sleepGadgets: []
-    };
-
-    const log = (logs[selectedDate] || {
-      date: selectedDate,
-      type: 'log',
-      sleep_quality: 5,
-      morning_alertness: 5,
-      daytime_energy: 5,
-      sleepEvents: [],
-      daily_remarks: '',
-      isIgnored: false,
-      source: 'manual',
-      summaryMetrics: {
-        sleep_quality: 5,
-        morning_alertness: 5,
-        daytime_energy: 5,
-        importedDuration: 0,
-        importedInBed: 0,
-      },
-      factors: defaultFactors
-    }) as DailyLog;
-    
-    // Ensure factors exist for legacy logs
-    if (!log.factors) {
-      log.factors = defaultFactors;
-    }
-    
-    // Migration: If log has timeline but no sleepEvents, migrate it
-    if (!log.sleepEvents || log.sleepEvents.length === 0) {
-      if (log.timeline && log.timeline.length > 0 && !log.timeline.every(s => s === 'awake-out')) {
-        log.sleepEvents = migrateTimelineToEvents(log.timeline);
-      } else {
-        log.sleepEvents = [];
-      }
-    }
-
-    // Generate visual timeline for UI
-    const visualTimeline = getGridFromEvents(log.sleepEvents);
-    
-    return { ...log, visualTimeline };
-  }, [logs, selectedDate]);
 
   const updateLog = (updates: Partial<DailyLog>) => {
     const newLog = { ...currentLog, ...updates };
@@ -1305,7 +1339,7 @@ export default function App() {
                   <h2 className="text-lg font-bold text-white tracking-tight group-hover:text-indigo-400 transition-colors">
                     {formatDisplayDate(selectedDate)}
                   </h2>
-                  <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">
+                  <p className="text-[10px] font-black text-zinc-300 uppercase tracking-widest">
                     {selectedDate === getTodayDate() ? 'TODAY' : 'HISTORICAL LOG'}
                   </p>
                 </div>
@@ -1338,8 +1372,8 @@ export default function App() {
               <section className="space-y-4">
                 <div className="flex justify-between items-end">
                   <div>
-                    <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-500">Sleep Window</h2>
-                    <p className="text-[10px] text-zinc-600 mt-1">20:00 to 20:00 (24h Tracking)</p>
+                    <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-300">Sleep Window</h2>
+                    <p className="text-[10px] text-zinc-400 mt-1">{sleepWindowText}</p>
                   </div>
                   <div className="flex gap-2">
                     {SLEEP_STATES.filter(s => s.value !== 'awake-out').map((state) => (
@@ -1348,8 +1382,10 @@ export default function App() {
                         onClick={() => setActiveState(state.value)}
                         className={`px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-wider border transition-all ${
                           activeState === state.value 
-                            ? 'border-indigo-500 bg-indigo-500/10 text-indigo-400' 
-                            : 'border-zinc-800 text-zinc-500'
+                            ? state.value === 'sleep' 
+                              ? 'border-emerald-500 bg-emerald-600 text-white shadow-[0_0_15px_rgba(16,185,129,0.4)]' 
+                              : 'border-indigo-500 bg-indigo-500/10 text-indigo-400' 
+                            : 'border-zinc-800 text-zinc-400'
                         }`}
                       >
                         {state.value === 'awake-in' ? 'Awake In Bed' : state.label}
@@ -1377,7 +1413,7 @@ export default function App() {
                             </div>
                             <div className="text-left">
                               <h3 className="text-sm font-bold uppercase tracking-widest">Editing Mode</h3>
-                              <p className="text-[10px] text-zinc-500">Adjust your sleep window on the grid below</p>
+                              <p className="text-[10px] text-zinc-300">Adjust your sleep window on the grid below</p>
                             </div>
                           </div>
                           <div className="flex gap-3">
@@ -1437,10 +1473,10 @@ export default function App() {
                                 >
                                   <Rocket className="text-zinc-600 shrink-0" size={14} />
                                   <div className="text-left">
-                                    <p className="text-[9px] font-black text-zinc-600 uppercase tracking-widest leading-tight">
+                                    <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest leading-tight">
                                       {historyCount === 0 ? "SIA Learning: Start Your Journey" : `SIA Learning: Log ${3 - historyCount} more days to unlock`}
                                     </p>
-                                    <p className="text-[8px] text-zinc-700 uppercase tracking-wider leading-tight">
+                                    <p className="text-[8px] text-zinc-500 uppercase tracking-wider leading-tight">
                                       {historyCount === 0 ? "Log your first night to begin pattern recognition" : "Pattern recognition requires more data"}
                                     </p>
                                   </div>
@@ -1496,7 +1532,7 @@ export default function App() {
                             </div>
                             <div className="w-px h-8 bg-zinc-800" />
                             <div className="text-center">
-                              <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Efficiency</p>
+                              <p className="text-[10px] font-black text-zinc-300 uppercase tracking-widest mb-1">Efficiency</p>
                               <p className="text-xl font-mono font-bold text-emerald-400 tracking-tight">
                                 {calculateSleepEfficiency(currentLog.visualTimeline)}%
                               </p>
@@ -1539,10 +1575,10 @@ export default function App() {
                       >
                         {historyCount === 0 ? (
                           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 pointer-events-none">
-                            <p className="text-[10px] font-semibold tracking-[0.12em] uppercase text-zinc-600">
+                            <p className="text-[10px] font-semibold tracking-[0.12em] uppercase text-zinc-400">
                               No data for this night
                             </p>
-                            <p className="text-[10px] text-zinc-700 tracking-wide">
+                            <p className="text-[10px] text-zinc-500 tracking-wide">
                               Tap the grid or use the buttons above to log sleep
                             </p>
                           </div>
@@ -1568,52 +1604,19 @@ export default function App() {
                       </motion.div>
                     )}
                   </AnimatePresence>
-                  {[0, 1, 2, 3, 4, 5].map((rowIdx) => (
-                    <div key={rowIdx} className="flex">
-                      <div className="w-12 flex-shrink-0 flex items-center justify-center border-r border-zinc-800/50 bg-zinc-900/80">
-                        <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-tighter">
-                          {getSlotLabel(rowIdx * 16).split(':')[0]}h
-                        </span>
-                      </div>
-                      <div 
-                        className="grid grid-cols-16 gap-0 flex-1"
-                        style={{ touchAction: 'none' }}
-                        onTouchStart={handleTouchStart}
-                        onTouchMove={handleTouchMove}
-                        onTouchEnd={handleTouchEnd}
-                      >
-                        {currentLog.visualTimeline.slice(rowIdx * 16, (rowIdx + 1) * 16).map((state, localIdx) => {
-                          const idx = rowIdx * 16 + localIdx;
-                          const stateInfo = SLEEP_STATES.find(s => s.value === state);
-                          const isHourStart = idx % 4 === 0;
-                          const isImported = (currentLog as any).modifiedBySync?.[idx];
-                          
-                          return (
-                            <button
-                              key={idx}
-                              data-slot-index={idx}
-                              onMouseDown={() => handleMouseDown(idx)}
-                              onMouseEnter={() => handleMouseEnter(idx)}
-                              className={`h-12 flex flex-col items-center justify-center relative group transition-all border-r border-zinc-800/30 last:border-r-0 ${stateInfo?.color} hover:brightness-125 cursor-crosshair ${isImported ? 'ring-1 ring-inset ring-indigo-400/50 animate-pulse' : ''}`}
-                              title={getSlotLabel(idx)}
-                            >
-                              <span className="text-[8px] text-zinc-500 opacity-0 group-hover:opacity-100 absolute -top-4 bg-black px-1 rounded border border-zinc-800 z-10 whitespace-nowrap pointer-events-none">
-                                {getSlotLabel(idx)}
-                              </span>
-                              {isHourStart && (
-                                <span className="text-[7px] text-zinc-400 font-mono font-bold pointer-events-none">
-                                  {getSlotLabel(idx).split(':')[1] === '00' ? getSlotLabel(idx).split(':')[0] : ''}
-                                </span>
-                              )}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ))}
+                  <SleepWindow
+                    timeline={currentLog.visualTimeline}
+                    isEditing={isEditing}
+                    isImported={!!(currentLog as any).modifiedBySync}
+                    onMouseDown={handleMouseDown}
+                    onMouseEnter={handleMouseEnter}
+                    onTouchStart={handleTouchStart}
+                    onTouchMove={handleTouchMove}
+                    onTouchEnd={handleTouchEnd}
+                  />
                 </div>
                 
-                <div className="flex justify-between text-[10px] text-zinc-500 px-1 italic">
+                <div className="flex justify-between text-[10px] text-zinc-300 px-1 italic">
                   <span>Start: 20:00</span>
                   <span>Duration: {formatDuration(calculateSleepDuration(currentLog.visualTimeline))}</span>
                   <span>End: {getSlotLabel(TOTAL_SLOTS)}</span>
@@ -1622,7 +1625,7 @@ export default function App() {
 
               {/* Daily Factors & Disturbances Section */}
               <section className="bg-zinc-900/30 p-6 rounded-3xl border border-zinc-800/50 space-y-6">
-                <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-500">Daily Factors & Disturbances</h2>
+                <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-300">Daily Factors & Disturbances</h2>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Caffeine */}
@@ -1642,7 +1645,7 @@ export default function App() {
                     {currentLog.factors.caffeine.consumed && (
                       <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="grid grid-cols-2 gap-2 pt-1">
                         <div className="space-y-1">
-                          <label className="text-[10px] text-zinc-500 uppercase font-bold">Amount (mg/cups)</label>
+                          <label className="text-[10px] text-zinc-300 uppercase font-bold">Amount (mg/cups)</label>
                           <input 
                             type="number" 
                             value={currentLog.factors.caffeine.amount} 
@@ -1808,7 +1811,7 @@ export default function App() {
                       onChange={(e) => updateFactors({ stressLevel: parseInt(e.target.value) })}
                       className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-indigo-500"
                     />
-                    <div className="flex justify-between text-[8px] text-zinc-600 uppercase font-bold">
+                    <div className="flex justify-between text-[8px] text-zinc-400 uppercase font-bold">
                       <span>Low</span>
                       <span>High</span>
                     </div>
@@ -1869,7 +1872,7 @@ export default function App() {
                     </div>
                     <div className="text-left">
                       <h2 className="text-sm font-bold text-white">Sleep support tools</h2>
-                      <p className="text-[10px] text-zinc-500 uppercase tracking-wider font-medium">Interventions & Aids</p>
+                      <p className="text-[10px] text-zinc-300 uppercase tracking-wider font-medium">Interventions & Aids</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
@@ -1898,7 +1901,7 @@ export default function App() {
                     >
                       {/* Sub-section 1: Interventions */}
                       <div className="space-y-4">
-                        <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500 border-b border-zinc-800/50 pb-2">Interventions</h3>
+                        <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-300 border-b border-zinc-800/50 pb-2">Interventions</h3>
                         <div className="grid grid-cols-1 gap-4">
                           {/* Light Therapy */}
                           <div className="space-y-3">
@@ -1919,7 +1922,7 @@ export default function App() {
                             {isGadgetSelected('light_therapy') && (
                               <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="pl-11 space-y-4 pt-1">
                                 <div className="space-y-2">
-                                  <label className="text-[10px] text-zinc-500 uppercase font-bold">Duration</label>
+                                  <label className="text-[10px] text-zinc-300 uppercase font-bold">Duration</label>
                                   <div className="flex gap-2">
                                     {[15, 30, 45, 60].map(min => (
                                       <button
@@ -1933,7 +1936,7 @@ export default function App() {
                                   </div>
                                 </div>
                                 <div className="space-y-2">
-                                  <label className="text-[10px] text-zinc-500 uppercase font-bold">Time of use</label>
+                                  <label className="text-[10px] text-zinc-300 uppercase font-bold">Time of use</label>
                                   <div className="flex gap-2">
                                     {['morning', 'afternoon', 'evening'].map(time => (
                                       <button
@@ -1945,7 +1948,7 @@ export default function App() {
                                       </button>
                                     ))}
                                   </div>
-                                  <p className="text-[9px] text-zinc-500 italic">Morning use anchors your rhythm · Evening use delays it</p>
+                                  <p className="text-[9px] text-zinc-300 italic">Morning use anchors your rhythm · Evening use delays it</p>
                                 </div>
                               </motion.div>
                             )}
@@ -2003,7 +2006,7 @@ export default function App() {
                             </div>
                             {isGadgetSelected('pre_sleep_heating') && (
                               <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="pl-11 space-y-2 pt-1">
-                                <label className="text-[10px] text-zinc-500 uppercase font-bold">Used before bed</label>
+                                <label className="text-[10px] text-zinc-300 uppercase font-bold">Used before bed</label>
                                 <div className="flex gap-2">
                                   {[15, 30, 60].map(min => (
                                     <button
@@ -2015,7 +2018,7 @@ export default function App() {
                                     </button>
                                   ))}
                                 </div>
-                                <p className="text-[9px] text-zinc-500 italic">Pre-sleep warming triggers the cooling response that initiates sleep</p>
+                                <p className="text-[9px] text-zinc-300 italic">Pre-sleep warming triggers the cooling response that initiates sleep</p>
                               </motion.div>
                             )}
                           </div>
@@ -2074,7 +2077,7 @@ export default function App() {
 
                       {/* Sub-section 2: Passive aids */}
                       <div className="space-y-4">
-                        <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500 border-b border-zinc-800/50 pb-2">Passive aids</h3>
+                        <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-300 border-b border-zinc-800/50 pb-2">Passive aids</h3>
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                           {[
                             { id: 'cooling_pad', label: 'Cooling Pad', icon: Snowflake, color: 'text-blue-400' },
@@ -2088,8 +2091,8 @@ export default function App() {
                               onClick={() => toggleGadget(aid.id)}
                               className={`flex flex-col items-center gap-2 p-3 rounded-2xl border transition-all ${isGadgetSelected(aid.id) ? 'bg-indigo-500/10 border-indigo-500/50' : 'bg-zinc-800/50 border-zinc-800 hover:border-zinc-700'}`}
                             >
-                              <aid.icon size={20} className={isGadgetSelected(aid.id) ? aid.color : 'text-zinc-600'} />
-                              <span className={`text-[10px] font-bold text-center ${isGadgetSelected(aid.id) ? 'text-white' : 'text-zinc-500'}`}>{aid.label}</span>
+                              <aid.icon size={20} className={isGadgetSelected(aid.id) ? aid.color : 'text-zinc-400'} />
+                              <span className={`text-[10px] font-bold text-center ${isGadgetSelected(aid.id) ? 'text-white' : 'text-zinc-300'}`}>{aid.label}</span>
                             </button>
                           ))}
                         </div>
@@ -2097,7 +2100,7 @@ export default function App() {
 
                       {/* Sub-section 3: Sleep tracking */}
                       <div className="space-y-4">
-                        <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500 border-b border-zinc-800/50 pb-2">Sleep tracking</h3>
+                        <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-300 border-b border-zinc-800/50 pb-2">Sleep tracking</h3>
                         <div className="grid grid-cols-2 gap-3">
                           {[
                             { id: 'smart_ring', label: 'Smart Ring', icon: Circle, color: 'text-zinc-300' },
@@ -2110,8 +2113,8 @@ export default function App() {
                               onClick={() => toggleGadget(tracker.id)}
                               className={`flex items-center gap-3 p-3 rounded-2xl border transition-all ${isGadgetSelected(tracker.id) ? 'bg-indigo-500/10 border-indigo-500/50' : 'bg-zinc-800/50 border-zinc-800 hover:border-zinc-700'}`}
                             >
-                              <tracker.icon size={18} className={isGadgetSelected(tracker.id) ? tracker.color : 'text-zinc-600'} />
-                              <span className={`text-[10px] font-bold ${isGadgetSelected(tracker.id) ? 'text-white' : 'text-zinc-500'}`}>{tracker.label}</span>
+                              <tracker.icon size={18} className={isGadgetSelected(tracker.id) ? tracker.color : 'text-zinc-400'} />
+                              <span className={`text-[10px] font-bold ${isGadgetSelected(tracker.id) ? 'text-white' : 'text-zinc-300'}`}>{tracker.label}</span>
                             </button>
                           ))}
                         </div>
@@ -2123,7 +2126,7 @@ export default function App() {
 
               {/* Metrics Section */}
               <section className="bg-zinc-900/30 p-6 rounded-3xl border border-zinc-800/50 space-y-6">
-                <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-500 mb-4">Daily Metrics</h2>
+                <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-300 mb-4">Daily Metrics</h2>
                 <div className="grid gap-8">
                   <SliderInput 
                     label="Sleep Quality (SQ)" 
@@ -2148,7 +2151,7 @@ export default function App() {
 
               {/* Remarks Section */}
               <section className="space-y-3">
-                <label className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-500">Remarks & Notes</label>
+                <label className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-300">Remarks & Notes</label>
                 <textarea
                   value={currentLog.daily_remarks}
                   onChange={(e) => updateLog({ daily_remarks: e.target.value })}
@@ -2161,6 +2164,7 @@ export default function App() {
                 user={user} 
                 isImporting={isImporting}
                 setIsImporting={setIsImporting}
+                logs={logs}
                 onImportComplete={() => {
                   setToast({ message: 'Data imported and synced successfully', type: 'success' });
                   setIsImporting(false);
@@ -2243,7 +2247,7 @@ export default function App() {
             >
               <div className="text-center space-y-2">
                 <h2 className="text-2xl font-bold tracking-tight">Sleep Intelligence Agent</h2>
-                <p className="text-sm text-zinc-500">Advanced correlation analysis of your sleep history</p>
+                <p className="text-sm text-zinc-300">Advanced correlation analysis of your sleep history</p>
               </div>
               <Suspense fallback={<div className="flex items-center justify-center h-64"><div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"/></div>}>
                 <AIInsightsAgent 
@@ -2278,7 +2282,7 @@ export default function App() {
                   <h2 className="text-2xl font-bold tracking-tight capitalize">
                     {view === 'weekly' ? 'Last 7 Days' : view === 'monthly' ? 'Last 30 Days' : 'Insights'}
                   </h2>
-                  <p className="text-sm text-zinc-500">
+                  <p className="text-sm text-zinc-300">
                     {formatDisplayDate(activeDates[0])} — {formatDisplayDate(activeDates[activeDates.length - 1])}
                   </p>
                 </div>
@@ -2319,7 +2323,7 @@ export default function App() {
                 {view === 'custom' && (
                   <div className="flex flex-wrap justify-center gap-4 bg-zinc-900/50 p-4 rounded-3xl border border-zinc-800">
                     <div className="space-y-1 text-left">
-                      <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold ml-1">Start Date</p>
+                      <p className="text-[10px] text-zinc-300 uppercase tracking-widest font-bold ml-1">Start Date</p>
                       <input 
                         type="date" 
                         value={customRange.start}
@@ -2328,7 +2332,7 @@ export default function App() {
                       />
                     </div>
                     <div className="space-y-1 text-left">
-                      <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold ml-1">End Date</p>
+                      <p className="text-[10px] text-zinc-300 uppercase tracking-widest font-bold ml-1">End Date</p>
                       <input 
                         type="date" 
                         value={customRange.end}
@@ -2343,24 +2347,24 @@ export default function App() {
               {averageStats ? (
                 <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
                   <div className="bg-zinc-900/50 border border-zinc-800 p-5 rounded-3xl space-y-1">
-                    <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">Avg Quality</p>
-                    <p className="text-2xl font-bold text-indigo-400">{averageStats.sq}<span className="text-xs text-zinc-600 ml-1">/10</span></p>
+                    <p className="text-[10px] text-zinc-300 uppercase tracking-widest font-bold">Avg Quality</p>
+                    <p className="text-2xl font-bold text-indigo-400">{averageStats.sq}<span className="text-xs text-zinc-400 ml-1">/10</span></p>
                   </div>
                   <div className="bg-zinc-900/50 border border-zinc-800 p-5 rounded-3xl space-y-1">
-                    <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">Avg Rested</p>
-                    <p className="text-2xl font-bold text-emerald-400">{averageStats.r}<span className="text-xs text-zinc-600 ml-1">/10</span></p>
+                    <p className="text-[10px] text-zinc-300 uppercase tracking-widest font-bold">Avg Rested</p>
+                    <p className="text-2xl font-bold text-emerald-400">{averageStats.r}<span className="text-xs text-zinc-400 ml-1">/10</span></p>
                   </div>
                   <div className="bg-zinc-900/50 border border-zinc-800 p-5 rounded-3xl space-y-1">
-                    <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">Avg Energy</p>
-                    <p className="text-2xl font-bold text-amber-400">{averageStats.l}<span className="text-xs text-zinc-600 ml-1">/10</span></p>
+                    <p className="text-[10px] text-zinc-300 uppercase tracking-widest font-bold">Avg Energy</p>
+                    <p className="text-2xl font-bold text-amber-400">{averageStats.l}<span className="text-xs text-zinc-400 ml-1">/10</span></p>
                   </div>
                   <div className="bg-zinc-900/50 border border-zinc-800 p-5 rounded-3xl space-y-1">
-                    <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">Avg Sleep</p>
+                    <p className="text-[10px] text-zinc-300 uppercase tracking-widest font-bold">Avg Sleep</p>
                     <p className="text-2xl font-bold text-white">{averageStats.duration}</p>
                   </div>
                   <div className="bg-zinc-900/50 border border-zinc-800 p-5 rounded-3xl space-y-1">
-                    <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">Avg Efficiency</p>
-                    <p className="text-2xl font-bold text-purple-400">{averageStats.efficiency}<span className="text-xs text-zinc-600 ml-1">%</span></p>
+                    <p className="text-[10px] text-zinc-300 uppercase tracking-widest font-bold">Avg Efficiency</p>
+                    <p className="text-2xl font-bold text-purple-400">{averageStats.efficiency}<span className="text-xs text-zinc-400 ml-1">%</span></p>
                   </div>
                 </div>
               ) : (
@@ -2373,8 +2377,8 @@ export default function App() {
               {/* Breakdown List */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between px-1">
-                  <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-500">Daily Breakdown</h3>
-                  <div className="flex items-center gap-3 text-[9px] font-black text-zinc-600 uppercase tracking-widest">
+                  <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-300">Daily Breakdown</h3>
+                  <div className="flex items-center gap-3 text-[9px] font-black text-zinc-400 uppercase tracking-widest">
                     <span className="flex items-center gap-1"><kbd className="bg-zinc-800 px-1 rounded border border-zinc-700">Q</kbd> Quality</span>
                     <span className="flex items-center gap-1"><kbd className="bg-zinc-800 px-1 rounded border border-zinc-700">R</kbd> Rested</span>
                     <span className="flex items-center gap-1"><kbd className="bg-zinc-800 px-1 rounded border border-zinc-700">E</kbd> Efficiency</span>
@@ -2404,7 +2408,7 @@ export default function App() {
                           <div className={`w-2 h-2 rounded-full ${log ? 'bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.5)]' : 'bg-zinc-800'}`} />
                           <div className="text-left">
                             <p className="text-sm font-bold">{formatDisplayDate(date)}</p>
-                            <p className="text-[10px] text-zinc-500 uppercase tracking-wider">
+                            <p className="text-[10px] text-zinc-300 uppercase tracking-wider">
                               {log ? `${formatDuration(calculateSleepDuration(sleepData))} sleep` : 'No entry'}
                             </p>
                           </div>
@@ -2440,10 +2444,10 @@ export default function App() {
         </AnimatePresence>
 
         {/* Footer Legal Link */}
-        <div className="mt-12 pt-8 border-t border-zinc-800/50 text-center">
+        <div className="mt-4 pt-2 border-t border-zinc-800/50 text-center">
           <button 
             onClick={() => setView('legal')}
-            className="text-[10px] text-zinc-600 uppercase tracking-widest font-bold hover:text-zinc-400 transition-colors"
+            className="text-[10px] text-zinc-400 uppercase tracking-widest font-bold hover:text-zinc-300 transition-colors"
           >
             Legal, Terms & Privacy
           </button>
@@ -2566,7 +2570,7 @@ export default function App() {
                   </div>
                   <div>
                     <h2 className="text-xl font-bold text-white">Clinical Sleep Report</h2>
-                    <p className="text-xs text-zinc-500 font-medium uppercase tracking-wider">SOAP Analysis • {view.toUpperCase()}</p>
+                    <p className="text-xs text-zinc-300 font-medium uppercase tracking-wider">SOAP Analysis • {view.toUpperCase()}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -2593,7 +2597,7 @@ export default function App() {
               >
                 <div className="max-w-2xl mx-auto space-y-8">
                   <div className="border-b-2 border-zinc-900 pb-8 mb-8">
-                    <div className="grid grid-cols-2 gap-8 text-sm font-sans uppercase tracking-widest font-bold text-zinc-500">
+                    <div className="grid grid-cols-2 gap-8 text-sm font-sans uppercase tracking-widest font-bold text-zinc-300">
                       <div>
                         <p className="mb-1">Patient Name</p>
                         <p className="text-zinc-900">{user.displayName || 'N/A'}</p>

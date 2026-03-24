@@ -9,7 +9,7 @@ export const MIN_METRIC = 1;
 export const MAX_METRIC = 10;
 
 export const SLEEP_STATES: { value: SleepState; label: string; color: string }[] = [
-  { value: 'awake-out', label: 'Awake (Out of Bed)', color: 'bg-transparent border-zinc-800' },
+  { value: 'awake-out', label: 'Awake (Out of Bed)', color: 'bg-zinc-900' },
   { value: 'awake-in', label: 'Awake (In Bed)', color: 'bg-indigo-500' },
   { value: 'sleep', label: 'Sleep', color: 'bg-emerald-500' },
 ];

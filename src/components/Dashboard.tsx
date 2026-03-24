@@ -15,9 +15,9 @@ import {
   Settings
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { DailyLog, SleepState, SleepEvent } from '../types';
+import { DailyLog, SleepState, SleepEvent, Insight } from '../types';
 import { GoogleGenAI } from "@google/genai";
-import { Card, AvatarFrame, MetricDisplay } from './UI';
+import { Card, AvatarFrame, MetricDisplay, CircadianWaveform } from './UI';
 import { calculateSleepDuration, calculateSleepEfficiency, formatDuration, getGridFromEvents, getMinutesFrom2000 } from '../utils/sleepUtils';
 import { calculateSafeAverage } from '../utils/statsEngine';
 import { getSlotLabel } from '../constants';
@@ -29,6 +29,7 @@ import {
   query, 
   where, 
   orderBy, 
+  onSnapshot,
   limit, 
   getDocs,
   doc,
@@ -67,9 +68,26 @@ export default function Dashboard({
   isRefreshing
 }: DashboardProps) {
   const [aiInsight, setAiInsight] = useState<string | null>(null);
+  const [insights, setInsights] = useState<Insight[]>([]);
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [isDeepAnalysis, setIsDeepAnalysis] = useState(false);
   const [isFirstVisit, setIsFirstVisit] = useState(false);
+
+  // Fetch insights from Firestore
+  useEffect(() => {
+    if (!user) return;
+    const q = query(
+      collection(db, 'users', user.uid, 'insights'),
+      orderBy('createdAt', 'desc'),
+      limit(6)
+    );
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const fetched: Insight[] = [];
+      snapshot.forEach(doc => fetched.push({ id: doc.id, ...doc.data() } as Insight));
+      setInsights(fetched);
+    });
+    return () => unsubscribe();
+  }, [user]);
 
   // Check for first visit
   useEffect(() => {
@@ -314,7 +332,7 @@ export default function Dashboard({
               <Loader2 className="animate-spin text-indigo-500" size={40} />
               <div className="text-center">
                 <p className="text-white font-bold">Syncing SIA Intelligence...</p>
-                <p className="text-[10px] text-zinc-500 uppercase tracking-widest mt-1">Updating your recovery trends</p>
+                <p className="text-[10px] text-zinc-300 uppercase tracking-widest mt-1">Updating your recovery trends</p>
               </div>
             </div>
           </motion.div>
@@ -336,16 +354,22 @@ export default function Dashboard({
           />
         </motion.div>
 
-        <div className="space-y-2 order-2 md:order-2 flex-1">
-          <motion.h1 
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="text-2xl md:text-5xl font-black tracking-tight md:tracking-tighter text-white leading-snug md:leading-[0.95] flex flex-wrap items-center gap-x-4 gap-y-4 md:gap-y-2"
-          >
-            <span className="bg-clinical-primary text-[9px] md:text-[10px] px-2 py-0.5 rounded-full uppercase tracking-widest align-middle h-fit self-center mb-1 md:mb-0">Sleep Intelligence Agent</span>
-            <span className="block md:inline">{greeting.prefix}</span>
-            <span className="text-zinc-500 text-xl md:text-5xl font-medium md:font-black block md:inline">... {greeting.suffix}</span>
-          </motion.h1>
+        <div className="space-y-2 order-2 md:order-2 flex-1 min-w-0">
+          <div className="flex items-center gap-3">
+            <span className="bg-clinical-primary text-[9px] md:text-[10px] px-2 py-0.5 rounded-full uppercase tracking-widest font-bold text-white">Sleep Intelligence Agent</span>
+          </div>
+          <div className="mt-2">
+            <motion.h1 
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="text-[clamp(1.25rem,4vw,2.5rem)] font-bold tracking-tight whitespace-nowrap overflow-hidden text-ellipsis block text-white"
+            >
+              {greeting.prefix}{user?.displayName ? `, ${user.displayName.split(' ')[0]}` : ''}
+            </motion.h1>
+            <p className="text-zinc-400 text-sm md:text-base mt-1 whitespace-nowrap overflow-hidden text-ellipsis">
+              {greeting.suffix}
+            </p>
+          </div>
           <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4 pt-4">
           </div>
         </div>
@@ -357,7 +381,7 @@ export default function Dashboard({
           <Card className="flex flex-col justify-center border-zinc-800/50 bg-zinc-900/30 p-3 md:p-4 min-h-[140px] md:min-h-[160px] hover:border-zinc-700/50 transition-colors">
             <div className="flex items-center gap-2 mb-2">
               <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
-              <span className="text-[8px] md:text-[10px] text-zinc-500 uppercase tracking-widest font-bold">Status Report</span>
+              <span className="text-[8px] md:text-[10px] text-zinc-300 uppercase tracking-widest font-bold">Status Report</span>
             </div>
             <p className="text-zinc-400 text-[10px] md:text-sm font-medium leading-relaxed">
               I've analyzed your sleep intelligence for the last 7 days.
@@ -443,11 +467,11 @@ export default function Dashboard({
       {/* Section 2: SIA Quick Insight */}
       <section className="grid grid-cols-1 gap-4">
         <Card 
-          className="bg-indigo-600/20 border-indigo-500/30 relative overflow-hidden group hover:bg-indigo-600/25 cursor-pointer" 
+          className="bg-zinc-900/50 border-indigo-500/30 relative overflow-hidden group hover:bg-zinc-900/80 cursor-pointer animate-scanning" 
           onClick={() => onViewChange('ai')}
         >
           <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:opacity-20 transition-opacity">
-            <Brain size={80} className="text-indigo-400" />
+            <CircadianWaveform className="text-indigo-400 w-32" />
           </div>
           <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-center gap-4">
@@ -485,6 +509,46 @@ export default function Dashboard({
         </Card>
       </section>
 
+      {/* Section: AI Insights Feed */}
+      {insights.length > 0 && (
+        <section className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-[10px] font-black text-zinc-300 uppercase tracking-[0.2em]">Clinical Insights Feed</h3>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {insights.map((insight) => (
+              <Card key={insight.id} className="bg-zinc-900/50 border-zinc-800 hover:border-indigo-500/30 transition-all group relative overflow-hidden text-left">
+                <div className="flex items-start gap-3">
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                    insight.type === 'Risk' ? 'bg-red-500/10 text-red-400' :
+                    insight.type === 'Pattern' ? 'bg-blue-500/10 text-blue-400' :
+                    'bg-emerald-500/10 text-emerald-400'
+                  }`}>
+                    {insight.type === 'Risk' ? <AlertCircle size={16} /> :
+                     insight.type === 'Pattern' ? <TrendingUp size={16} /> :
+                     <Zap size={16} />}
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[9px] font-black uppercase tracking-widest text-zinc-500">{insight.type}</span>
+                      <span className="text-[9px] font-bold text-zinc-600">• {Math.round(insight.confidence * 100)}% Confidence</span>
+                    </div>
+                    <h4 className="text-sm font-bold text-white leading-tight">{insight.summary}</h4>
+                    {insight.details && <p className="text-xs text-zinc-400 line-clamp-2 mt-1">{insight.details}</p>}
+                    <div className="pt-2 flex flex-wrap gap-1">
+                      {insight.linkedDates.slice(0, 2).map(date => (
+                        <span key={date} className="text-[8px] px-1.5 py-0.5 bg-zinc-800 rounded text-zinc-500 font-bold">{date}</span>
+                      ))}
+                      {insight.linkedDates.length > 2 && <span className="text-[8px] px-1.5 py-0.5 bg-zinc-800 rounded text-zinc-500 font-bold">+{insight.linkedDates.length - 2}</span>}
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* Section 3: Engagement & Actions */}
       <section className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -497,7 +561,7 @@ export default function Dashboard({
                 <Plus size={24} />
               </div>
               <div className="text-left">
-                <p className="text-[10px] font-black text-white/60 uppercase tracking-[0.2em]">Quick Action</p>
+                <p className="text-[10px] font-black text-zinc-300 uppercase tracking-[0.2em]">Quick Action</p>
                 <p className="text-xl text-white font-black tracking-tight mt-0.5">Log Last Night</p>
                 {correctionsCount > 0 && (
                   <button 
@@ -524,11 +588,11 @@ export default function Dashboard({
                 <Sparkles size={24} />
               </div>
               <div className="text-left">
-                <p className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em]">Deep Dive</p>
+                <p className="text-[10px] font-black text-zinc-300 uppercase tracking-[0.2em]">Deep Dive</p>
                 <p className="text-xl text-white font-black tracking-tight mt-0.5">AI Analysis</p>
               </div>
             </div>
-            <ChevronRight size={24} className="text-zinc-500 group-hover:text-white group-hover:translate-x-1 transition-transform" />
+            <ChevronRight size={24} className="text-zinc-300 group-hover:text-white group-hover:translate-x-1 transition-transform" />
           </Card>
         </div>
       </section>
@@ -536,7 +600,7 @@ export default function Dashboard({
       {/* Section 4: The Growth Hub */}
       <section className="space-y-6 pt-6 border-t border-zinc-800">
         <div className="flex items-center justify-between">
-          <h3 className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em]">Growth Hub</h3>
+          <h3 className="text-[10px] font-black text-zinc-300 uppercase tracking-[0.2em]">Growth Hub</h3>
         </div>
         
         <div className="grid grid-cols-1 gap-6">
@@ -544,68 +608,88 @@ export default function Dashboard({
           
           {!personalizationProfile && (
             <Card 
-              className="bg-gradient-to-r from-indigo-600 to-violet-600 border-none relative overflow-hidden group cursor-pointer p-0"
+              className="bg-zinc-900 border-indigo-500/20 relative overflow-hidden group cursor-pointer p-0"
               onClick={onOpenPersonalization}
             >
-              <div className="absolute top-0 right-0 p-12 opacity-10 group-hover:opacity-20 transition-opacity pointer-events-none">
-                <Brain size={120} className="text-white rotate-12" />
+              <div className="absolute inset-0 opacity-10 group-hover:opacity-20 transition-opacity pointer-events-none flex items-center justify-center">
+                <CircadianWaveform className="text-white w-full scale-150" />
               </div>
               
               <div className="relative z-10 p-8 flex flex-col md:flex-row md:items-center justify-between gap-8">
                 <div className="flex items-start gap-6">
-                  <div className="w-16 h-16 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center text-white shadow-xl group-hover:scale-110 transition-transform">
-                    <Brain size={32} />
+                  <div className="w-16 h-16 bg-indigo-500/10 backdrop-blur-md rounded-2xl flex items-center justify-center text-indigo-400 shadow-xl group-hover:scale-110 transition-transform border border-indigo-500/20">
+                    <Zap size={32} />
                   </div>
                   <div className="space-y-2">
-                    <div className="flex items-center gap-2 text-white/80">
+                    <div className="flex items-center gap-2 text-indigo-300">
                       <span className="text-[10px] font-black uppercase tracking-[0.2em]">Clinical Intelligence</span>
                     </div>
-                    <h3 className="text-2xl font-black text-white tracking-tight">Personalize Your Experience</h3>
-                    <p className="text-white/80 text-sm font-medium leading-relaxed max-w-md">
+                    <h3 className="text-2xl font-black text-white tracking-tight">Activate Clinical Intelligence</h3>
+                    <p className="text-zinc-300 text-sm font-medium leading-relaxed max-w-md">
                       Provide your clinical parameters and goals to help SIA generate more accurate, medically-informed recovery insights tailored to your unique physiology.
                     </p>
                   </div>
                 </div>
 
                 <button 
-                  className="px-8 py-4 bg-white text-indigo-600 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-zinc-100 transition-all shadow-xl flex items-center justify-center gap-3 whitespace-nowrap"
+                  className="px-8 py-4 bg-indigo-600 text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-indigo-500 transition-all shadow-xl flex items-center justify-center gap-3 whitespace-nowrap"
                 >
-                  Level Up <ChevronRight size={18} />
+                  Activate Clinical Intelligence <ChevronRight size={18} />
                 </button>
               </div>
             </Card>
           )}
           
-          {personalizationProfile && (
+          {isEnhanced && (
             <Card 
-              className="bg-zinc-900 border-zinc-800 hover:bg-zinc-800 relative overflow-hidden group cursor-pointer p-0"
-              onClick={onOpenPersonalization}
+              className="bg-zinc-950 border-violet-500/30 relative overflow-hidden group p-0"
             >
-              <div className="absolute top-0 right-0 p-12 opacity-5 group-hover:opacity-10 transition-opacity pointer-events-none">
-                <Settings size={120} className="text-white rotate-12" />
+              <div className="absolute inset-0 opacity-5 pointer-events-none flex items-center justify-center">
+                <CircadianWaveform className="text-violet-400 w-full scale-150" />
               </div>
               
-              <div className="relative z-10 p-8 flex flex-col md:flex-row md:items-center justify-between gap-8">
-                <div className="flex items-start gap-6">
-                  <div className="w-16 h-16 bg-indigo-500/10 rounded-2xl flex items-center justify-center text-indigo-400 shadow-xl border border-indigo-500/20 group-hover:scale-110 transition-transform">
-                    <Settings size={32} />
+              <div className="relative z-10 p-8">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-10 h-10 bg-violet-500/10 rounded-xl flex items-center justify-center text-violet-400 border border-violet-500/20">
+                    <Brain size={20} />
                   </div>
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2 text-zinc-500">
-                      <span className="text-[10px] font-black uppercase tracking-[0.2em]">Profile Management</span>
+                  <div>
+                    <h3 className="text-sm font-black text-white uppercase tracking-widest">SIA Intelligence Feed</h3>
+                    <p className="text-[10px] text-violet-300 font-bold">Advanced Diagnostic Monitoring</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="p-4 bg-zinc-900/50 border border-zinc-800 rounded-2xl border-l-2 border-l-violet-500/50">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-2 h-2 rounded-full bg-violet-500 animate-pulse" />
+                      <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Neuro-Diagnostic</span>
                     </div>
-                    <h3 className="text-2xl font-black text-white tracking-tight">Refine Your Parameters</h3>
-                    <p className="text-zinc-400 text-sm font-medium leading-relaxed max-w-md">
-                      Your body and goals change. Keep your clinical profile updated to ensure SIA's analysis remains precise and relevant to your current lifestyle.
+                    <h4 className="text-sm font-bold text-white mb-1">Alzheimer's Risk Evaluation</h4>
+                    <p className="text-xs text-zinc-400 leading-relaxed">
+                      Analyzing N3/REM architecture for early biomarkers. Intelligence activation required for full report.
+                    </p>
+                  </div>
+
+                  <div className="p-4 bg-zinc-900/50 border border-zinc-800 rounded-2xl border-l-2 border-l-emerald-500/50">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                      <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Metabolic-Diagnostic</span>
+                    </div>
+                    <h4 className="text-sm font-bold text-white mb-1">Obesity & Metabolic Flux</h4>
+                    <p className="text-xs text-zinc-400 leading-relaxed">
+                      Monitoring circadian alignment with last meal timing. Baseline established.
                     </p>
                   </div>
                 </div>
 
-                <button 
-                  className="px-8 py-4 bg-zinc-800 text-white border border-zinc-700 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-zinc-700 transition-all shadow-xl flex items-center justify-center gap-3 whitespace-nowrap"
-                >
-                  Update Profile <ChevronRight size={18} />
-                </button>
+                <div className="mt-6 flex items-center justify-center">
+                  <div className="px-4 py-2 bg-violet-500/5 border border-violet-500/10 rounded-full">
+                    <p className="text-[9px] font-black text-violet-300 uppercase tracking-[0.3em] animate-pulse">
+                      Scanning for biological anomalies...
+                    </p>
+                  </div>
+                </div>
               </div>
             </Card>
           )}

@@ -14,7 +14,8 @@ import {
   ChevronDown
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { DailyLog, PersonalizationProfile } from '../types';
+import { DailyLog, PersonalizationProfile, Insight, UnstructuredData } from '../types';
+import { buildClinicalBrief } from '../lib/aiContextBuilder';
 import { 
   db, 
   User, 
@@ -29,9 +30,10 @@ import {
   getDoc, 
   doc, 
   limit,
-  httpsCallable
+  updateDoc
 } from '../lib/firebase';
 import Markdown from 'react-markdown';
+import { Type } from "@google/genai";
 
 import { AvatarFrame } from './UI';
 import { getGridFromEvents } from '../utils/sleepUtils';
@@ -144,7 +146,7 @@ export default function AIInsightsAgent({ logs, user, personalizationProfile, is
         setMessages([
           { 
             role: 'assistant', 
-            content: "Hello! I'm SIA, your Sleep Intelligence Agent. I've reviewed your history and I'm ready to help you find correlations and patterns. What would you like to analyze today?" 
+            content: "Clinical Intelligence Activated. I'm SIA, your Sleep Intelligence Agent. I've initialized your data fidelity tier and am ready to perform a multi-vector correlation analysis on your sleep history. What clinical parameters or trends should we evaluate today?" 
           }
         ]);
       } else {
@@ -195,13 +197,13 @@ export default function AIInsightsAgent({ logs, user, personalizationProfile, is
       const logsQuery = query(
         logsRef,
         orderBy('date', 'desc'),
-        limit(180)
+        limit(14) // Context builder uses last 14 days
       );
       
       const [logsSnap, profileSnap, unstructuredSnap] = await Promise.all([
         getDocs(logsQuery),
         getDoc(doc(db, 'users', user.uid, 'personalization', 'profile')),
-        getDocs(query(collection(db, 'users', user.uid, 'unstructured_data'), orderBy('uploadDate', 'desc'), limit(5)))
+        getDocs(query(collection(db, 'users', user.uid, 'unstructured_data'), orderBy('uploadDate', 'desc'), limit(10)))
       ]);
 
       const recentLogs: DailyLog[] = [];
@@ -209,22 +211,12 @@ export default function AIInsightsAgent({ logs, user, personalizationProfile, is
         recentLogs.push(doc.data() as DailyLog);
       });
 
-      const days = getDaysFromPrompt(text);
-
-      const unstructuredData: any[] = [];
+      const unstructuredData: UnstructuredData[] = [];
       unstructuredSnap.forEach(doc => {
-        const data = doc.data();
-        unstructuredData.push({
-          name: data.fileName,
-          type: data.dataType || 'raw_text',
-          summary: data.aiSummary || 'No summary available.',
-          insights: data.aiInsights || [],
-          dateRange: data.aiDateRange || 'Unknown',
-          content: data.content.substring(0, 500),
-          date: data.uploadDate
-        });
+        unstructuredData.push({ id: doc.id, ...doc.data() } as UnstructuredData);
       });
       
+      const clinicalBrief = buildClinicalBrief(recentLogs, unstructuredData);
       const profile = profileSnap.exists() ? profileSnap.data() : personalizationProfile;
       
       const age = profile?.demographics?.dateOfBirth
@@ -236,91 +228,159 @@ export default function AIInsightsAgent({ logs, user, personalizationProfile, is
         .map((d: any) => `${d.brand}${d.model ? ' ' + d.model : ''} (${d.type})`)
         .join(', ') ?? 'none logged';
 
-      // Clean stringification for context
-      const profileContext = profile ? JSON.stringify(profile) : "No personalization profile set yet.";
-      const logsContext = recentLogs.length > 0 
-        ? JSON.stringify(buildLogDigest(recentLogs, days)) 
-        : "EMPTY_HISTORY";
-      const unstructuredContext = unstructuredData.length > 0 ? JSON.stringify(unstructuredData) : "No unstructured notes found.";
-
-      if (logsContext === "EMPTY_HISTORY") {
-        const assistantMessage: Message = { 
-          role: 'assistant', 
-          content: "No sleep data found to analyze. Please log some nights or import data first so I can help you find patterns!",
-          createdAt: serverTimestamp()
-        };
-        await addDoc(collection(db, 'users', user.uid, 'chats'), assistantMessage);
-        setIsLoading(false);
-        setIsAnalyzing(false);
-        setIsTyping(false);
-        return;
-      }
-
       const apiKey = process.env.GEMINI_API_KEY;
       if (!apiKey) { console.error('GEMINI_API_KEY not set — AI features disabled'); return; }
       const ai = new GoogleGenAI({ apiKey });
       
       const systemInstruction = `
-        You are SIA, a clinical sleep scientist. You are viewing a statistical digest of ${days} days of data. 
-        Look for long-term trends, seasonal shifts, and correlations between the user's personalization profile and their actual logs.
-        Always use bolding for metrics, bullet points for advice, and never return a wall of unformatted text.
+        You are SIA, a clinical sleep scientist. 
         
         GUARDRAIL: Strictly stick to sleep science, recovery, and circadian health. If the user asks about unrelated topics, politely redirect them back to sleep analysis.
         
         USER CONTEXT:
         - User demographics: age ${age}, country: ${country}
         - User's sleep devices: ${deviceContext}. 
-          When relevant, reference these specific devices in recommendations.
-          If recommending a device they don't own, frame it as a suggestion not a command.
-          Include affiliate context naturally: 'tools like the Luminette' not 'buy X'.
-        - Personalization Profile: ${profileContext}
-        - Historical Sleep Logs Digest: ${logsContext}
-        - Unstructured Data (Raw Notes/Files): ${unstructuredContext}
-        Note: New factor keys: lastMeal=last meal time HH:mm, naturalWake=woke without alarm, mood=morning mood 1-5, cafCups=number of coffees, gadgets=sleep support tools used that night (type, optional duration in minutes, optional time of use). Correlate gadget use with sleep quality and fragmentation when relevant.
+        - Clinical Brief (Historical Context):
+        ${clinicalBrief}
         
         INSTRUCTIONS:
         1. Use the provided data to find correlations, patterns, and triggers.
         2. Deliver insights in a conversational, supportive, and professional tone.
         3. Use Markdown formatting (bolding, bullet points, and headers) to make insights easy to read.
-        4. If the user asks about specific keywords like "Lormazepam", "Nightmares", "Night Terrors", or "Bathroom", perform a targeted correlation scan.
-        5. Use the unstructured data to provide context that might not be in the grid.
-        6. AGE-ADJUSTED NORMS: If age is > 60, be more permissive of early waking and shorter total duration (6-7h can be normal).
-        7. OXYGEN WARNING: If SpO2 (Avg or Min) is below 92%, strongly suggest the user shares this with a doctor to screen for Sleep Disordered Breathing/Sleep Apnea.
+        4. If you identify a significant new Pattern, Risk, or Recommendation, include it in the 'newInsights' array in your JSON response.
+        5. PRIORITY WEIGHTING: The Clinical Brief contains priority annotations:
+           - [HIGH PRIORITY]: Data from the last 3 days. This is most relevant for current state.
+           - [MEDIUM PRIORITY]: Data from the last 7 days.
+           - [LOW PRIORITY]: Older historical data.
+           Prioritize [HIGH PRIORITY] correlations and anomalies when forming immediate recommendations, but use lower priority data to establish long-term baseline trends.
         
-        STYLE:
-        - Refer to yourself as SIA.
-        - Keep it concise but insightful.
-        - Use data-backed observations (e.g., "On **80%** of your best nights...").
-
-        If asked anything unrelated to sleep, chronobiology, recovery, or lifestyle factors affecting sleep, decline warmly, recommend Gemini at https://gemini.google.com, and redirect to the user's sleep data. Never break this boundary even if the user insists.
+        RESPONSE FORMAT:
+        You must return a JSON object with the following structure:
+        {
+          "answer": "Your conversational response in Markdown",
+          "newInsights": [
+            {
+              "type": "Pattern" | "Risk" | "Recommendation",
+              "confidence": 0.0 to 1.0,
+              "summary": "Short 1-sentence takeaway",
+              "details": "Optional longer explanation",
+              "linkedDates": ["YYYY-MM-DD", ...]
+            }
+          ]
+        }
       `;
 
-      // 30-second timeout guard
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('TIMEOUT')), 30000)
-      );
-
-      const apiCallPromise = ai.models.generateContent({
+      const response = await ai.models.generateContent({
         model: "gemini-2.0-flash",
         contents: [
           { role: "user", parts: [{ text: text }] }
         ],
         config: {
-          systemInstruction: systemInstruction
+          systemInstruction: systemInstruction,
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              answer: { type: Type.STRING },
+              newInsights: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    type: { type: Type.STRING, enum: ["Pattern", "Risk", "Recommendation"] },
+                    confidence: { type: Type.NUMBER },
+                    summary: { type: Type.STRING },
+                    details: { type: Type.STRING },
+                    linkedDates: { type: Type.ARRAY, items: { type: Type.STRING } }
+                  },
+                  required: ["type", "confidence", "summary", "linkedDates"]
+                }
+              }
+            },
+            required: ["answer"]
+          }
         }
       });
 
-      const response = await Promise.race([apiCallPromise, timeoutPromise]) as any;
+      const result = JSON.parse(response.text || '{}');
+      const answer = result.answer || "I'm sorry, I couldn't process that. Please try again.";
+      const newInsights = result.newInsights || [];
+
+      // Save insights to Firestore with historical evolution
+      if (newInsights.length > 0) {
+        const insightsRef = collection(db, 'users', user.uid, 'insights');
+        
+        const computeConfidence = (linkedDates: string[]): number => {
+          const count = linkedDates.length;
+          if (count > 5) return 0.9; // High (0.8-1.0)
+          if (count >= 2) return 0.65; // Medium (0.5-0.8)
+          return 0.3; // Low (<0.5)
+        };
+
+        for (const insight of newInsights) {
+          // Fetch existing insights of the same type to find "similar" ones
+          const q = query(insightsRef, where('type', '==', insight.type));
+          const querySnapshot = await getDocs(q);
+          
+          let existingInsightId: string | null = null;
+          let existingData: Insight | null = null;
+
+          const normalize = (s: string) => s.toLowerCase().replace(/[^\w\s]/g, '').trim();
+          const targetSummary = normalize(insight.summary);
+
+          querySnapshot.forEach((doc) => {
+            const data = doc.data() as Insight;
+            if (normalize(data.summary) === targetSummary) {
+              existingInsightId = doc.id;
+              existingData = data;
+            }
+          });
+
+          const aiConfidence = insight.confidence;
+          const computedConfidence = computeConfidence(insight.linkedDates);
+
+          if (existingInsightId && existingData) {
+            // Update existing using weighted averaging for AI confidence
+            // But use computedConfidence for the primary confidence field based on merged dates
+            const prevOccurrences = existingData.occurrences || 1;
+            const newOccurrences = prevOccurrences + 1;
+            const newAiConfidence = ((existingData.aiConfidence * prevOccurrences) + aiConfidence) / newOccurrences;
+            
+            // Append new linkedDates and remove duplicates
+            const mergedDates = Array.from(new Set([...(existingData.linkedDates || []), ...(insight.linkedDates || [])]));
+            const newComputedConfidence = computeConfidence(mergedDates);
+
+            await updateDoc(doc(db, 'users', user.uid, 'insights', existingInsightId), {
+              confidence: newComputedConfidence, // Use computed for UI
+              aiConfidence: newAiConfidence,
+              computedConfidence: newComputedConfidence,
+              linkedDates: mergedDates,
+              occurrences: newOccurrences,
+              lastUpdated: serverTimestamp(),
+              details: insight.details || existingData.details
+            });
+          } else {
+            // Create new insight
+            await addDoc(insightsRef, {
+              ...insight,
+              confidence: computedConfidence, // Override with computed
+              aiConfidence: aiConfidence,
+              computedConfidence: computedConfidence,
+              occurrences: 1,
+              createdAt: serverTimestamp(),
+              lastUpdated: serverTimestamp()
+            });
+          }
+        }
+      }
 
       const assistantMessage: Message = { 
         role: 'assistant', 
-        content: response.text || "I'm sorry, I couldn't process that. Please try again.",
+        content: answer,
         createdAt: serverTimestamp()
       };
       
-      await addDoc(collection(db, 'users', user.uid, 'chats'), {
-        ...assistantMessage,
-      });
+      await addDoc(collection(db, 'users', user.uid, 'chats'), assistantMessage);
     } catch (error: any) {
       setIsAnalyzing(false);
       setIsLoading(false);
@@ -356,15 +416,15 @@ export default function AIInsightsAgent({ logs, user, personalizationProfile, is
     return (
       <div className="flex flex-col h-[600px] bg-zinc-900/50 border border-zinc-800 rounded-3xl overflow-hidden items-center justify-center space-y-4">
         <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
-        <p className="text-sm text-zinc-400 font-medium animate-pulse">Syncing Profile...</p>
+        <p className="text-sm text-zinc-300 font-medium animate-pulse">Syncing Profile...</p>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-[600px] bg-zinc-900/50 border border-zinc-800 rounded-3xl overflow-hidden">
+    <div className="flex flex-col h-[600px] bg-zinc-950 border border-zinc-800 rounded-3xl overflow-hidden animate-scanning relative">
       {/* Header */}
-      <div className="p-4 border-b border-zinc-800 bg-zinc-900 flex items-center justify-between text-left">
+      <div className="p-4 border-b border-zinc-800 bg-zinc-900/80 backdrop-blur-md flex items-center justify-between text-left relative z-10">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl overflow-hidden border border-indigo-500/30 bg-zinc-900 flex items-center justify-center aspect-square">
             <img 
@@ -376,7 +436,7 @@ export default function AIInsightsAgent({ logs, user, personalizationProfile, is
           </div>
           <div>
             <h3 className="text-lg md:text-xl font-black text-white tracking-tight">Sleep Intelligence Agent</h3>
-            <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">SIA • {isEnhanced ? 'Enhanced' : 'Standard'}</p>
+            <p className="text-[10px] text-zinc-300 uppercase tracking-widest font-bold">Fidelity: {isEnhanced ? 'Enhanced Analysis' : 'Baseline'}</p>
           </div>
         </div>
         {isAnalyzing && (
@@ -422,7 +482,7 @@ export default function AIInsightsAgent({ logs, user, personalizationProfile, is
         </AnimatePresence>
         {isAnalyzing && (
           <div className="flex justify-start">
-            <div className="flex gap-3 items-center text-zinc-500 text-xs italic">
+            <div className="flex gap-3 items-center text-zinc-400 text-xs italic">
               <div className="flex gap-1">
                 <motion.div
                   animate={{ scale: [1, 1.2, 1] }}
@@ -449,7 +509,7 @@ export default function AIInsightsAgent({ logs, user, personalizationProfile, is
       {/* Quick Prompts */}
       <div className="px-4 py-2 border-t border-zinc-800 bg-zinc-900/30">
         <div className="flex items-center justify-between mb-2">
-          <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold ml-1">Quick Ask</p>
+          <p className="text-[10px] text-zinc-300 uppercase tracking-widest font-bold ml-1">Quick Ask</p>
         </div>
         <div className="flex flex-wrap gap-2 pb-2">
           {(isExpanded ? QUICK_PROMPTS : QUICK_PROMPTS.slice(0, 5)).map((qp, i) => (
@@ -457,7 +517,7 @@ export default function AIInsightsAgent({ logs, user, personalizationProfile, is
               key={i}
               onClick={() => handleSend(qp.prompt)}
               disabled={isLoading || isAnalyzing}
-              className={`flex items-center gap-2 px-3 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-xl text-xs font-medium transition-colors disabled:opacity-50 ${
+              className={`flex items-center gap-2 px-3 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-2xl text-xs font-medium transition-colors disabled:opacity-50 ${
                 qp.category === 'diagnose' ? 'hover:border-red-500/30' :
                 qp.category === 'trend' ? 'hover:border-blue-500/30' :
                 qp.category === 'action' ? 'hover:border-indigo-500/30' :
@@ -470,7 +530,7 @@ export default function AIInsightsAgent({ logs, user, personalizationProfile, is
           {QUICK_PROMPTS.length > 5 && (
             <button
               onClick={() => setIsExpanded(!isExpanded)}
-              className="flex items-center gap-1 px-3 py-2 bg-zinc-800/50 hover:bg-zinc-800 border border-zinc-700 rounded-xl text-[10px] font-bold uppercase tracking-widest text-zinc-500 transition-all"
+              className="flex items-center gap-1 px-3 py-2 bg-zinc-800/50 hover:bg-zinc-800 border border-zinc-700 rounded-2xl text-[10px] font-bold uppercase tracking-widest text-zinc-300 transition-all"
             >
               {isExpanded ? 'Less' : 'More'}
               <ChevronDown size={12} className={`transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />
@@ -499,7 +559,7 @@ export default function AIInsightsAgent({ logs, user, personalizationProfile, is
           <button 
             type="submit"
             disabled={!input.trim() || isLoading || isAnalyzing}
-            className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-indigo-600 rounded-xl flex items-center justify-center text-white disabled:opacity-50 disabled:bg-zinc-700 transition-all"
+            className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-indigo-600 rounded-2xl flex items-center justify-center text-white disabled:opacity-50 disabled:bg-zinc-700 transition-all"
           >
             {isAnalyzing ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
           </button>

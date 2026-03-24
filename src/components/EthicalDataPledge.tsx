@@ -34,14 +34,14 @@ export default function EthicalDataPledge({ agreed, onToggle, isEnhanced }: Ethi
               </button>
               
               <div className="flex items-center gap-3">
-                <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-tighter max-w-[120px] text-right leading-tight">
-                  {isEnhanced ? 'Included in Enhanced' : 'Powers your free AI tokens'}
+                <span className="text-[9px] font-bold text-zinc-400 uppercase tracking-tighter max-w-[120px] text-right leading-tight">
+                  {isEnhanced ? 'Included in Enhanced Analysis' : 'Powers your free AI tokens'}
                 </span>
                 <button 
                   onClick={() => onToggle(!agreed)}
                   className={`w-10 h-5 rounded-full transition-all relative ${agreed ? 'bg-indigo-600' : 'bg-zinc-700'}`}
                 >
-                  <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-all ${agreed ? 'left-5.5' : 'left-0.5'}`} />
+                  <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-all ${agreed ? (agreed ? 'left-5.5' : 'left-0.5') : 'left-0.5'}`} />
                 </button>
               </div>
             </div>
@@ -83,7 +83,7 @@ export default function EthicalDataPledge({ agreed, onToggle, isEnhanced }: Ethi
                       </div>
                       <div>
                         <h4 className="text-sm font-bold text-white mb-0.5">{item.title}</h4>
-                        <p className="text-xs text-zinc-500 leading-relaxed">{item.desc}</p>
+                        <p className="text-xs text-zinc-400 leading-relaxed">{item.desc}</p>
                       </div>
                     </div>
                   ))}

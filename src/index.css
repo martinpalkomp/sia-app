@@ -5,13 +5,14 @@
   --clinical-card: #14161b;
   --clinical-border: rgba(255, 255, 255, 0.08);
   --clinical-text: #f4f4f5;
-  --clinical-text-muted: #71717a;
+  --clinical-text-muted: #d4d4d8; 
   --primary-color: #4f46e5;
   --accent-color: #fbbf24;
+  --clinical-blue: #64748b;
 }
 
 .enhanced-mode {
-  --primary-color: #8b5cf6; /* Enhanced Violet/Indigo */
+  --primary-color: #8b5cf6;
 }
 
 @theme {
@@ -27,6 +28,7 @@
   --color-clinical-accent: var(--accent-color);
   --color-clinical-text: var(--clinical-text);
   --color-clinical-text-muted: var(--clinical-text-muted);
+  --color-clinical-blue: var(--clinical-blue);
   
   /* Typography */
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
@@ -43,7 +45,7 @@
   }
 
   h1, h2, h3, h4 {
-    @apply font-display tracking-tight text-clinical-text;
+    @apply font-display tracking-tight text-clinical-text leading-relaxed md:leading-tight;
   }
 }
 
@@ -69,21 +71,44 @@
 
 @keyframes sia-glow-pulse {
   0% {
-    background-color: #0f172a; /* slate-900 */
+    background-color: #0a0c10;
     box-shadow: 0 0 5px rgba(59, 130, 246, 0.1);
   }
   50% {
-    background-color: #1e293b; /* slate-800 */
-    box-shadow: 0 0 15px rgba(59, 130, 246, 0.3);
+    background-color: #14161b;
+    box-shadow: 0 0 15px rgba(59, 130, 246, 0.2);
   }
   100% {
-    background-color: #0f172a; /* slate-900 */
+    background-color: #0a0c10;
     box-shadow: 0 0 5px rgba(59, 130, 246, 0.1);
   }
 }
 
+@keyframes scanning-pulse {
+  0% { transform: translateY(-100%); opacity: 0; }
+  50% { opacity: 0.5; }
+  100% { transform: translateY(100%); opacity: 0; }
+}
+
 .animate-sia-pulse {
   animation: sia-glow-pulse 10s ease-in-out infinite;
+}
+
+.animate-scanning {
+  position: relative;
+  overflow: hidden;
+}
+
+.animate-scanning::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(to right, transparent, var(--primary-color), transparent);
+  animation: scanning-pulse 3s linear infinite;
+  pointer-events: none;
 }
 
 /* Custom Scrollbar for Clinical Review */
@@ -113,3 +138,15 @@
 .markdown-body strong { @apply font-bold text-white; }
 .markdown-body code { @apply bg-zinc-900 px-1.5 py-0.5 rounded text-xs font-mono text-indigo-300; }
 .markdown-body blockquote { @apply border-l-2 border-indigo-500 pl-4 italic my-4 text-zinc-400; }
+
+@layer utilities {
+  .bg-diagonal-pattern {
+    background-image: repeating-linear-gradient(
+      45deg,
+      transparent,
+      transparent 4px,
+      rgba(255, 255, 255, 0.1) 4px,
+      rgba(255, 255, 255, 0.1) 8px
+    );
+  }
+}

@@ -57,7 +57,7 @@ const SleepRibbon: React.FC<SleepRibbonProps> = ({
           return (
             <div
               key={event.id}
-              className={`absolute top-0 bottom-0 ${colorClass} transition-all cursor-help group/segment`}
+              className={`absolute top-0 bottom-0 ${colorClass} transition-all cursor-help group/segment ${event.type === 'sleep' ? 'bg-diagonal-pattern' : ''}`}
               style={{ left: `${left}%`, width: `${width}%` }}
             >
               {/* Tooltip */}

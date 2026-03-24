@@ -35,41 +35,66 @@ export const seedTestData = async (userId: string, onComplete?: () => void) => {
     const targetDate = subDays(today, i);
     const dateStr = format(targetDate, 'yyyy-MM-dd');
     
-    // Generate realistic sleepEvents instead of timeline
-    const startHour = 22 + Math.floor(Math.random() * 2); // 22 or 23
-    const startMin = Math.floor(Math.random() * 60);
-    const endHour = 6 + Math.floor(Math.random() * 3); // 6, 7, 8
-    const endMin = Math.floor(Math.random() * 60);
+    // 1. Generate Times
+    // Bedtime: 22:00 - 23:00
+    const bedHour = 22 + Math.floor(Math.random() * 1); 
+    const bedMin = [0, 15, 30, 45][Math.floor(Math.random() * 4)];
     
-    const start = `${startHour.toString().padStart(2, '0')}:${startMin.toString().padStart(2, '0')}`;
-    const end = `${endHour.toString().padStart(2, '0')}:${endMin.toString().padStart(2, '0')}`;
+    // Actually falling asleep: 15-30 mins after bedtime
+    const sleepHour = bedHour;
+    const sleepMin = bedMin + 15; // Simplified logic for seed
     
+    // Waking up but staying in bed: 06:00 - 07:30
+    const wakeHour = 6 + Math.floor(Math.random() * 2);
+    const wakeMin = [0, 15, 30, 45][Math.floor(Math.random() * 4)];
+    
+    // Getting out of bed: 15 mins after waking
+    const outHour = wakeHour;
+    const outMin = wakeMin + 15;
+
+    // Formatting helpers
+    const formatT = (h: number, m: number) => {
+      let finalH = h;
+      let finalM = m;
+      if (m >= 60) { finalH += 1; finalM -= 60; }
+      return `${finalH.toString().padStart(2, '0')}:${finalM.toString().padStart(2, '0')}`;
+    };
+
+    const bedTime = formatT(bedHour, bedMin);
+    const sleepStartTime = formatT(sleepHour, sleepMin);
+    const wakeTime = formatT(wakeHour, wakeMin);
+    const outTime = formatT(outHour, outMin);
+
+    // 2. Build Realistic Sleep Events
+    const sleepEvents = [
+      { id: `seed-${i}-awake-start`, type: 'awake-in' as const, start: bedTime, end: sleepStartTime },
+      { id: `seed-${i}-sleep`, type: 'sleep' as const, start: sleepStartTime, end: wakeTime },
+      { id: `seed-${i}-awake-end`, type: 'awake-in' as const, start: wakeTime, end: outTime }
+    ];
+
+    // ... (rest of your gadgets logic remains the same)
     const ALL_GADGETS = ['light_therapy','breathing_trainer','pre_sleep_heating','aromatherapy','meditation_app','cooling_pad','white_noise','sleep_mask','earplugs','weighted_blanket','smart_ring','smartwatch_tracking','fitness_band','phone_sleep_app'] as const;
     const TIMED_GADGETS = ['light_therapy','breathing_trainer','pre_sleep_heating','aromatherapy'];
     const TIME_OPTIONS = ['morning','afternoon','evening','before_bed_15','before_bed_30','all_night'] as const;
 
     const seedGadgets = ALL_GADGETS
-      .filter(() => Math.random() > 0.75) // ~25% chance each gadget appears
-      .slice(0, 3) // max 3 gadgets per night
+      .filter(() => Math.random() > 0.75) 
+      .slice(0, 3) 
       .map(type => ({
         type,
         ...(TIMED_GADGETS.includes(type) ? { durationMinutes: [15,30,45,60][Math.floor(Math.random()*4)] } : {}),
         ...(type === 'light_therapy' ? { timeOfUse: TIME_OPTIONS[Math.floor(Math.random()*3)] } : {}),
       }));
 
-    const sleepEvents = [
-      { id: `seed-${i}-1`, type: 'sleep' as const, start, end }
-    ];
-
     const log: DailyLog = {
       date: dateStr,
       type: 'log',
       isIgnored: false,
-      sleep_quality: 6 + Math.floor(Math.random() * 4), // 6-9
-      morning_alertness: 5 + Math.floor(Math.random() * 4),   // 5-8
-      daytime_energy: 4 + Math.floor(Math.random() * 6),  // 4-9
+      sleep_quality: 6 + Math.floor(Math.random() * 4),
+      morning_alertness: 5 + Math.floor(Math.random() * 4),
+      daytime_energy: 4 + Math.floor(Math.random() * 6),
       daily_remarks: REMARKS[Math.floor(Math.random() * REMARKS.length)],
-      sleepEvents,
+      sleepEvents, // Now contains both sleep and awake-in types
       factors: {
         caffeine: { consumed: Math.random() > 0.3, amount: 1, lastIntake: '14:00' },
         alcohol: { consumed: Math.random() > 0.8, drinks: 1, lastIntake: '20:00' },
@@ -85,10 +110,9 @@ export const seedTestData = async (userId: string, onComplete?: () => void) => {
     const logRef = doc(db, 'users', userId, 'sleep_logs', dateStr);
     const metricsRef = doc(db, 'users', userId, 'daily_metrics', dateStr);
 
-    batch.set(logRef, { ...log, type: 'log', updatedAt: serverTimestamp() });
+    batch.set(logRef, { ...log, updatedAt: serverTimestamp() });
     batch.set(metricsRef, {
       date: dateStr,
-      type: 'log',
       sleep_quality: log.sleep_quality,
       morning_alertness: log.morning_alertness,
       daytime_energy: log.daytime_energy,

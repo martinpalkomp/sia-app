@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import Papa from 'papaparse';
 import { read, utils, writeFile } from 'xlsx';
 import ExcelJS from 'exceljs';
-import { parse, format, isValid } from 'date-fns';
+import { parse, format, isValid, subDays, parseISO } from 'date-fns';
 import { GoogleGenAI } from "@google/genai";
 import { 
   Upload, 
@@ -24,12 +24,15 @@ import {
   getDoc, 
   runTransaction, 
   addDoc, 
-  collection 
+  collection,
+  deleteField 
 } from '../lib/firebase';
 import { DailyLog, SleepState } from '../types';
 import { TOTAL_SLOTS } from '../constants';
 import { saveLog } from '../services/sleepService';
-import { snapTo15Min, timeToIndex } from '../utils/sleepUtils';
+import { snapTo15Min, timeToIndex, convertGridToEvents, getMinutesFrom2000 } from '../utils/sleepUtils';
+
+import { exportToExcel } from '../utils/DataExporter';
 
 interface DataImporterProps {
   user: User;
@@ -37,11 +40,13 @@ interface DataImporterProps {
   onRefresh?: () => void;
   isImporting?: boolean;
   setIsImporting?: (val: boolean) => void;
+  logs?: Record<string, DailyLog>;
 }
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const TEMPLATE_HEADERS = ['Date', 'Bedtime', 'Waketime', 'Status_Code', 'SQ', 'Remarks'];
 
-export default function DataImporter({ user, onImportComplete, onRefresh, isImporting, setIsImporting }: DataImporterProps) {
+export default function DataImporter({ user, onImportComplete, onRefresh, isImporting, setIsImporting, logs = {} }: DataImporterProps) {
   const [isCollapsed, setIsCollapsed] = useState(true);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isPasteOpen, setIsPasteOpen] = useState(false);
@@ -53,10 +58,20 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
   const [errorMessage, setErrorMessage] = useState('');
   const [showConflictModal, setShowConflictModal] = useState(false);
   const [pendingData, setPendingData] = useState<any[] | null>(null);
+  const [pendingRawContent, setPendingRawContent] = useState<string | null>(null);
   const [cleaningReport, setCleaningReport] = useState<{ skipped: number; cleaned: number; metrics: string[] } | null>(null);
   const [showLegacyToast, setShowLegacyToast] = useState(false);
   const [previewData, setPreviewData] = useState<any[] | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const withTimeout = <T,>(promise: Promise<T>, timeoutMs: number, errorMessage: string): Promise<T> => {
+    return Promise.race([
+      promise,
+      new Promise<T>((_, reject) => 
+        setTimeout(() => reject(new Error(errorMessage)), timeoutMs)
+      )
+    ]);
+  };
 
   const saveUnstructuredData = async (content: string, fileName: string) => {
     if (!db) { setUploadStatus('error'); setErrorMessage('Database not available — check Firebase configuration'); return; }
@@ -66,17 +81,20 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
     let extracted = { summary: null, estimatedDateRange: null, extractedInsights: [], rawDataType: 'unknown' };
     try {
       const apiKey = process.env.GEMINI_API_KEY;
-      if (!apiKey) { console.error('GEMINI_API_KEY not set — AI features disabled'); return; }
-      const ai = new GoogleGenAI({ apiKey });
-      const response = await ai.models.generateContent({
-        model: "gemini-2.0-flash-lite",
-        config: {
-          systemInstruction: "Extract sleep insights from this text. Return only valid JSON: { summary, estimatedDateRange, extractedInsights (string array), rawDataType }."
-        },
-        contents: content.slice(0, 8000)
-      });
-      const clean = (response.text ?? '').replace(/```json|```/g, '').trim();
-      extracted = JSON.parse(clean);
+      if (apiKey) {
+        const ai = new GoogleGenAI({ apiKey });
+        const aiPromise = ai.models.generateContent({
+          model: "gemini-3-flash-preview",
+          config: {
+            systemInstruction: "Extract sleep insights from this text. Return only valid JSON: { summary, estimatedDateRange, extractedInsights (string array), rawDataType }."
+          },
+          contents: content.slice(0, 8000)
+        });
+
+        const response = await withTimeout(aiPromise, 15000, "AI extraction timed out");
+        const clean = (response.text ?? '').replace(/```json|```/g, '').trim();
+        extracted = JSON.parse(clean);
+      }
     } catch (aiError) {
       console.warn('AI extraction skipped — continuing with null metadata:', aiError);
     }
@@ -102,6 +120,9 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
       console.error("Failed to save unstructured data:", firestoreError);
       setUploadStatus('error');
       setErrorMessage("Failed to save data: " + firestoreError.message);
+    } finally {
+      setIsUploading(false);
+      if (setIsImporting) setIsImporting(false);
     }
   };
 
@@ -190,7 +211,320 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
     });
   };
 
-  const processImportedData = async (data: any[], forceOverwrite = false) => {
+  const getSleepDay = (dateStr: string, startTime: string): string => {
+    try {
+      // 1. Normalize the date string to a Date object
+      let date: Date;
+      if (dateStr.includes('/') || dateStr.includes('.')) {
+        const formats = ['dd/MM/yyyy', 'MM/dd/yyyy', 'dd.MM.yyyy', 'yyyy.MM.dd', 'yyyy/MM/dd'];
+        let parsed = null;
+        for (const f of formats) {
+          const p = parse(dateStr, f, new Date());
+          if (isValid(p)) {
+            parsed = p;
+            break;
+          }
+        }
+        date = parsed || new Date(dateStr);
+      } else {
+        date = parseISO(dateStr);
+      }
+
+      if (!isValid(date)) {
+        date = new Date(dateStr);
+      }
+
+      if (!isValid(date)) return dateStr;
+
+      // 2. Apply the 20:00 Anchor logic
+      if (!startTime || !startTime.includes(':')) return format(date, 'yyyy-MM-dd');
+
+      const [hours] = startTime.split(':').map(Number);
+      if (!isNaN(hours) && hours < 20) {
+        // If bedtime is before 20:00 (e.g., 07:00 AM), it belongs to the PREVIOUS day's sleep session
+        // Wait, if I wake up at 07:00 AM on Mar 22, the "Sleep Day" is Mar 21.
+        // But the CSV row usually says Date: Mar 21, Bedtime: 23:30, Waketime: 07:00.
+        // In this case, getSleepDay('2026-03-21', '23:30') should return '2026-03-21'.
+        // If the row says Date: Mar 22, Bedtime: 01:00, Waketime: 07:00.
+        // Then getSleepDay('2026-03-22', '01:00') should return '2026-03-21'.
+        return format(subDays(date, 1), 'yyyy-MM-dd');
+      }
+      
+      return format(date, 'yyyy-MM-dd');
+    } catch (e) {
+      console.error("Error in getSleepDay:", e);
+      return dateStr;
+    }
+  };
+
+  const generateSleepEventsLedger = (events: { start: string, end: string, status: string }[]): (number | null)[] => {
+    // The 96-Slot Ledger: Initialize an array of 96 nulls for each sleep day.
+    // null represents "unassigned" (Start-of-Day Gap)
+    const ledger = new Array(96).fill(null); 
+    
+    // Sort events by priority: SLEEP (1) > AWAKE-IN (2)
+    // This ensures that if we paint them in order, SLEEP can overwrite AWAKE-IN
+    const sortedEvents = [...events].sort((a, b) => {
+      const priority = (s: string) => {
+        const up = s.toUpperCase();
+        if (up.includes('SLEEP') || up === '1') return 2; // Higher priority for sorting
+        if (up.includes('AWAKE-IN') || up === '2') return 1;
+        return 0;
+      };
+      return priority(a.status) - priority(b.status);
+    });
+
+    sortedEvents.forEach(event => {
+      const startIdx = timeToIndex(event.start);
+      const endIdx = timeToIndex(event.end);
+      
+      let statusCode = 0;
+      const s = (event.status || '').toString().trim().toUpperCase();
+      
+      if (s.includes('SLEEP') || s === '1') {
+        statusCode = 1; // SLEEP
+      } else if (s.includes('AWAKE-IN') || s === '2') {
+        statusCode = 2; // AWAKE-IN
+      }
+
+      if (statusCode === 0) return;
+
+      const paintSlot = (idx: number, code: number) => {
+        if (idx < 0 || idx >= 96) return;
+        
+        // Priority Logic:
+        // 1. If slot is null/empty, paint it.
+        // 2. If slot is AWAKE-IN (2) and we have SLEEP (1), overwrite it.
+        if (ledger[idx] === null || ledger[idx] === 0) {
+          ledger[idx] = code;
+        } else if (ledger[idx] === 2 && code === 1) {
+          ledger[idx] = 1; 
+        }
+      };
+
+      if (startIdx < endIdx) {
+        for (let i = startIdx; i < endIdx; i++) {
+          paintSlot(i, statusCode);
+        }
+      } else if (startIdx > endIdx) {
+        // Wrap around (20:00 anchor)
+        for (let i = startIdx; i < 96; i++) {
+          paintSlot(i, statusCode);
+        }
+        for (let i = 0; i < endIdx; i++) {
+          paintSlot(i, statusCode);
+        }
+      }
+    });
+    
+    return ledger;
+  };
+
+  const normalizeTime = (t: any): string => {
+    const internalNormalize = (val: any): string => {
+      if (!val && val !== 0) return '';
+
+      // Handle Excel serial time format
+      if (typeof val === 'number' && val >= 0 && val < 1) {
+        const totalMinutes = Math.round(val * 24 * 60);
+        const hours = Math.floor(totalMinutes / 60) % 24;
+        const mins = totalMinutes % 60;
+        return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
+      }
+
+      // Handle Date objects
+      if (val instanceof Date) {
+        const hours = val.getUTCHours();
+        const mins = val.getUTCMinutes();
+        return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
+      }
+
+      let str = val.toString().trim().toUpperCase();
+      
+      // Handle AM/PM
+      const ampmMatch = str.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+      if (ampmMatch) {
+        let h = parseInt(ampmMatch[1]);
+        const m = ampmMatch[2];
+        const p = ampmMatch[3].toUpperCase();
+        if (p === 'PM' && h < 12) h += 12;
+        if (p === 'AM' && h === 12) h = 0;
+        return `${h.toString().padStart(2, '0')}:${m}`;
+      }
+
+      if (str === '24:00') return '00:00';
+      if (/^\d:\d{2}$/.test(str)) return '0' + str;
+      if (/^\d{2}:\d{2}:\d{2}$/.test(str)) return str.slice(0, 5);
+      
+      return str;
+    };
+
+    const result = internalNormalize(t);
+    return /^\d{2}:\d{2}$/.test(result) ? result : '';
+  };
+
+  const addMinutes = (time: string, mins: number): string => {
+    if (!time || !time.includes(':')) return time;
+    const [h, m] = time.split(':').map(Number);
+    if (isNaN(h) || isNaN(m)) return time;
+    let totalMins = h * 60 + m + mins;
+    while (totalMins < 0) totalMins += 24 * 60;
+    const finalH = Math.floor(totalMins / 60) % 24;
+    const finalM = totalMins % 60;
+    return `${finalH.toString().padStart(2, '0')}:${finalM.toString().padStart(2, '0')}`;
+  };
+
+  const validateAndMapRow = (row: any, idx: number, skippedRows?: string[], isStrict = false) => {
+    const mappedRow: any = {};
+    const unmappedData: string[] = [];
+
+    const originalKeys = Object.keys(row).map(k => k.toLowerCase().trim());
+    const hasBedtimeHeaders = originalKeys.includes('bedtime') && originalKeys.includes('waketime');
+    const isSleepWindow = isStrict || hasBedtimeHeaders;
+
+    if (isStrict) {
+      // Strict Template Mode: Direct mapping based on TEMPLATE_HEADERS
+      mappedRow.Date = row.Date;
+      mappedRow.Start_Time = row.Bedtime;
+      mappedRow.End_Time = row.Waketime;
+      mappedRow.Status_Code = row.Status_Code;
+      mappedRow.SQ = row.SQ;
+      mappedRow.Remarks = row.Remarks;
+    } else {
+      Object.keys(row).forEach(key => {
+        const mappedKey = fuzzyMapHeader(key);
+        if (mappedKey) {
+          mappedRow[mappedKey] = row[key];
+        } else {
+          unmappedData.push(`${key}: ${row[key]}`);
+        }
+      });
+    }
+
+    let dateStr = '';
+    try {
+      if (mappedRow.Date instanceof Date) {
+        dateStr = format(mappedRow.Date, 'yyyy-MM-dd');
+      } else if (typeof mappedRow.Date === 'number') {
+        // Handle Excel serial date
+        const date = new Date((mappedRow.Date - 25569) * 86400 * 1000);
+        dateStr = format(date, 'yyyy-MM-dd');
+      } else {
+        const rawDate = mappedRow.Date?.toString() || '';
+        // Try to parse and re-format to yyyy-MM-dd
+        let parsedDate = parseISO(rawDate);
+        if (!isValid(parsedDate)) {
+          const formats = ['dd/MM/yyyy', 'MM/dd/yyyy', 'dd.MM.yyyy', 'yyyy.MM.dd', 'yyyy/MM/dd'];
+          for (const f of formats) {
+            const p = parse(rawDate, f, new Date());
+            if (isValid(p)) {
+              parsedDate = p;
+              break;
+            }
+          }
+        }
+        dateStr = isValid(parsedDate) ? format(parsedDate, 'yyyy-MM-dd') : rawDate;
+      }
+    } catch (e) {
+      dateStr = mappedRow.Date?.toString() || '';
+    }
+
+    let start = normalizeTime(mappedRow.Start_Time);
+    let end = normalizeTime(mappedRow.End_Time);
+
+    if (!dateStr || !start || !end) {
+      if (skippedRows) skippedRows.push(`Row ${idx + 1}: Missing required fields (Date, Bedtime, Waketime)`);
+      return null;
+    }
+
+    if (start === end) {
+      if (skippedRows) skippedRows.push(`Row ${idx + 1}: Start time matches end time (${start})`);
+      return null;
+    }
+
+    // Final validation of the date string
+    const finalParsedDate = parseISO(dateStr);
+    if (!isValid(finalParsedDate)) {
+      if (skippedRows) skippedRows.push(`Row ${idx + 1}: Invalid date format (${dateStr})`);
+      return null;
+    }
+
+    const formattedDate = format(finalParsedDate, 'yyyy-MM-dd');
+    mappedRow.Date = formattedDate;
+    mappedRow.Start_Time = start;
+    mappedRow.End_Time = end;
+
+    // Generate events based on whether it's a "Sleep Window"
+    const generatedEvents: { start: string, end: string, status: string }[] = [];
+    if (isSleepWindow) {
+      const sleepStart = addMinutes(start, 15);
+      generatedEvents.push({ start: start, end: sleepStart, status: 'AWAKE-IN' });
+      generatedEvents.push({ start: sleepStart, end: end, status: 'SLEEP' });
+      generatedEvents.push({ start: end, end: addMinutes(end, 15), status: 'AWAKE-IN' });
+    } else {
+      const rawStatus = (mappedRow.Status_Code || 'SLEEP').toString().toUpperCase();
+      generatedEvents.push({ start, end, status: rawStatus });
+    }
+
+    return {
+      _mapped: mappedRow,
+      _unmapped: unmappedData,
+      _events: generatedEvents
+    };
+  };
+
+  const normalizeRowsWithAI = async (invalidRows: any[]) => {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) return [];
+    
+    try {
+      const ai = new GoogleGenAI({ apiKey });
+      const prompt = `
+        The following data rows failed validation for a sleep tracking app. 
+        Please attempt to normalize them into valid sleep log entries.
+        
+        Expected Schema for each entry:
+        - Date: YYYY-MM-DD
+        - Start_Time: HH:mm (24h format)
+        - End_Time: HH:mm (24h format)
+        - Status_Code: "SLEEP" or "AWAKE-IN"
+        - SQ: number (0-10, optional)
+        - R: number (0-10, optional)
+        - L: number (0-10, optional)
+        - Remarks: string (optional)
+        - Caffeine_Y: "yes" or "no" (optional)
+        - Alcohol_Y: "yes" or "no" (optional)
+        
+        Invalid Data:
+        ${JSON.stringify(invalidRows.slice(0, 50), null, 2)}
+        
+        Return ONLY a JSON array of objects. If a row cannot be normalized, omit it from the array.
+      `;
+
+      const aiPromise = ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: [{ role: 'user', parts: [{ text: prompt }] }]
+      });
+
+      const response = await withTimeout(aiPromise, 25000, "AI normalization timed out");
+
+      const text = response.text || '[]';
+      const clean = text.replace(/```json|```/g, '').trim();
+      
+      try {
+        const normalized = JSON.parse(clean);
+        return Array.isArray(normalized) ? normalized : [];
+      } catch (parseError) {
+        console.error("AI JSON Parse Error:", parseError, "Raw text:", text);
+        return [];
+      }
+    } catch (error) {
+      console.error("AI Normalization failed:", error);
+      return [];
+    }
+  };
+
+  const processImportedData = async (data: any[], forceOverwrite = false, rawContent?: string) => {
     if (!db) { setUploadStatus('error'); setErrorMessage('Database not available — check Firebase configuration'); return; }
     setUploadStatus('idle');
     setErrorMessage('');
@@ -201,106 +535,62 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
     try {
       const cleanedData = cleanData(data);
       const skippedRows: string[] = [];
+      const initialInvalidRows: any[] = [];
       let cleanedCount = 0;
       const logsToSave: Record<string, DailyLog> = {};
       const metricsCaptured = new Set<string>();
-      const metricsSetForDate = new Set<string>();
       
-      // 1. Validation & Sanitization with Fuzzy Matching
-      const validRows = cleanedData.filter((row, idx) => {
-        const mappedRow: any = {};
-        const unmappedData: string[] = [];
-
-        Object.keys(row).forEach(key => {
-          const mappedKey = fuzzyMapHeader(key);
-          if (mappedKey) {
-            mappedRow[mappedKey] = row[key];
-          } else {
-            unmappedData.push(`${key}: ${row[key]}`);
-          }
-        });
-
-        let date = mappedRow.Date;
-        let start = mappedRow.Start_Time;
-        let end = mappedRow.End_Time;
-        const status = mappedRow.Status_Code;
-
-        const normalizeTime = (t: string): string => {
-          if (!t) return t;
-          const str = t.toString().trim();
-          if (str === '24:00') return '00:00';
-          // Add leading zero if hour is single digit e.g. "8:00" → "08:00"
-          if (/^\d:\d{2}$/.test(str)) return '0' + str;
-          return str;
-        };
-        start = normalizeTime(start);
-        end = normalizeTime(end);
-
-        // Check for legacy format
-        if (status && !showLegacyToast) {
-          setShowLegacyToast(true);
+      // Strict Template Mode Detection
+      const firstRow = cleanedData[0] || {};
+      const actualHeaders = Object.keys(firstRow);
+      const isStrictTemplate = actualHeaders.length === TEMPLATE_HEADERS.length && 
+                               TEMPLATE_HEADERS.every((h, i) => actualHeaders[i] === h);
+      
+      // 1. Initial Validation & Sanitization
+      let validRows: any[] = [];
+      cleanedData.forEach((row, idx) => {
+        const result = validateAndMapRow(row, idx, [], isStrictTemplate);
+        // Strict Data Contract: Date, Start_Time (Bedtime), End_Time (Waketime) are required
+        if (result && result._mapped.Date && result._mapped.Start_Time && result._mapped.End_Time) {
+          const processedRow = { ...row, ...result };
+          validRows.push(processedRow);
+        } else {
+          initialInvalidRows.push(row);
         }
-
-        if (!date || !start || !end) {
-          skippedRows.push(`Row ${idx + 1}: Missing required fields (Date, Bedtime, Waketime)`);
-          return false;
-        }
-
-        if (start === end) {
-          skippedRows.push(`Row ${idx + 1}: Start time matches end time (${start})`);
-          return false;
-        }
-
-        // Robust Date Parsing
-        let parsedDate: Date | null = null;
-        const dateStr = date?.toString().trim() || '';
-        
-        if (!dateStr) {
-          skippedRows.push(`Row ${idx + 1}: Missing date — skipped`);
-          return false;
-        }
-        
-        // Try YYYY-MM-DD
-        if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-          parsedDate = parse(dateStr, 'yyyy-MM-dd', new Date());
-        } 
-        // Try MM/DD/YYYY
-        else if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(dateStr)) {
-          parsedDate = parse(dateStr, 'M/d/yyyy', new Date());
-        }
-        // Try DD.MM.YYYY
-        else if (/^\d{1,2}\.\d{1,2}\.\d{4}$/.test(dateStr)) {
-          parsedDate = parse(dateStr, 'd.M.yyyy', new Date());
-        }
-        // Fallback to native Date if XLSX already parsed it
-        else if (date instanceof Date) {
-          parsedDate = date;
-        }
-
-        if (!parsedDate || !isValid(parsedDate)) {
-          skippedRows.push(`Row ${idx + 1}: Invalid date format (${dateStr})`);
-          return false;
-        }
-
-        const formattedDate = format(parsedDate, 'yyyy-MM-dd');
-        mappedRow.Date = formattedDate;
-
-        // Attach mapped row for later processing
-        (row as any)._mapped = mappedRow;
-        (row as any)._unmapped = unmappedData;
-        return true;
       });
 
+      // 2. AI Normalization for invalid rows
+      if (initialInvalidRows.length > 0) {
+        setErrorMessage(`SIA is attempting to normalize ${initialInvalidRows.length} complex rows...`);
+        const aiNormalized = await normalizeRowsWithAI(initialInvalidRows);
+        
+        if (aiNormalized.length > 0) {
+          aiNormalized.forEach((row, idx) => {
+            const result = validateAndMapRow(row, 9000 + idx, []);
+            if (result && result._mapped.Date && result._mapped.Start_Time && result._mapped.End_Time) {
+              validRows.push({ ...row, ...result });
+            }
+          });
+        }
+        
+        // Calculate truly skipped rows
+        const totalSent = initialInvalidRows.length;
+        const totalRecovered = validRows.length - (cleanedData.length - initialInvalidRows.length);
+        if (totalRecovered < totalSent) {
+          skippedRows.push(`Skipped ${totalSent - totalRecovered} rows that could not be normalized.`);
+        }
+      }
+
+      // If no valid rows found after AI normalization, route to unstructured_data
       if (validRows.length === 0) {
-        // Path B: Save as unstructured data if no valid rows found in CSV/XLS
-        const rawContent = JSON.stringify(data.slice(0, 100)); // Sample content
-        await saveUnstructuredData(rawContent, "Malformed_Import_" + format(new Date(), 'yyyyMMdd_HHmm') + ".txt");
+        const contentToSave = rawContent || JSON.stringify(data.slice(0, 100));
+        await saveUnstructuredData(contentToSave, "Malformed_Import_" + format(new Date(), 'yyyyMMdd_HHmm') + ".txt");
         return;
       }
 
       setTotalCount(validRows.length);
 
-      // 2. Check for conflicts if not forcing overwrite
+      // 2. Check for conflicts
       if (!forceOverwrite) {
         const uniqueDates = Array.from(new Set(validRows.map(r => (r as any)._mapped.Date)));
         let hasConflict = false;
@@ -325,151 +615,230 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
 
         if (hasConflict) {
           setPendingData(data);
+          setPendingRawContent(rawContent || null);
           setShowConflictModal(true);
           return;
         }
       }
 
-      // 3. Translation Engine (Timestamp to Events)
-      for (const rawRow of validRows) {
+      // 3. Translation Engine
+      const rowsBySleepDay: Record<string, any[]> = {};
+      validRows.forEach(rawRow => {
         const row = (rawRow as any)._mapped;
-        const unmapped = (rawRow as any)._unmapped;
-        const date = row.Date;
-        const start = row.Start_Time;
-        const end = row.End_Time;
-        const statusVal = row.Status_Code?.toString().toUpperCase();
+        const sleepDay = getSleepDay(row.Date, row.Start_Time);
+        if (!rowsBySleepDay[sleepDay]) rowsBySleepDay[sleepDay] = [];
+        rowsBySleepDay[sleepDay].push(rawRow);
+      });
+
+      const sleepDays = Object.keys(rowsBySleepDay);
+      for (const sleepDay of sleepDays) {
+        const dayRows = rowsBySleepDay[sleepDay];
+        const metricsSetForDate = new Set<string>();
         
-        let state: SleepState = 'awake-in'; // safe default — unknown periods are awake-in
-        if (statusVal) {
-          const statusStr = statusVal.toString().toUpperCase();
-          if (statusStr === '1' || statusStr.includes('SLEEP')) {
-            state = 'sleep';
-          } else if (statusStr === '0' || statusStr.includes('AWAKE OUT')) {
-            state = 'awake-out';
-          } else if (statusStr === '2' || statusStr.includes('AWAKE') || statusStr.includes('WAKE')) {
-            state = 'awake-in';
-          }
+        if (!logsToSave[sleepDay]) {
+          logsToSave[sleepDay] = defaultLog(sleepDay);
         }
+        const log = logsToSave[sleepDay];
 
-        if (state === 'awake-out') continue; // Don't log awake-out events
-
-        if (!logsToSave[date]) {
-          logsToSave[date] = defaultLog(date);
-        }
-        const log = logsToSave[date];
-
-        // Map Clinical Metrics (Rule 2: Only first valid row)
-        const sqVal = parseInt(row.SQ);
-        const sqKey = `${date}_SQ`;
-        if (!isNaN(sqVal) && !metricsSetForDate.has(sqKey)) {
-          logsToSave[date].sleep_quality = sqVal;
-          metricsSetForDate.add(sqKey);
-          metricsCaptured.add('SQ');
-        }
-
-        const rVal = parseInt(row.R);
-        const rKey = `${date}_R`;
-        if (!isNaN(rVal) && !metricsSetForDate.has(rKey)) {
-          logsToSave[date].morning_alertness = rVal;
-          metricsSetForDate.add(rKey);
-          metricsCaptured.add('R');
-        }
-
-        const lVal = parseInt(row.L);
-        const lKey = `${date}_L`;
-        if (!isNaN(lVal) && !metricsSetForDate.has(lKey)) {
-          logsToSave[date].daytime_energy = lVal;
-          metricsSetForDate.add(lKey);
-          metricsCaptured.add('L');
-        }
-        
-        // Map Remarks (Rule 3: Merge remarks)
-        let remarks = row.Remarks || '';
-        if (unmapped.length > 0) {
-          remarks += (remarks ? ' ' : '') + unmapped.map((u: string) => `[Unmapped: ${u}]`).join(' ');
-        }
-        if (remarks) {
-          logsToSave[date].daily_remarks = logsToSave[date].daily_remarks
-            ? logsToSave[date].daily_remarks + ' ' + remarks
-            : remarks;
-        }
-
-        if (row.Caffeine_Y) log.factors.caffeine.consumed = row.Caffeine_Y?.toString().toLowerCase() === 'yes';
-        if (row.Caffeine_Cups) log.factors.caffeine.amount = parseInt(row.Caffeine_Cups) || 0;
-        if (row.Caffeine_LastIntake) log.factors.caffeine.lastIntake = row.Caffeine_LastIntake.toString();
-        if (row.Alcohol_Y) log.factors.alcohol.consumed = row.Alcohol_Y?.toString().toLowerCase() === 'yes';
-        if (row.Alcohol_Drinks) log.factors.alcohol.drinks = parseInt(row.Alcohol_Drinks) || 0;
-        if (row.Alcohol_LastIntake) log.factors.alcohol.lastIntake = row.Alcohol_LastIntake.toString();
-        if (row.Medication_Y) log.factors.medication.taken = row.Medication_Y?.toString().toLowerCase() === 'yes';
-        if (row.Medication_Type) log.factors.medication.type = row.Medication_Type.toString();
-        if (row.Medication_Time) log.factors.medication.time = row.Medication_Time.toString();
-        if (row.Exercise_Y) log.factors.exercise.completed = row.Exercise_Y?.toString().toLowerCase() === 'yes';
-        if (row.Exercise_Type) log.factors.exercise.type = row.Exercise_Type.toString();
-        if (row.Exercise_Time) log.factors.exercise.time = row.Exercise_Time.toString();
-        if (row.Screens_Y) log.factors.screensInBed = row.Screens_Y?.toString().toLowerCase() === 'yes';
-        if (row.Stress) log.factors.stressLevel = parseInt(row.Stress) || 3;
-        if (row.LastMeal) log.factors.lastMealTime = row.LastMeal.toString();
-        if (row.NaturalWake) log.factors.naturalWake = row.NaturalWake?.toString().toLowerCase() === 'yes';
-        if (row.MoodScore) log.factors.moodScore = parseInt(row.MoodScore) || 3;
-        
-        if (row.Sleep_Gadgets && typeof row.Sleep_Gadgets === 'string' && row.Sleep_Gadgets.trim()) {
-          const gadgetStrings = row.Sleep_Gadgets.split(',').map((s: string) => s.trim()).filter(Boolean);
-          logsToSave[date].factors.sleepGadgets = gadgetStrings.map((g: string) => {
-            const timeMatch = g.match(/@(\w+)$/);
-            const durMatch = g.match(/\((\d+)min\)/);
-            const type = g.replace(/\(\d+min\)/, '').replace(/@\w+$/, '').trim();
-            return {
-              type: type as any,
-              ...(durMatch ? { durationMinutes: parseInt(durMatch[1]) } : {}),
-              ...(timeMatch ? { timeOfUse: timeMatch[1] as any } : {})
-            };
-          });
-        }
-
-        const startIndex = timeToIndex(start);
-        const endIndex = timeToIndex(end);
-
-        logsToSave[date].sleepEvents!.push({
-          id: crypto.randomUUID(),
-          type: state,
-          start: start,
-          end: end
+        // 1. Sort rows chronologically within the day
+        dayRows.sort((a, b) => {
+          const startA = (a as any)._mapped.Start_Time;
+          const startB = (b as any)._mapped.Start_Time;
+          return timeToIndex(startA) - timeToIndex(startB);
         });
-        cleanedCount++;
+
+        // 2. Merge adjacent rows to prevent "ghost" buffers at fragment boundaries
+        const mergedRows: any[] = [];
+        if (dayRows.length > 0) {
+          let current = { ...dayRows[0] };
+          for (let i = 1; i < dayRows.length; i++) {
+            const next = dayRows[i];
+            const currentEndIdx = timeToIndex((current as any)._mapped.End_Time);
+            const nextStartIdx = timeToIndex((next as any)._mapped.Start_Time);
+            
+            // If adjacent or overlapping, merge them
+            if (nextStartIdx <= currentEndIdx) {
+              const currentEndMins = getMinutesFrom2000((current as any)._mapped.End_Time);
+              const nextEndMins = getMinutesFrom2000((next as any)._mapped.End_Time);
+              // In our 20:00-20:00 cycle, we need to be careful with comparison
+              // But within a single sleep day, getMinutesFrom2000 is linear 0-1440
+              if (nextEndMins > currentEndMins || (currentEndMins > 1200 && nextEndMins < 1200)) {
+                (current as any)._mapped.End_Time = (next as any)._mapped.End_Time;
+              }
+            } else {
+              mergedRows.push(current);
+              current = { ...next };
+            }
+          }
+          mergedRows.push(current);
+        }
+
+        // 3. Generate events for ledger generation
+        const eventsForLedger = mergedRows.flatMap(rawRow => {
+          const row = (rawRow as any)._mapped;
+          
+          // Re-generate events for merged windows to ensure buffers are only at the outer boundaries
+          const { _events: events } = validateAndMapRow(row, 0, [], isStrictTemplate) || { _events: [] };
+          
+          if (events && events.length > 0) {
+            return events;
+          }
+
+          const rawStatus = (row.Status_Code || row.status_code || row.Status || '').toString().trim();
+          return [{
+            start: row.Start_Time,
+            end: row.End_Time,
+            status: rawStatus
+          }];
+        });
+
+        const ledger = generateSleepEventsLedger(eventsForLedger);
+        
+        // Efficiency Calculation
+        const totalSleepSlots = ledger.filter(s => s === 1).length;
+        const totalInBedSlots = ledger.filter(s => s === 1 || s === 2).length;
+        const efficiency = totalInBedSlots > 0 ? (totalSleepSlots / totalInBedSlots) * 100 : 0;
+        
+        log.summaryMetrics = {
+          sleep_quality: log.sleep_quality,
+          morning_alertness: log.morning_alertness,
+          daytime_energy: log.daytime_energy,
+          importedDuration: totalSleepSlots * 15,
+          importedInBed: totalInBedSlots * 15,
+          sleep_efficiency: efficiency
+        };
+
+        // Convert ledger back to SleepEvents
+        const grid: SleepState[] = ledger.map(code => {
+          if (code === 1) return 'sleep';
+          if (code === 2) return 'awake-in';
+          return 'awake-out';
+        });
+        
+        log.sleepEvents = convertGridToEvents(grid);
+
+        // Process metadata
+        dayRows.forEach(rawRow => {
+          const row = (rawRow as any)._mapped;
+          const unmapped = (rawRow as any)._unmapped;
+
+          const sqVal = parseInt(row.SQ);
+          if (!isNaN(sqVal) && !metricsSetForDate.has('SQ')) {
+            log.sleep_quality = sqVal;
+            metricsSetForDate.add('SQ');
+            metricsCaptured.add('SQ');
+          }
+
+          const rVal = parseInt(row.R);
+          if (!isNaN(rVal) && !metricsSetForDate.has('R')) {
+            log.morning_alertness = rVal;
+            metricsSetForDate.add('R');
+            metricsCaptured.add('R');
+          }
+
+          const lVal = parseInt(row.L);
+          if (!isNaN(lVal) && !metricsSetForDate.has('L')) {
+            log.daytime_energy = lVal;
+            metricsSetForDate.add('L');
+            metricsCaptured.add('L');
+          }
+          
+          let remarks = row.Remarks || '';
+          if (unmapped.length > 0) {
+            remarks += (remarks ? ' ' : '') + unmapped.map((u: string) => `[Unmapped: ${u}]`).join(' ');
+          }
+          if (remarks) {
+            log.daily_remarks = log.daily_remarks
+              ? log.daily_remarks + ' ' + remarks
+              : remarks;
+          }
+
+          if (row.Caffeine_Y) log.factors.caffeine.consumed = row.Caffeine_Y?.toString().toLowerCase() === 'yes';
+          if (row.Caffeine_Cups) log.factors.caffeine.amount = parseInt(row.Caffeine_Cups) || 0;
+          if (row.Caffeine_LastIntake) log.factors.caffeine.lastIntake = normalizeTime(row.Caffeine_LastIntake);
+          if (row.Alcohol_Y) log.factors.alcohol.consumed = row.Alcohol_Y?.toString().toLowerCase() === 'yes';
+          if (row.Alcohol_Drinks) log.factors.alcohol.drinks = parseInt(row.Alcohol_Drinks) || 0;
+          if (row.Alcohol_LastIntake) log.factors.alcohol.lastIntake = normalizeTime(row.Alcohol_LastIntake);
+          if (row.Medication_Y) log.factors.medication.taken = row.Medication_Y?.toString().toLowerCase() === 'yes';
+          if (row.Medication_Type) log.factors.medication.type = row.Medication_Type.toString();
+          if (row.Medication_Time) log.factors.medication.time = normalizeTime(row.Medication_Time);
+          if (row.Exercise_Y) log.factors.exercise.completed = row.Exercise_Y?.toString().toLowerCase() === 'yes';
+          if (row.Exercise_Type) log.factors.exercise.type = row.Exercise_Type.toString();
+          if (row.Exercise_Time) log.factors.exercise.time = normalizeTime(row.Exercise_Time);
+          if (row.Screens_Y) log.factors.screensInBed = row.Screens_Y?.toString().toLowerCase() === 'yes';
+          if (row.Stress) log.factors.stressLevel = parseInt(row.Stress) || 3;
+          if (row.LastMeal) log.factors.lastMealTime = normalizeTime(row.LastMeal);
+          if (row.NaturalWake) log.factors.naturalWake = row.NaturalWake?.toString().toLowerCase() === 'yes';
+          if (row.MoodScore) log.factors.moodScore = parseInt(row.MoodScore) || 3;
+          
+          if (row.Sleep_Gadgets && typeof row.Sleep_Gadgets === 'string' && row.Sleep_Gadgets.trim()) {
+            const gadgetStrings = row.Sleep_Gadgets.split(',').map((s: string) => s.trim()).filter(Boolean);
+            log.factors.sleepGadgets = gadgetStrings.map((g: string) => {
+              const timeMatch = g.match(/@(\w+)$/);
+              const durMatch = g.match(/\((\d+)min\)/);
+              const type = g.replace(/\(\d+min\)/, '').replace(/@\w+$/, '').trim();
+              return {
+                type: type as any,
+                ...(durMatch ? { durationMinutes: parseInt(durMatch[1]) } : {}),
+                ...(timeMatch ? { timeOfUse: timeMatch[1] as any } : {})
+              };
+            });
+          }
+        });
+
+        cleanedCount += dayRows.length;
       }
 
-      // Pre-flight Check: 500ms delay to let listeners settle
       await new Promise(resolve => setTimeout(resolve, 500));
 
-      // 4. Chunked Transaction Writes (10 days per batch)
       const logEntries = Object.entries(logsToSave);
       const chunkSize = 10;
       
       for (let i = 0; i < logEntries.length; i += chunkSize) {
         const chunk = logEntries.slice(i, i + chunkSize);
+        const chunkLabel = `Chunk ${Math.floor(i / chunkSize) + 1} (${chunk[0][0]} to ${chunk[chunk.length - 1][0]})`;
         
-        await runTransaction(db, async (transaction) => {
-          for (const [date, log] of chunk) {
-            // Write to sleep_logs
-            const logRef = doc(db, 'users', user.uid, 'sleep_logs', date);
-            transaction.set(logRef, {
-              ...log,
-              updatedAt: serverTimestamp(),
-            }, { merge: true });
+        let retryCount = 0;
+        const maxRetries = 2;
+        let success = false;
 
-            // Write to daily_metrics
-            const metricsRef = doc(db, 'users', user.uid, 'daily_metrics', date);
-            transaction.set(metricsRef, {
-              date,
-              sleep_quality: log.sleep_quality,
-              morning_alertness: log.morning_alertness,
-              daytime_energy: log.daytime_energy,
-              daily_remarks: log.daily_remarks,
-              source: 'import',
-              updatedAt: serverTimestamp(),
-            }, { merge: true });
+        while (retryCount <= maxRetries && !success) {
+          try {
+            await runTransaction(db, async (transaction) => {
+              for (const [date, log] of chunk) {
+                const logRef = doc(db, 'users', user.uid, 'sleep_logs', date);
+                
+                const updateData: any = {
+                  ...log,
+                  updatedAt: serverTimestamp(),
+                  timeline: deleteField()
+                };
+
+                transaction.set(logRef, updateData, { merge: true });
+
+                const metricsRef = doc(db, 'users', user.uid, 'daily_metrics', date);
+                transaction.set(metricsRef, {
+                  date,
+                  sleep_quality: log.sleep_quality,
+                  morning_alertness: log.morning_alertness,
+                  daytime_energy: log.daytime_energy,
+                  daily_remarks: log.daily_remarks,
+                  source: 'import',
+                  updatedAt: serverTimestamp(),
+                }, { merge: true });
+              }
+            });
+            success = true;
+          } catch (txError: any) {
+            console.error(`Transaction failed for ${chunkLabel} (Attempt ${retryCount + 1}):`, txError);
+            retryCount++;
+            if (retryCount > maxRetries) {
+              throw new Error(`Failed to save ${chunkLabel} after ${maxRetries + 1} attempts: ${txError.message}`);
+            }
+            // Exponential backoff
+            await new Promise(r => setTimeout(r, 1000 * retryCount));
           }
-        });
+        }
         
         setProcessedCount(Math.min(i + chunkSize, logEntries.length));
       }
@@ -505,47 +874,45 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
     setErrorMessage('');
 
     try {
-      // Sanitize input: handle different line endings and filter out empty lines
-      const rows = pasteContent.trim().split(/\r?\n/).filter(line => line.trim());
-      
+      // Use PapaParse for robust parsing of pasted content (handles quotes, tabs, etc.)
+      const results = Papa.parse(pasteContent.trim(), {
+        header: false,
+        skipEmptyLines: true,
+      });
+
+      const rows = results.data as string[][];
+      if (rows.length === 0) {
+        throw new Error("No valid data found in paste content.");
+      }
+
       // Heuristic: If the first row looks like headers, use them
-      const firstRow = rows[0].split(/[,\t]/);
+      const firstRow = rows[0];
       const hasHeaders = firstRow.some(col => fuzzyMapHeader(col) !== null);
       
       let parsedData: any[] = [];
       if (hasHeaders) {
         const headers = firstRow.map(h => h.trim());
         parsedData = rows.slice(1).map(row => {
-          const cols = row.split(/[,\t]/).map(c => c.trim());
           const obj: any = {};
           headers.forEach((h, i) => {
-            obj[h] = cols[i] || '';
+            obj[h] = row[i] || '';
           });
           return obj;
         });
       } else {
         parsedData = rows.map(row => {
-          const separator = row.includes('\t') ? '\t' : ',';
-          const cols = row.split(separator).map(c => c.trim());
-          
           return {
-            Date: cols[0] || '',
-            Start_Time: cols[1] || '',
-            End_Time: cols[2] || '',
-            Status_Code: cols[3] || '',
-            SQ: cols[4] || '',
-            R: cols[5] || '',
-            L: cols[6] || '',
-            Remarks: cols[7] || ''
+            Date: row[0] || '',
+            Bedtime: row[1] || '',
+            Waketime: row[2] || '',
+            Status_Code: row[3] || '',
+            SQ: row[4] || '',
+            Remarks: row[5] || ''
           };
         });
       }
 
-      if (parsedData.length === 0) {
-        throw new Error("No valid data found in paste content.");
-      }
-
-      await processImportedData(parsedData);
+      await processImportedData(parsedData, false, pasteContent);
       setPasteContent('');
       setIsPasteOpen(false);
     } catch (error: any) {
@@ -605,46 +972,46 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
 
     try {
       const fileName = selectedFile.name.toLowerCase();
-      let data: any[] = [];
-
+      
       if (fileName.endsWith('.txt')) {
         const content = await selectedFile.text();
         await saveUnstructuredData(content, selectedFile.name);
       } else if (fileName.endsWith('.csv')) {
-        data = await new Promise((resolve, reject) => {
-          Papa.parse(selectedFile, {
+        const content = await selectedFile.text();
+        const results = await new Promise<Papa.ParseResult<any>>((resolve, reject) => {
+          Papa.parse(content, {
             header: true,
             skipEmptyLines: true,
-            complete: (results) => resolve(results.data),
-            error: (error) => reject(error)
+            complete: resolve,
+            error: reject
           });
         });
-        await processImportedData(data);
+        await processImportedData(results.data, false, content);
       } else {
-        data = await new Promise((resolve, reject) => {
+        const fileData: any[] = await new Promise((resolve, reject) => {
           const reader = new FileReader();
-          reader.onload = (e) => {
+          reader.onload = async (e) => {
             try {
               const buffer = new Uint8Array(e.target?.result as ArrayBuffer);
-              const workbook = read(buffer, { type: 'array', cellDates: true });
+              const workbook = read(buffer, { type: 'array', cellDates: false });
               
-              // Priority: 'Sleep Logs' (export) → 'Data' (template) → first sheet (fallback)
-              // Also skip any sheet named 🔒 Summary, User, Instructions, or Unstructured Notes
-              const skipSheets = ['🔒 Summary', 'User', 'Instructions', 'Unstructured Notes'];
-              const sheetName =
-                workbook.SheetNames.includes('Sleep Logs') ? 'Sleep Logs' :
-                workbook.SheetNames.includes('Data') ? 'Data' :
-                workbook.SheetNames.find(name => !skipSheets.includes(name)) || workbook.SheetNames[0];
+              // Always use the first sheet for consistency
+              const worksheet = workbook.Sheets[workbook.SheetNames[0]];
               
-              const worksheet = workbook.Sheets[sheetName];
               const json = utils.sheet_to_json(worksheet, { defval: "" });
-              resolve(json);
-            } catch (err) { reject(err); }
+              resolve(json as any[]);
+            } catch (err) {
+              reject(new Error("Failed to parse Excel file. Ensure it's a valid format."));
+            }
           };
-          reader.onerror = (err) => reject(err);
+          reader.onerror = (err) => {
+            console.error("FileReader Error:", err);
+            reject(new Error("Failed to read file."));
+          };
           reader.readAsArrayBuffer(selectedFile);
         });
-        await processImportedData(data);
+
+        await processImportedData(fileData);
       }
     } catch (error: any) {
       console.error("Upload Submit Error:", error);
@@ -660,12 +1027,7 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
     
     // Data Sheet
     const dataSheet = workbook.addWorksheet('Data');
-    const headers = [
-      'Date', 'Bedtime', 'Waketime', 'Status_Code', 'SQ', 'R', 'L', 'Remarks', 
-      'Caffeine_Y', 'Caffeine_Cups', 'Caffeine_LastIntake', 'Alcohol_Y', 'Alcohol_Drinks', 'Alcohol_LastIntake', 
-      'Medication_Y', 'Medication_Type', 'Medication_Time', 'Exercise_Y', 'Exercise_Type', 'Exercise_Time', 
-      'Screens_Y', 'Stress_1to5', 'LastMeal_Time', 'NaturalWake_Y', 'MorningMood_1to5', 'Sleep_Gadgets'
-    ];
+    const headers = TEMPLATE_HEADERS;
     
     // Row 1 — header row: background #2D2B55, white bold Arial text, centered.
     const headerRow = dataSheet.addRow(headers);
@@ -685,9 +1047,7 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
 
     // Row 2 — rule row: grey background #E8E8E8, italic grey text showing format hints
     const hints = [
-      'YYYY-MM-DD', 'HH:mm', 'HH:mm', 'SLEEP/AWAKE-IN', '0-10', '0-10', '0-10', 'Text', 
-      'yes/no', 'number', 'HH:mm', 'yes/no', 'number', 'HH:mm', 'yes/no', 'text', 'HH:mm', 
-      'yes/no', 'text', 'HH:mm', 'yes/no', '1-5', 'HH:mm', 'yes/no', '1-5', 'gadget1,gadget2(30min)@morning'
+      'YYYY-MM-DD', 'HH:mm', 'HH:mm', 'SLEEP/AWAKE-IN', '0-10', 'Text'
     ];
     const ruleRow = dataSheet.addRow(hints);
     ruleRow.eachCell((cell) => {
@@ -705,9 +1065,9 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
 
     // Rows 3-5 — three sample rows
     const sampleRows = [
-      ['2026-03-20', '23:00', '07:30', 'SLEEP', 8, 5, 7, 'Slept well', 'yes', 2, '14:00', 'no', '', '', 'yes', 'Lormazepam', '22:00', 'yes', 'Cardio', '17:00', 'no', 2, '19:30', 'yes', 4, 'light_therapy(30min)@morning'],
-      ['2026-03-20', '07:30', '08:00', 'AWAKE-IN', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
-      ['2026-03-21', '23:30', '07:00', 'SLEEP', 6, 4, 5, 'Stressed day', 'yes', 3, '15:30', 'yes', 2, '20:00', 'no', '', '', 'no', '', '', 'yes', 4, '20:00', 'no', 2, '']
+      ['2026-03-20', '23:00', '07:30', 'SLEEP', 8, 'Slept well'],
+      ['2026-03-20', '07:30', '08:00', 'AWAKE-IN', '', ''],
+      ['2026-03-21', '23:30', '07:00', 'SLEEP', 6, 'Stressed day']
     ];
 
     sampleRows.forEach((rowData) => {
@@ -735,27 +1095,7 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
       { width: 9 },  // Waketime
       { width: 13 }, // Status_Code
       { width: 5 },  // SQ
-      { width: 5 },  // R
-      { width: 5 },  // L
-      { width: 22 }, // Remarks
-      { width: 10 }, // Caffeine_Y
-      { width: 12 }, // Caffeine_Cups
-      { width: 12 }, // Caffeine_LastIntake
-      { width: 10 }, // Alcohol_Y
-      { width: 12 }, // Alcohol_Drinks
-      { width: 12 }, // Alcohol_LastIntake
-      { width: 10 }, // Medication_Y
-      { width: 16 }, // Medication_Type
-      { width: 12 }, // Medication_Time
-      { width: 10 }, // Exercise_Y
-      { width: 16 }, // Exercise_Type
-      { width: 12 }, // Exercise_Time
-      { width: 10 }, // Screens_Y
-      { width: 12 }, // Stress_1to5
-      { width: 12 }, // LastMeal_Time
-      { width: 10 }, // NaturalWake_Y
-      { width: 12 }, // MorningMood_1to5
-      { width: 30 }  // Sleep_Gadgets
+      { width: 22 }  // Remarks
     ];
 
     // Instructions Sheet
@@ -782,27 +1122,7 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
       ['Waketime', 'The time you woke up (HH:mm).'],
       ['Status_Code', 'SLEEP for main sleep, AWAKE-IN for wakeups mid-sleep.'],
       ['SQ', 'Sleep Quality (0-10).'],
-      ['R', 'Restedness (0-10).'],
-      ['L', 'Energy Level (0-10).'],
       ['Remarks', 'Any notes about the night.'],
-      ['Caffeine_Y', 'Did you consume caffeine? (yes/no)'],
-      ['Caffeine_Cups', 'Number of cups/servings.'],
-      ['Caffeine_LastIntake', 'Time of last caffeine intake (HH:mm).'],
-      ['Alcohol_Y', 'Did you consume alcohol? (yes/no)'],
-      ['Alcohol_Drinks', 'Number of drinks.'],
-      ['Alcohol_LastIntake', 'Time of last alcohol intake (HH:mm).'],
-      ['Medication_Y', 'Did you take sleep medication? (yes/no)'],
-      ['Medication_Type', 'Type of medication.'],
-      ['Medication_Time', 'Time medication was taken (HH:mm).'],
-      ['Exercise_Y', 'Did you exercise? (yes/no)'],
-      ['Exercise_Type', 'Type of exercise.'],
-      ['Exercise_Time', 'Time of exercise (HH:mm).'],
-      ['Screens_Y', 'Did you use screens in bed? (yes/no)'],
-      ['Stress_1to5', 'Stress level during the day (1-5).'],
-      ['LastMeal_Time', 'Time of last meal (HH:mm).'],
-      ['NaturalWake_Y', 'Did you wake up naturally? (yes/no)'],
-      ['MorningMood_1to5', 'Mood upon waking (1-5).'],
-      ['Sleep_Gadgets', 'Comma-separated list of gadgets. Format: type or type(durationMin) or type(durationMin)@timeOfUse. Types: light_therapy, breathing_trainer, pre_sleep_heating, aromatherapy, meditation_app, cooling_pad, white_noise, sleep_mask, earplugs, weighted_blanket, smart_ring, smartwatch_tracking, fitness_band, phone_sleep_app.'],
       ['DISCLAIMER', 'SIA tracks patterns to help you understand your sleep habits. This is not medical advice. Share this data with your doctor for clinical interpretation.']
     ];
 
@@ -884,6 +1204,13 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
                   >
                     <Download size={14} />
                     Template
+                  </button>
+                  <button 
+                    onClick={() => exportToExcel(Object.values(logs))}
+                    className="flex items-center justify-center gap-2 px-3 py-2 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 rounded-xl text-[10px] font-bold uppercase tracking-widest text-indigo-400 transition-all"
+                  >
+                    <FileSpreadsheet size={14} />
+                    Export Data
                   </button>
                 </div>
               </div>
@@ -1131,7 +1458,7 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
                         <button 
                           onClick={() => {
                             setShowConflictModal(false);
-                            if (pendingData) processImportedData(pendingData, true);
+                            if (pendingData) processImportedData(pendingData, true, pendingRawContent || undefined);
                           }}
                           className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
                         >
@@ -1141,6 +1468,7 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
                           onClick={() => {
                             setShowConflictModal(false);
                             setPendingData(null);
+                            setPendingRawContent(null);
                             setIsUploading(false);
                           }}
                           className="w-full py-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"

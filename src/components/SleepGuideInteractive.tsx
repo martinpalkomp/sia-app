@@ -94,7 +94,7 @@ export default function SleepGuideInteractive({ onClose, onOpenPersonalization }
         <div className="p-8 border-b border-zinc-800">
           <div className="flex items-center gap-3 text-indigo-400 mb-2">
             <Sparkles size={20} />
-            <span className="text-[10px] font-black uppercase tracking-[0.2em]">SIA Learning Hub</span>
+            <span className="text-[10px] font-black uppercase tracking-[0.3em]">SIA Learning Hub</span>
           </div>
           <h2 className="text-xl font-bold text-white">Sleep Mastery</h2>
         </div>
@@ -162,7 +162,7 @@ export default function SleepGuideInteractive({ onClose, onOpenPersonalization }
               className={`whitespace-nowrap px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${
                 activeSection === section.id 
                   ? 'bg-indigo-600 text-white' 
-                  : 'text-zinc-500 hover:text-zinc-300'
+                  : 'text-zinc-400 hover:text-zinc-200'
               }`}
             >
               {section.shortTitle}
@@ -214,7 +214,7 @@ export default function SleepGuideInteractive({ onClose, onOpenPersonalization }
           <section id="guide-section-intro" className="space-y-8">
             <div className="space-y-4">
               <span className="text-indigo-400 text-xs font-black uppercase tracking-[0.3em]">Section 01</span>
-              <h1 className="text-3xl md:text-6xl font-black text-white tracking-tighter leading-[0.9]">
+              <h1 className="text-3xl md:text-6xl font-black text-white tracking-tighter leading-[1.1]">
                 The SIA Guide to <br />
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-violet-400">Improving Your Sleep</span>
               </h1>
@@ -263,7 +263,7 @@ export default function SleepGuideInteractive({ onClose, onOpenPersonalization }
           <section id="guide-section-hygiene" className="space-y-8">
             <div className="space-y-4">
               <span className="text-indigo-400 text-xs font-black uppercase tracking-[0.3em]">Section 02</span>
-              <h2 className="text-2xl md:text-5xl font-black text-white tracking-tighter leading-[0.95]">The Importance of Sleep Hygiene</h2>
+              <h2 className="text-2xl md:text-5xl font-black text-white tracking-tighter leading-[1.1]">The Importance of Sleep Hygiene</h2>
               <p className="text-lg text-zinc-400 leading-relaxed">
                 It may sound hyperbolic, but sleep is the foundation of all human performance. Neglecting your sleep hygiene has serious consequences.
               </p>
@@ -272,13 +272,13 @@ export default function SleepGuideInteractive({ onClose, onOpenPersonalization }
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="p-8 bg-zinc-900 border border-zinc-800 rounded-3xl space-y-4">
                 <h4 className="font-bold text-white">What is Sleep Hygiene?</h4>
-                <p className="text-sm text-zinc-500 leading-relaxed">
+                <p className="text-sm text-zinc-300 leading-relaxed">
                   Sleep hygiene is the upkeep of behaviors that influence the way you sleep. Many of them take place during the day and don’t involve literal snoozing—they’re included because they still have an effect on sleep.
                 </p>
               </div>
               <div className="p-8 bg-zinc-900 border border-zinc-800 rounded-3xl space-y-4">
                 <h4 className="font-bold text-white">The 70% Problem</h4>
-                <p className="text-sm text-zinc-500 leading-relaxed">
+                <p className="text-sm text-zinc-300 leading-relaxed">
                   A troubling 70% of Americans identify as sleep-deprived. Often, they don't even realize their cognitive performance has taken a hit—they acclimate to the deprivation and think they're doing just fine.
                 </p>
               </div>
@@ -301,7 +301,7 @@ export default function SleepGuideInteractive({ onClose, onOpenPersonalization }
           <section id="guide-section-laws" className="space-y-8">
             <div className="space-y-4">
               <span className="text-indigo-400 text-xs font-black uppercase tracking-[0.3em]">Section 03</span>
-              <h2 className="text-2xl md:text-5xl font-black text-white tracking-tighter leading-[0.95]">The Two Laws of Sleep</h2>
+              <h2 className="text-2xl md:text-5xl font-black text-white tracking-tighter leading-[1.1]">The Two Laws of Sleep</h2>
               <p className="text-lg text-zinc-400 leading-relaxed">
                 Everything we’ve built revolves around what we call the two laws of sleep: sleep debt and circadian rhythm.
               </p>
@@ -339,7 +339,7 @@ export default function SleepGuideInteractive({ onClose, onOpenPersonalization }
           <section id="guide-section-environment" className="space-y-8">
             <div className="space-y-4">
               <span className="text-indigo-400 text-xs font-black uppercase tracking-[0.3em]">Section 04</span>
-              <h2 className="text-2xl md:text-5xl font-black text-white tracking-tighter leading-[0.95]">How to Prep the Perfect Sleep Environment</h2>
+              <h2 className="text-2xl md:text-5xl font-black text-white tracking-tighter leading-[1.1]">How to Prep the Perfect Sleep Environment</h2>
               <p className="text-lg text-zinc-400 leading-relaxed">
                 Some of the most important changes you can make are relatively easy, one-time tweaks. Remember the fundamental trio: cool, dark, and quiet.
               </p>
@@ -351,21 +351,21 @@ export default function SleepGuideInteractive({ onClose, onOpenPersonalization }
                   <Thermometer size={32} />
                 </div>
                 <h4 className="font-bold text-white">Keep it Cool</h4>
-                <p className="text-xs text-zinc-500 leading-relaxed">The ideal sweet spot for your bedroom is around 65°F (18.3°C). A cooler room encourages sleep onset.</p>
+                <p className="text-xs text-zinc-300 leading-relaxed">The ideal sweet spot for your bedroom is around 65°F (18.3°C). A cooler room encourages sleep onset.</p>
               </div>
               <div className="p-8 bg-zinc-900 border border-zinc-800 rounded-3xl text-center space-y-4 group hover:border-purple-500/50 transition-colors">
                 <div className="w-16 h-16 bg-purple-500/10 text-purple-400 rounded-2xl flex items-center justify-center mx-auto group-hover:scale-110 transition-transform">
                   <Moon size={32} />
                 </div>
                 <h4 className="font-bold text-white">Keep it Dark</h4>
-                <p className="text-xs text-zinc-500 leading-relaxed">Total darkness triggers melatonin. Artificial light tricks your brain into thinking it’s still daytime.</p>
+                <p className="text-xs text-zinc-300 leading-relaxed">Total darkness triggers melatonin. Artificial light tricks your brain into thinking it’s still daytime.</p>
               </div>
               <div className="p-8 bg-zinc-900 border border-zinc-800 rounded-3xl text-center space-y-4 group hover:border-emerald-500/50 transition-colors">
                 <div className="w-16 h-16 bg-emerald-500/10 text-emerald-400 rounded-2xl flex items-center justify-center mx-auto group-hover:scale-110 transition-transform">
                   <VolumeX size={32} />
                 </div>
                 <h4 className="font-bold text-white">Keep it Quiet</h4>
-                <p className="text-xs text-zinc-500 leading-relaxed">Noise disturbs sleep architecture. Use white noise for auditory masking to reduce jarring peak noises.</p>
+                <p className="text-xs text-zinc-300 leading-relaxed">Noise disturbs sleep architecture. Use white noise for auditory masking to reduce jarring peak noises.</p>
               </div>
             </div>
           </section>
@@ -374,7 +374,7 @@ export default function SleepGuideInteractive({ onClose, onOpenPersonalization }
           <section id="guide-section-schedule" className="space-y-12">
             <div className="space-y-4">
               <span className="text-indigo-400 text-xs font-black uppercase tracking-[0.3em]">Section 05</span>
-              <h2 className="text-2xl md:text-5xl font-black text-white tracking-tighter leading-[0.95]">Structuring Your Day for Better Sleep</h2>
+              <h2 className="text-2xl md:text-5xl font-black text-white tracking-tighter leading-[1.1]">Structuring Your Day for Better Sleep</h2>
               <p className="text-lg text-zinc-400 leading-relaxed">
                 Great sleep doesn't start at bedtime. It starts the moment you wake up.
               </p>
@@ -389,7 +389,7 @@ export default function SleepGuideInteractive({ onClose, onOpenPersonalization }
                     <span className="text-xs font-black uppercase tracking-widest">Morning Ramp-Up</span>
                   </div>
                   <h4 className="text-white font-bold">Wake Up & Light</h4>
-                  <p className="text-sm text-zinc-500 leading-relaxed">Be consistent with your wake time. Get 10-15 minutes of direct sunlight immediately to suppress melatonin and raise cortisol.</p>
+                  <p className="text-sm text-zinc-300 leading-relaxed">Be consistent with your wake time. Get 10-15 minutes of direct sunlight immediately to suppress melatonin and raise cortisol.</p>
                 </div>
               </div>
 
@@ -401,7 +401,7 @@ export default function SleepGuideInteractive({ onClose, onOpenPersonalization }
                     <span className="text-xs font-black uppercase tracking-widest">Morning Peak</span>
                   </div>
                   <h4 className="text-white font-bold">Caffeine & Focus</h4>
-                  <p className="text-sm text-zinc-500 leading-relaxed">Consume caffeine early (it takes 10 hours to dissipate). Tackle your most challenging tasks during this first energy peak.</p>
+                  <p className="text-sm text-zinc-300 leading-relaxed">Consume caffeine early (it takes 10 hours to dissipate). Tackle your most challenging tasks during this first energy peak.</p>
                 </div>
               </div>
 
@@ -413,7 +413,7 @@ export default function SleepGuideInteractive({ onClose, onOpenPersonalization }
                     <span className="text-xs font-black uppercase tracking-widest">Afternoon Dip</span>
                   </div>
                   <h4 className="text-white font-bold">Midday Sluggishness</h4>
-                  <p className="text-sm text-zinc-500 leading-relaxed">Optimal for low-stress work. A 10-20 minute power nap can provide a cognitive boost without causing sleep inertia.</p>
+                  <p className="text-sm text-zinc-300 leading-relaxed">Optimal for low-stress work. A 10-20 minute power nap can provide a cognitive boost without causing sleep inertia.</p>
                 </div>
               </div>
 
@@ -425,7 +425,7 @@ export default function SleepGuideInteractive({ onClose, onOpenPersonalization }
                     <span className="text-xs font-black uppercase tracking-widest">Late Afternoon Peak</span>
                   </div>
                   <h4 className="text-white font-bold">The Second Wind</h4>
-                  <p className="text-sm text-zinc-500 leading-relaxed">Exercise now for peak performance. The subsequent body temperature drop will perfectly align with your wind-down.</p>
+                  <p className="text-sm text-zinc-300 leading-relaxed">Exercise now for peak performance. The subsequent body temperature drop will perfectly align with your wind-down.</p>
                 </div>
               </div>
 
@@ -437,7 +437,7 @@ export default function SleepGuideInteractive({ onClose, onOpenPersonalization }
                     <span className="text-xs font-black uppercase tracking-widest">Evening Wind-Down</span>
                   </div>
                   <h4 className="text-white font-bold">Digital Sunset</h4>
-                  <p className="text-sm text-zinc-500 leading-relaxed">Implement a "Digital Sunset" 1-2 hours before bed. Take a warm bath 90 mins before bed to plummet your core temperature.</p>
+                  <p className="text-sm text-zinc-300 leading-relaxed">Implement a "Digital Sunset" 1-2 hours before bed. Take a warm bath 90 mins before bed to plummet your core temperature.</p>
                 </div>
               </div>
             </div>
@@ -447,7 +447,7 @@ export default function SleepGuideInteractive({ onClose, onOpenPersonalization }
           <section id="guide-section-tools" className="space-y-8">
             <div className="space-y-4">
               <span className="text-indigo-400 text-xs font-black uppercase tracking-[0.3em]">Section 06</span>
-              <h2 className="text-2xl md:text-5xl font-black text-white tracking-tighter leading-[0.95]">
+              <h2 className="text-2xl md:text-5xl font-black text-white tracking-tighter leading-[1.1]">
                 Sleep Support Tools: What Works and Why
               </h2>
               <p className="text-lg text-zinc-400 leading-relaxed">
@@ -464,7 +464,7 @@ export default function SleepGuideInteractive({ onClose, onOpenPersonalization }
                     <div className="w-10 h-10 bg-amber-500/10 text-amber-400 rounded-xl flex items-center justify-center"><Sun size={20} /></div>
                     <h4 className="font-bold text-white">Light Therapy</h4>
                   </div>
-                  <p className="text-xs text-zinc-500 leading-relaxed">10,000 lux for 20–30 minutes within an hour of waking suppresses residual melatonin and anchors your circadian clock. Timing is critical — evening use has the opposite effect and delays your rhythm by up to 3 hours.</p>
+                  <p className="text-xs text-zinc-300 leading-relaxed">10,000 lux for 20–30 minutes within an hour of waking suppresses residual melatonin and anchors your circadian clock. Timing is critical — evening use has the opposite effect and delays your rhythm by up to 3 hours.</p>
                   <div className="flex gap-2 flex-wrap">
                     <span className="text-[9px] font-bold px-2 py-0.5 bg-emerald-500/10 text-emerald-400 rounded-full border border-emerald-500/20">SAD treatment</span>
                     <span className="text-[9px] font-bold px-2 py-0.5 bg-emerald-500/10 text-emerald-400 rounded-full border border-emerald-500/20">Jet lag</span>
@@ -476,7 +476,7 @@ export default function SleepGuideInteractive({ onClose, onOpenPersonalization }
                     <div className="w-10 h-10 bg-blue-500/10 text-blue-400 rounded-xl flex items-center justify-center"><Thermometer size={20} /></div>
                     <h4 className="font-bold text-white">Thermal Regulation</h4>
                   </div>
-                  <p className="text-xs text-zinc-500 leading-relaxed">Core body temperature must drop 1–2°C to initiate sleep. Cooling mattress pads or a warm bath 90 minutes before bed (which triggers a rebound temperature drop) are among the most evidence-backed interventions for increasing deep sleep duration.</p>
+                  <p className="text-xs text-zinc-300 leading-relaxed">Core body temperature must drop 1–2°C to initiate sleep. Cooling mattress pads or a warm bath 90 minutes before bed (which triggers a rebound temperature drop) are among the most evidence-backed interventions for increasing deep sleep duration.</p>
                   <div className="flex gap-2 flex-wrap">
                     <span className="text-[9px] font-bold px-2 py-0.5 bg-blue-500/10 text-blue-400 rounded-full border border-blue-500/20">N3 deep sleep</span>
                     <span className="text-[9px] font-bold px-2 py-0.5 bg-blue-500/10 text-blue-400 rounded-full border border-blue-500/20">RHR reduction</span>
@@ -487,7 +487,7 @@ export default function SleepGuideInteractive({ onClose, onOpenPersonalization }
                     <div className="w-10 h-10 bg-purple-500/10 text-purple-400 rounded-xl flex items-center justify-center"><VolumeX size={20} /></div>
                     <h4 className="font-bold text-white">Acoustic Masking</h4>
                   </div>
-                  <p className="text-xs text-zinc-500 leading-relaxed">White or pink noise works by masking peak noise events — it's the sudden contrast in sound that triggers arousal, not sustained noise. Pink noise (weighted toward lower frequencies) has also shown promise in amplifying slow-wave sleep in clinical settings.</p>
+                  <p className="text-xs text-zinc-300 leading-relaxed">White or pink noise works by masking peak noise events — it's the sudden contrast in sound that triggers arousal, not sustained noise. Pink noise (weighted toward lower frequencies) has also shown promise in amplifying slow-wave sleep in clinical settings.</p>
                   <div className="flex gap-2 flex-wrap">
                     <span className="text-[9px] font-bold px-2 py-0.5 bg-purple-500/10 text-purple-400 rounded-full border border-purple-500/20">Fragmentation</span>
                     <span className="text-[9px] font-bold px-2 py-0.5 bg-purple-500/10 text-purple-400 rounded-full border border-purple-500/20">Memory consolidation</span>
@@ -498,7 +498,7 @@ export default function SleepGuideInteractive({ onClose, onOpenPersonalization }
                     <div className="w-10 h-10 bg-emerald-500/10 text-emerald-400 rounded-xl flex items-center justify-center"><Brain size={20} /></div>
                     <h4 className="font-bold text-white">Breathing & Mindfulness</h4>
                   </div>
-                  <p className="text-xs text-zinc-500 leading-relaxed">Controlled breathing (4-7-8, box breathing) activates the parasympathetic nervous system and reduces cortisol within minutes. Consistent pre-sleep practice — 15 minutes minimum — measurably reduces sleep onset latency in people with high stress indices.</p>
+                  <p className="text-xs text-zinc-300 leading-relaxed">Controlled breathing (4-7-8, box breathing) activates the parasympathetic nervous system and reduces cortisol within minutes. Consistent pre-sleep practice — 15 minutes minimum — measurably reduces sleep onset latency in people with high stress indices.</p>
                   <div className="flex gap-2 flex-wrap">
                     <span className="text-[9px] font-bold px-2 py-0.5 bg-emerald-500/10 text-emerald-400 rounded-full border border-emerald-500/20">Sleep onset</span>
                     <span className="text-[9px] font-bold px-2 py-0.5 bg-emerald-500/10 text-emerald-400 rounded-full border border-emerald-500/20">HRV improvement</span>
@@ -509,19 +509,19 @@ export default function SleepGuideInteractive({ onClose, onOpenPersonalization }
 
             {/* Passive aids */}
             <div className="space-y-4">
-              <h3 className="text-sm font-black uppercase tracking-widest text-zinc-500">Passive Aids</h3>
+              <h3 className="text-sm font-black uppercase tracking-widest text-zinc-400">Passive Aids</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="p-6 bg-zinc-900 border border-zinc-800 rounded-3xl space-y-2">
                   <h4 className="font-bold text-white text-sm">Sleep Mask / Blackout</h4>
-                  <p className="text-xs text-zinc-500 leading-relaxed">Even small amounts of light through closed eyelids suppress melatonin. A well-fitted mask or blackout curtains remove the single most disruptive circadian input.</p>
+                  <p className="text-xs text-zinc-300 leading-relaxed">Even small amounts of light through closed eyelids suppress melatonin. A well-fitted mask or blackout curtains remove the single most disruptive circadian input.</p>
                 </div>
                 <div className="p-6 bg-zinc-900 border border-zinc-800 rounded-3xl space-y-2">
                   <h4 className="font-bold text-white text-sm">Weighted Blanket</h4>
-                  <p className="text-xs text-zinc-500 leading-relaxed">Deep pressure stimulation mimics the calming effect of being held. Most effective for anxiety-related sleep onset difficulty. Less evidence for healthy sleepers.</p>
+                  <p className="text-xs text-zinc-300 leading-relaxed">Deep pressure stimulation mimics the calming effect of being held. Most effective for anxiety-related sleep onset difficulty. Less evidence for healthy sleepers.</p>
                 </div>
                 <div className="p-6 bg-zinc-900 border border-zinc-800 rounded-3xl space-y-2">
                   <h4 className="font-bold text-white text-sm">Earplugs / Sleep Buds</h4>
-                  <p className="text-xs text-zinc-500 leading-relaxed">High-fidelity earplugs (not foam) block disruptive peaks while allowing you to hear alarms. Effective in noisy environments where white noise alone is insufficient.</p>
+                  <p className="text-xs text-zinc-300 leading-relaxed">High-fidelity earplugs (not foam) block disruptive peaks while allowing you to hear alarms. Effective in noisy environments where white noise alone is insufficient.</p>
                 </div>
               </div>
             </div>
@@ -535,15 +535,15 @@ export default function SleepGuideInteractive({ onClose, onOpenPersonalization }
               <div className="grid grid-cols-3 gap-4 mt-4">
                 <div className="text-center">
                   <p className="text-xs font-bold text-emerald-400 uppercase tracking-widest">Most accurate</p>
-                  <p className="text-xs text-zinc-500 mt-1">Smart rings (optical + motion)</p>
+                  <p className="text-xs text-zinc-300 mt-1">Smart rings (optical + motion)</p>
                 </div>
                 <div className="text-center">
                   <p className="text-xs font-bold text-amber-400 uppercase tracking-widest">Moderate</p>
-                  <p className="text-xs text-zinc-500 mt-1">Smartwatches</p>
+                  <p className="text-xs text-zinc-300 mt-1">Smartwatches</p>
                 </div>
                 <div className="text-center">
                   <p className="text-xs font-bold text-red-400 uppercase tracking-widest">Least accurate</p>
-                  <p className="text-xs text-zinc-500 mt-1">Phone apps (mic/accel)</p>
+                  <p className="text-xs text-zinc-300 mt-1">Phone apps (mic/accel)</p>
                 </div>
               </div>
             </div>
@@ -561,7 +561,7 @@ export default function SleepGuideInteractive({ onClose, onOpenPersonalization }
           <section id="guide-section-conclusion" className="space-y-8">
             <div className="space-y-4">
               <span className="text-indigo-400 text-xs font-black uppercase tracking-[0.3em]">Section 07</span>
-              <h2 className="text-2xl md:text-5xl font-black text-white tracking-tighter leading-[0.95]">Getting to Know Yourself is the Best First Step</h2>
+              <h2 className="text-2xl md:text-5xl font-black text-white tracking-tighter leading-[1.1]">Getting to Know Yourself is the Best First Step</h2>
               <p className="text-lg text-zinc-400 leading-relaxed">
                 The science provides the framework, but the exact timing of these biological events is entirely unique to you.
               </p>
@@ -604,7 +604,7 @@ export default function SleepGuideInteractive({ onClose, onOpenPersonalization }
             <div className="pt-24">
               <button 
                 onClick={() => setShowReferences(!showReferences)}
-                className="flex items-center gap-2 text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] hover:text-zinc-300 transition-colors"
+                className="flex items-center gap-2 text-[10px] font-black text-zinc-300 uppercase tracking-[0.2em] hover:text-zinc-100 transition-colors"
               >
                 <ChevronRight size={14} className={`transition-transform ${showReferences ? 'rotate-90' : ''}`} />
                 Scientific Citations & References
@@ -631,7 +631,7 @@ export default function SleepGuideInteractive({ onClose, onOpenPersonalization }
                         ].map((ref, i) => (
                           <div key={i} className="flex items-start gap-3">
                             <ExternalLink size={14} className="text-zinc-600 mt-1 flex-shrink-0" />
-                            <p className="text-xs text-zinc-500 leading-relaxed">
+                            <p className="text-xs text-zinc-300 leading-relaxed">
                               {ref.author}. {ref.title}. <em>{ref.journal}</em>.
                             </p>
                           </div>
@@ -645,7 +645,7 @@ export default function SleepGuideInteractive({ onClose, onOpenPersonalization }
           </section>
 
           <footer className="pt-12 pb-24 border-t border-zinc-900 text-center">
-            <p className="text-[10px] text-zinc-600 uppercase tracking-[0.3em] font-black">End of Guide • SIA Learning Hub</p>
+            <p className="text-[10px] text-zinc-400 uppercase tracking-[0.3em] font-black">End of Guide • SIA Learning Hub</p>
           </footer>
         </div>
       </main>

@@ -241,10 +241,10 @@ export default function PersonalizationWizard({ user, onComplete, onClose }: Per
         <div className="p-8 pt-10 flex flex-col h-full">
           <div className="flex justify-between items-start mb-8">
             <div>
-              <h2 className="text-2xl font-bold text-white tracking-tight">Personalization Wizard</h2>
-              <p className="text-zinc-500 text-sm mt-1">Step {step + 1} of {totalSteps}</p>
+              <h2 className="text-2xl font-bold text-white tracking-tight">Clinical Intelligence Activation</h2>
+              <p className="text-zinc-300 text-sm mt-1">Step {step + 1} of {totalSteps}</p>
             </div>
-            <button onClick={onClose} className="p-2 hover:bg-zinc-800 rounded-full text-zinc-500 transition-colors">
+            <button onClick={onClose} className="p-2 hover:bg-zinc-800 rounded-full text-zinc-300 transition-colors">
               <X size={20} />
             </button>
           </div>
@@ -280,11 +280,11 @@ export default function PersonalizationWizard({ user, onComplete, onClose }: Per
                         </p>
                       </div>
                       <div className="space-y-2">
-                        <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Biological Sex</label>
+                        <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Biological Sex</label>
                         <select 
                           value={data.demographics.sex}
                           onChange={(e) => updateDemographics('sex', e.target.value)}
-                          className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-3 text-white focus:border-indigo-500 outline-none transition-colors appearance-none"
+                          className="w-full bg-zinc-900 border border-zinc-800 rounded-2xl p-3 text-white focus:border-indigo-500 outline-none transition-colors appearance-none"
                         >
                           <option value="Male">Male</option>
                           <option value="Female">Female</option>
@@ -295,13 +295,13 @@ export default function PersonalizationWizard({ user, onComplete, onClose }: Per
 
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Work Schedule</label>
+                        <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Work Schedule</label>
                         <div className="grid grid-cols-1 gap-2">
                           {WORK_SCHEDULES.map(sched => (
                             <button
                               key={sched}
                               onClick={() => updateDemographics('workSchedule', sched)}
-                              className={`flex items-center gap-3 p-3 rounded-xl border text-sm transition-all ${
+                              className={`flex items-center gap-3 p-3 rounded-2xl border text-sm transition-all ${
                                 data.demographics.workSchedule === sched 
                                   ? 'bg-indigo-600/20 border-indigo-500 text-white' 
                                   : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:border-zinc-700'
@@ -314,13 +314,13 @@ export default function PersonalizationWizard({ user, onComplete, onClose }: Per
                         </div>
                       </div>
                       <div className="space-y-2">
-                        <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Environment</label>
+                        <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Environment</label>
                         <div className="grid grid-cols-1 gap-2">
                           {ENVIRONMENT_TYPES.map(env => (
                             <button
                               key={env}
                               onClick={() => updateDemographics('environmentType', env)}
-                              className={`flex items-center gap-3 p-3 rounded-xl border text-sm transition-all ${
+                              className={`flex items-center gap-3 p-3 rounded-2xl border text-sm transition-all ${
                                 data.demographics.environmentType === env 
                                   ? 'bg-indigo-600/20 border-indigo-500 text-white' 
                                   : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:border-zinc-700'
@@ -378,8 +378,8 @@ export default function PersonalizationWizard({ user, onComplete, onClose }: Per
                               : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:border-zinc-700'
                           }`}
                         >
-                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                            isSelected ? 'bg-indigo-500 text-white' : 'bg-zinc-800 text-zinc-500'
+                          <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${
+                            isSelected ? 'bg-indigo-500 text-white' : 'bg-zinc-800 text-zinc-400'
                           }`}>
                             <Icon size={20} />
                           </div>
@@ -436,7 +436,7 @@ export default function PersonalizationWizard({ user, onComplete, onClose }: Per
                       <div className="flex justify-between items-center">
                         <div className="space-y-0.5">
                           <label className="text-sm font-medium text-zinc-300">Daytime Sleepiness</label>
-                          <p className="text-[10px] text-zinc-500">1 (Wide Awake) to 10 (Involuntary Sleep)</p>
+                          <p className="text-[10px] text-zinc-400">1 (Wide Awake) to 10 (Involuntary Sleep)</p>
                         </div>
                         <div className="text-right">
                           <span className="text-indigo-400 font-bold block leading-none">{data.psqi.daytime_sleepiness}/10</span>
@@ -472,7 +472,7 @@ export default function PersonalizationWizard({ user, onComplete, onClose }: Per
 
                   {/* Sleep Architecture */}
                   <div className="space-y-3">
-                    <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Sleep Architecture (%)</label>
+                    <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Sleep Architecture (%)</label>
                     <div className="grid grid-cols-4 gap-2">
                       {[
                         { id: 'n1', label: 'N1' },
@@ -486,7 +486,7 @@ export default function PersonalizationWizard({ user, onComplete, onClose }: Per
                             placeholder={stage.label}
                             value={(data.clinical as any)[stage.id]}
                             onChange={(e) => setData(prev => ({ ...prev, clinical: { ...prev.clinical!, [stage.id]: parseInt(e.target.value) || 0 } }))}
-                            className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-2 text-center text-white focus:border-indigo-500 outline-none transition-colors text-sm"
+                            className="w-full bg-zinc-900 border border-zinc-800 rounded-2xl p-2 text-center text-white focus:border-indigo-500 outline-none transition-colors text-sm"
                           />
                           <div className="text-[9px] text-zinc-600 text-center font-bold">{stage.label}</div>
                         </div>
@@ -496,7 +496,7 @@ export default function PersonalizationWizard({ user, onComplete, onClose }: Per
 
                   {/* Neurological Factors */}
                   <div className="space-y-3">
-                    <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Neurological Factors</label>
+                    <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Neurological Factors</label>
                     <div className="flex flex-wrap gap-2">
                       {NEURO_FACTORS.map(factor => {
                         const isSelected = data.clinical?.neurological?.includes(factor.id);
@@ -504,10 +504,10 @@ export default function PersonalizationWizard({ user, onComplete, onClose }: Per
                           <button
                             key={factor.id}
                             onClick={() => handleNeuroToggle(factor.id)}
-                            className={`px-3 py-2 rounded-xl border text-[11px] font-bold transition-all ${
+                            className={`px-3 py-2 rounded-2xl border text-[11px] font-bold transition-all ${
                               isSelected 
                                 ? 'bg-indigo-600/20 border-indigo-500 text-white' 
-                                : 'bg-zinc-900 border-zinc-800 text-zinc-500 hover:border-zinc-700'
+                                : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:border-zinc-700'
                             }`}
                           >
                             {factor.label}
@@ -520,45 +520,45 @@ export default function PersonalizationWizard({ user, onComplete, onClose }: Per
                   {/* Oxygen & Heart */}
                   <div className="grid grid-cols-3 gap-3">
                     <div className="space-y-2">
-                      <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest block">Avg SpO2 (%)</label>
+                      <label className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest block">Avg SpO2 (%)</label>
                       <div className="relative">
                         <Droplets size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-600" />
                         <input 
                           type="number" 
                           value={data.clinical?.oxygen?.avgSpO2}
                           onChange={(e) => setData(prev => ({ ...prev, clinical: { ...prev.clinical!, oxygen: { ...prev.clinical!.oxygen!, avgSpO2: parseInt(e.target.value) || 0 } } }))}
-                          className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-2 pl-8 text-white focus:border-indigo-500 outline-none transition-colors text-sm"
+                          className="w-full bg-zinc-900 border border-zinc-800 rounded-2xl p-2 pl-8 text-white focus:border-indigo-500 outline-none transition-colors text-sm"
                         />
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest block">Min SpO2 (%)</label>
+                      <label className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest block">Min SpO2 (%)</label>
                       <div className="relative">
                         <Droplets size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-600" />
                         <input 
                           type="number" 
                           value={data.clinical?.oxygen?.minSpO2}
                           onChange={(e) => setData(prev => ({ ...prev, clinical: { ...prev.clinical!, oxygen: { ...prev.clinical!.oxygen!, minSpO2: parseInt(e.target.value) || 0 } } }))}
-                          className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-2 pl-8 text-white focus:border-indigo-500 outline-none transition-colors text-sm"
+                          className="w-full bg-zinc-900 border border-zinc-800 rounded-2xl p-2 pl-8 text-white focus:border-indigo-500 outline-none transition-colors text-sm"
                         />
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest block">Avg Sleep HR</label>
+                      <label className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest block">Avg Sleep HR</label>
                       <div className="relative">
                         <Heart size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-600" />
                         <input 
                           type="number" 
                           value={data.clinical?.heart?.avgSleepingHR}
                           onChange={(e) => setData(prev => ({ ...prev, clinical: { ...prev.clinical!, heart: { ...prev.clinical!.heart!, avgSleepingHR: parseInt(e.target.value) || 0 } } }))}
-                          className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-2 pl-8 text-white focus:border-indigo-500 outline-none transition-colors text-sm"
+                          className="w-full bg-zinc-900 border border-zinc-800 rounded-2xl p-2 pl-8 text-white focus:border-indigo-500 outline-none transition-colors text-sm"
                         />
                       </div>
                     </div>
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Clinical Report Summary</label>
+                    <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Clinical Report Summary</label>
                     <textarea 
                       value={data.clinical?.notes}
                       onChange={(e) => setData(prev => ({ ...prev, clinical: { ...prev.clinical!, notes: e.target.value } }))}
@@ -588,7 +588,7 @@ export default function PersonalizationWizard({ user, onComplete, onClose }: Per
                   />
 
                   <div className="p-4 bg-zinc-900/50 border border-zinc-800 rounded-2xl">
-                    <p className="text-[11px] text-zinc-500 leading-relaxed italic">
+                    <p className="text-[11px] text-zinc-400 leading-relaxed italic">
                       * By contributing anonymized data, you are helping fund the research that powers our AI models. This allows us to offer advanced sleep analysis at no cost to our basic users.
                     </p>
                   </div>
@@ -635,13 +635,13 @@ export default function PersonalizationWizard({ user, onComplete, onClose }: Per
                     })}
 
                     <div className="space-y-2 pt-2">
-                      <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Other Device</label>
+                      <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Other Device</label>
                       <input 
                         type="text"
                         placeholder="e.g. Weighted blanket, specific humidifier..."
                         value={data.connectedDevices?.find(d => d.type === 'other')?.brand || ''}
                         onChange={(e) => handleOtherDeviceChange(e.target.value)}
-                        className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-3 text-white focus:border-indigo-500 outline-none transition-colors text-sm"
+                        className="w-full bg-zinc-900 border border-zinc-800 rounded-2xl p-3 text-white focus:border-indigo-500 outline-none transition-colors text-sm"
                       />
                     </div>
                   </div>
@@ -655,7 +655,7 @@ export default function PersonalizationWizard({ user, onComplete, onClose }: Per
               onClick={prevStep}
               disabled={step === 0}
               className={`flex items-center gap-2 px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-all ${
-                step === 0 ? 'opacity-0 pointer-events-none' : 'text-zinc-500 hover:text-white hover:bg-zinc-800'
+                step === 0 ? 'opacity-0 pointer-events-none' : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
               }`}
             >
               <ChevronLeft size={16} />
@@ -675,7 +675,7 @@ export default function PersonalizationWizard({ user, onComplete, onClose }: Per
                 {step === 5 && (
                   <button
                     onClick={handleSave}
-                    className="text-zinc-500 hover:text-white text-xs font-black uppercase tracking-widest px-4 py-3"
+                    className="text-zinc-400 hover:text-white text-xs font-black uppercase tracking-widest px-4 py-3"
                   >
                     Skip
                   </button>
@@ -690,7 +690,7 @@ export default function PersonalizationWizard({ user, onComplete, onClose }: Per
                   ) : (
                     <Save size={16} />
                   )}
-                  Get better results now
+                  Activate Intelligence
                 </button>
               </div>
             )}

@@ -81,7 +81,7 @@ Disclaimer: SIA provides observations based on your logged data. This is not med
       <div className="flex items-center justify-between">
         <div className="space-y-1 text-left">
           <h3 className="text-xs font-black text-indigo-400 uppercase tracking-[0.2em]">Sleep Pattern Summary</h3>
-          <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">7-Day Observation</p>
+          <p className="text-[10px] text-zinc-300 uppercase tracking-widest font-bold">7-Day Observation</p>
         </div>
         <div className="w-8 h-8 bg-indigo-500/10 rounded-xl flex items-center justify-center text-indigo-400 border border-indigo-500/20">
           <Share2 size={16} />
@@ -92,7 +92,7 @@ Disclaimer: SIA provides observations based on your logged data. This is not med
         {metrics.map((m, i) => (
           <div key={i} className="bg-zinc-900/80 border border-zinc-800 p-4 rounded-2xl space-y-2 relative group text-left">
             <div className="flex items-center justify-between">
-              <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">{m.label}</span>
+              <span className="text-[9px] font-black text-zinc-300 uppercase tracking-widest">{m.label}</span>
               <div className={`w-1.5 h-1.5 rounded-full ${
                 m.status === 'green' ? 'bg-emerald-500' : 
                 m.status === 'amber' ? 'bg-amber-500' : 'bg-red-500'
@@ -109,7 +109,7 @@ Disclaimer: SIA provides observations based on your logged data. This is not med
       </div>
 
       <div className="pt-4 border-t border-zinc-800 space-y-4">
-        <div className="flex items-start gap-3 text-zinc-500 text-left">
+        <div className="flex items-start gap-3 text-zinc-300 text-left">
           <Info size={14} className="mt-0.5 flex-shrink-0" />
           <p className="text-[10px] leading-relaxed font-medium italic">
             SIA provides observations based on your logged data. This is not medical advice. Consult a professional for clinical concerns.
