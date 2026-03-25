@@ -1,4 +1,5 @@
 import { SleepState, SleepEvent } from '../types';
+import { format } from 'date-fns';
 
 /**
  * Maps HH:mm time to minutes from 20:00 (the start of our tracking day).
@@ -133,7 +134,7 @@ export const getGridFromEvents = (sleepEvents: SleepEvent[] = []): SleepState[] 
 /**
  * Converts a 96-slot grid back into a clean array of SleepEvents.
  */
-export const convertGridToEvents = (grid: SleepState[]): SleepEvent[] => {
+export const convertGridToEvents = (grid: SleepState[], date?: string): SleepEvent[] => {
   const sleepEvents: SleepEvent[] = [];
   if (!grid || grid.length === 0) return [];
 
@@ -143,8 +144,10 @@ export const convertGridToEvents = (grid: SleepState[]): SleepEvent[] => {
   for (let i = 0; i < 96; i++) {
     if (grid[i] !== currentType) {
       if (currentType && currentType !== 'awake-out') {
+        const typeStr = currentType.toString();
+        const id = date ? `import-${date}-${typeStr}-${sleepEvents.length}` : crypto.randomUUID();
         sleepEvents.push({
-          id: crypto.randomUUID(),
+          id,
           type: currentType,
           start: indexToTime(startIdx),
           end: indexToTime(i)
@@ -157,14 +160,16 @@ export const convertGridToEvents = (grid: SleepState[]): SleepEvent[] => {
 
   // Handle the last segment
   if (currentType && currentType !== 'awake-out') {
+    const typeStr = currentType.toString();
     // Continuous Block Merging (Wrap-around):
     // If the last segment has the same type as the first event of the day (which starts at 20:00),
     // merge them into a single continuous event.
     if (sleepEvents.length > 0 && sleepEvents[0].start === "20:00" && sleepEvents[0].type === currentType) {
       sleepEvents[0].start = indexToTime(startIdx);
     } else {
+      const id = date ? `import-${date}-${typeStr}-${sleepEvents.length}` : crypto.randomUUID();
       sleepEvents.push({
-        id: crypto.randomUUID(),
+        id,
         type: currentType,
         start: indexToTime(startIdx),
         end: "20:00" // End of the tracking day
@@ -173,6 +178,47 @@ export const convertGridToEvents = (grid: SleepState[]): SleepEvent[] => {
   }
 
   return sleepEvents;
+};
+
+/**
+ * Merges events into a 96-slot ledger where 'sleep' has priority over 'awake-in'.
+ */
+export const generateSleepEventsLedger = (events: SleepEvent[], date?: string): SleepEvent[] => {
+  // Initialize with null/awake-out
+  const grid: SleepState[] = new Array(96).fill('awake-out');
+  
+  // Sort events so 'sleep' comes last and thus overwrites 'awake-in'
+  const sortedEvents = [...events].sort((a, b) => {
+    if (a.type === 'sleep' && b.type !== 'sleep') return 1;
+    if (a.type !== 'sleep' && b.type === 'sleep') return -1;
+    return 0;
+  });
+
+  sortedEvents.forEach(event => {
+    const startIdx = timeToIndex(event.start);
+    const endIdx = timeToIndex(event.end);
+    
+    if (startIdx <= endIdx) {
+      // Interval-Based Ownership: slot i is filled if event_start <= slot_start < event_end
+      for (let i = startIdx; i < endIdx; i++) {
+        grid[i] = event.type;
+      }
+    } else {
+      // Handle wrap-around
+      for (let i = startIdx; i < 96; i++) grid[i] = event.type;
+      for (let i = 0; i < endIdx; i++) grid[i] = event.type;
+    }
+  });
+  
+  return convertGridToEvents(grid, date);
+};
+
+export const addMinutes = (timeStr: string, minutes: number): string => {
+  if (!timeStr || !timeStr.includes(':')) return timeStr;
+  const [h, m] = timeStr.split(':').map(Number);
+  const date = new Date(2000, 0, 1, h, m);
+  date.setMinutes(date.getMinutes() + minutes);
+  return format(date, 'HH:mm');
 };
 
 /**

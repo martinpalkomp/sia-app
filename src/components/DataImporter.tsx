@@ -27,10 +27,19 @@ import {
   collection,
   deleteField 
 } from '../lib/firebase';
-import { DailyLog, SleepState } from '../types';
+import { DailyLog, SleepState, SleepEvent } from '../types';
 import { TOTAL_SLOTS } from '../constants';
 import { saveLog } from '../services/sleepService';
-import { snapTo15Min, timeToIndex, getGridFromEvents, convertGridToEvents, getMinutesFrom2000 } from '../utils/sleepUtils';
+import { 
+  snapTo15Min, 
+  timeToIndex, 
+  getGridFromEvents, 
+  convertGridToEvents, 
+  getMinutesFrom2000,
+  generateSleepEventsLedger,
+  addMinutes
+} from '../utils/sleepUtils';
+import { TEMPLATE_INSTRUCTIONS } from '../utils/templateInstructions';
 
 interface DataImporterProps {
   user: User;
@@ -43,13 +52,13 @@ interface DataImporterProps {
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const TEMPLATE_HEADERS = [
-  'Date', 'Bedtime', 'Waketime', 'Status_Code', 'SQ', 'RL', 'Remarks', 
-  'Caffeine_Y/N', 'Caffeine_Cups', 'Caffeine_LastIntake', 
-  'Alcohol_Y/N', 'Alcohol_Drinks', 'Alcohol_LastIntake', 
-  'Medication_Y/N', 'Medication_Type', 'Medication_Time', 
-  'Exercise_Y/N', 'Exercise_Type', 'Exercise_Time', 
-  'Screens_Y/N', 'Stress_1to5', 'LastMeal_Time', 
-  'NaturalWake_Y/N', 'MorningMood_1to5', 'Sleep_Gadgets'
+  'Date', 'Bedtime', 'Waketime', 'Status_Code', 'SQ', 'R', 'L', 'Remarks', 
+  'Caffeine_Y', 'Caffeine_Cups', 'Caffeine_LastIntake', 
+  'Alcohol_Y', 'Alcohol_Drinks', 'Alcohol_LastIntake', 
+  'Medication_Y', 'Medication_Type', 'Medication_Time', 
+  'Exercise_Y', 'Exercise_Type', 'Exercise_Time', 
+  'Screens_Y', 'Stress_1to5', 'LastMeal_Time', 
+  'NaturalWake_Y', 'MorningMood_1to5', 'Sleep_Gadgets'
 ];
 
 export default function DataImporter({ user, onImportComplete, onRefresh, isImporting, setIsImporting, logs = {} }: DataImporterProps) {
@@ -140,8 +149,8 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
     if (h.includes('end') || h.includes('finish') || h === 'waketime') return 'End_Time';
     if (h.includes('status') || h.includes('type') || h.includes('code')) return 'Status_Code';
     if (h === 'sq' || h.includes('quality')) return 'SQ';
-    if (h === 'r' || h === 'rl' || h.includes('rest') || h.includes('awakening')) return 'R';
-    if (h === 'l' || h.includes('energy') || h.includes('level')) return 'L';
+    if (h === 'r' || h === 'morning_alertness') return 'R';
+    if (h === 'l' || h === 'daytime_energy') return 'L';
     if (h.includes('remark') || h.includes('note') || h.includes('comment')) return 'Remarks';
     if (h === 'caffeine_y' || h === 'caffeine' || h === 'caffeine_y/n') return 'Caffeine_Y';
     if (h === 'caffeine_cups' || h === 'cups') return 'Caffeine_Cups';
@@ -168,19 +177,23 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
     date,
     type: 'log',
     isIgnored: false,
-    sleep_quality: 5,
-    morning_alertness: 5,
-    daytime_energy: 5,
+    sleep_quality: 0,
+    morning_alertness: 0,
+    daytime_energy: 0,
     sleepEvents: [],
     daily_remarks: '',
     source: 'import',
     factors: {
-      caffeine: { consumed: false, amount: 0, lastIntake: '12:00' },
-      alcohol: { consumed: false, drinks: 0, lastIntake: '18:00' },
-      medication: { taken: false, type: '', time: '22:00' },
-      exercise: { completed: false, type: '', time: '17:00' },
-      screensInBed: false,
-      stressLevel: 3,
+      caffeine: { consumed: null, amount: null, lastIntake: null },
+      alcohol: { consumed: null, drinks: null, lastIntake: null },
+      medication: { taken: null, type: null, time: null },
+      exercise: { completed: null, type: null, time: null },
+      screensInBed: null,
+      stressLevel: null,
+      lastMealTime: null,
+      naturalWake: null,
+      moodScore: null,
+      sleepGadgets: [],
     },
   });
 
@@ -290,24 +303,25 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
       mappedRow.End_Time = row.Waketime;
       mappedRow.Status_Code = row.Status_Code;
       mappedRow.SQ = row.SQ;
-      mappedRow.R = row.RL; // RL maps to R (Morning_Alertness)
+      mappedRow.R = row.R;
+      mappedRow.L = row.L;
       mappedRow.Remarks = row.Remarks;
-      mappedRow.Caffeine_Y = row['Caffeine_Y/N'];
+      mappedRow.Caffeine_Y = row.Caffeine_Y;
       mappedRow.Caffeine_Cups = row.Caffeine_Cups;
       mappedRow.Caffeine_LastIntake = row.Caffeine_LastIntake;
-      mappedRow.Alcohol_Y = row['Alcohol_Y/N'];
+      mappedRow.Alcohol_Y = row.Alcohol_Y;
       mappedRow.Alcohol_Drinks = row.Alcohol_Drinks;
       mappedRow.Alcohol_LastIntake = row.Alcohol_LastIntake;
-      mappedRow.Medication_Y = row['Medication_Y/N'];
+      mappedRow.Medication_Y = row.Medication_Y;
       mappedRow.Medication_Type = row.Medication_Type;
       mappedRow.Medication_Time = row.Medication_Time;
-      mappedRow.Exercise_Y = row['Exercise_Y/N'];
+      mappedRow.Exercise_Y = row.Exercise_Y;
       mappedRow.Exercise_Type = row.Exercise_Type;
       mappedRow.Exercise_Time = row.Exercise_Time;
-      mappedRow.Screens_Y = row['Screens_Y/N'];
+      mappedRow.Screens_Y = row.Screens_Y;
       mappedRow.Stress = row.Stress_1to5;
       mappedRow.LastMeal = row.LastMeal_Time;
-      mappedRow.NaturalWake = row['NaturalWake_Y/N'];
+      mappedRow.NaturalWake = row.NaturalWake_Y;
       mappedRow.MoodScore = row.MorningMood_1to5;
       mappedRow.Sleep_Gadgets = row.Sleep_Gadgets;
     } else {
@@ -434,6 +448,21 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
 
   const processImportedData = async (data: any[], forceOverwrite = false, rawContent?: string) => {
     if (!db) { setUploadStatus('error'); setErrorMessage('Database not available — check Firebase configuration'); return; }
+    
+    const parseNum = (val: any) => {
+      if (val === undefined || val === null || val === '') return null;
+      const n = Number(val);
+      return isNaN(n) ? null : n;
+    };
+
+    const parseBool = (val: any) => {
+      if (val === undefined || val === null || val === '') return null;
+      const s = val.toString().toLowerCase().trim();
+      if (s === 'yes' || s === 'true' || s === '1' || s === 'y') return true;
+      if (s === 'no' || s === 'false' || s === '0' || s === 'n') return false;
+      return null;
+    };
+
     setUploadStatus('idle');
     setErrorMessage('');
     setCleaningReport(null);
@@ -555,39 +584,82 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
           return timeToIndex(startA) - timeToIndex(startB);
         });
 
-        // 2. Collect events for the day
-        const eventsForDay: any[] = [];
-        dayRows.forEach(rawRow => {
+        // 2. Collect events for the day (No Sandwich Logic)
+        const eventsForDay: SleepEvent[] = [];
+        dayRows.forEach((rawRow, rowIndex) => {
           const row = (rawRow as any)._mapped;
           const rawStatus = (row.Status_Code || row.status_code || row.Status || '')
             .toString().trim().toUpperCase();
 
-          let eventType: 'sleep' | 'awake-in' | null = null;
-          if (rawStatus.includes('SLEEP') && !rawStatus.includes('AWAKE')) {
-            eventType = 'sleep';
-          } else if (rawStatus.includes('AWAKE-IN') || rawStatus.includes('AWAKE IN')) {
-            eventType = 'awake-in';
-          } else if (!rawStatus || rawStatus.includes('AWAKE-OUT') || rawStatus.includes('AWAKE OUT')) {
-            eventType = null; // skip — not an in-bed event
-          }
-
-          // Only create an event if we have a valid type and valid times
-          if (eventType && row.Start_Time && row.End_Time) {
+          const type: SleepState = rawStatus.includes('SLEEP') && !rawStatus.includes('AWAKE') ? 'sleep' : 'awake-in';
+          
+          if (row.Start_Time && row.End_Time) {
             eventsForDay.push({
-              id: crypto.randomUUID(),
-              type: eventType,
+              id: `import-${sleepDay}-${rowIndex}-${type}`,
+              type,
               start: row.Start_Time,
               end: row.End_Time
             });
           }
         });
 
-        // 3. Merge contiguous same-type blocks using the grid logic
-        const grid = getGridFromEvents(eventsForDay);
-        const mergedEvents = convertGridToEvents(grid);
+        // 3. Generate Ledger (Priority: Sleep > Awake-In)
+        const mergedEvents = generateSleepEventsLedger(eventsForDay, sleepDay);
         log.sleepEvents = mergedEvents;
 
-        // 4. Efficiency Calculation
+        // 4. Map Daily Factors from the PRIMARY row of the day
+        const primaryRow = dayRows.find(r => {
+          const status = (r._mapped.Status_Code || '').toString().toUpperCase();
+          return status === 'SLEEP';
+        })?._mapped || dayRows[0]._mapped;
+        
+        const unmapped = (dayRows[0] as any)._unmapped;
+
+        log.sleep_quality = parseNum(primaryRow.SQ) ?? 0;
+        log.morning_alertness = parseNum(primaryRow.R) ?? 0;
+        log.daytime_energy = parseNum(primaryRow.L) ?? 0;
+        
+        if (parseNum(primaryRow.SQ) !== null || parseNum(primaryRow.R) !== null || parseNum(primaryRow.L) !== null) {
+          metricsCaptured.add(sleepDay);
+        }
+        
+        let remarks = primaryRow.Remarks || '';
+        if (unmapped.length > 0) {
+          remarks += (remarks ? ' ' : '') + unmapped.map((u: string) => `[Unmapped: ${u}]`).join(' ');
+        }
+        log.daily_remarks = remarks;
+
+        log.factors.caffeine.consumed = parseBool(primaryRow.Caffeine_Y);
+        log.factors.caffeine.amount = parseNum(primaryRow.Caffeine_Cups);
+        log.factors.caffeine.lastIntake = primaryRow.Caffeine_LastIntake ? normalizeTime(primaryRow.Caffeine_LastIntake) : null;
+        
+        log.factors.alcohol.consumed = parseBool(primaryRow.Alcohol_Y);
+        log.factors.alcohol.drinks = parseNum(primaryRow.Alcohol_Drinks);
+        log.factors.alcohol.lastIntake = primaryRow.Alcohol_LastIntake ? normalizeTime(primaryRow.Alcohol_LastIntake) : null;
+
+        log.factors.medication.taken = parseBool(primaryRow.Medication_Y);
+        log.factors.medication.type = primaryRow.Medication_Type ? primaryRow.Medication_Type.toString() : null;
+        log.factors.medication.time = primaryRow.Medication_Time ? normalizeTime(primaryRow.Medication_Time) : null;
+
+        log.factors.exercise.completed = parseBool(primaryRow.Exercise_Y);
+        log.factors.exercise.type = primaryRow.Exercise_Type ? primaryRow.Exercise_Type.toString() : null;
+        log.factors.exercise.time = primaryRow.Exercise_Time ? normalizeTime(primaryRow.Exercise_Time) : null;
+
+        log.factors.screensInBed = parseBool(primaryRow.Screens_Y);
+        log.factors.stressLevel = parseNum(primaryRow.Stress);
+        log.factors.lastMealTime = primaryRow.LastMeal ? normalizeTime(primaryRow.LastMeal) : null;
+        log.factors.naturalWake = parseBool(primaryRow.NaturalWake);
+        log.factors.moodScore = parseNum(primaryRow.MoodScore);
+
+        if (primaryRow.Sleep_Gadgets) {
+          log.factors.sleepGadgets = primaryRow.Sleep_Gadgets.toString().split(',').map((g: string) => ({
+            type: g.trim(),
+            durationMinutes: null,
+            timeOfUse: null
+          }));
+        }
+
+        // 5. Efficiency Calculation
         const eventDurationMinutes = (e: any) => {
           const startMins = getMinutesFrom2000(e.start);
           const endMins = getMinutesFrom2000(e.end);
@@ -609,74 +681,8 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
           sleep_efficiency: efficiency
         };
 
-        // Process metadata
-        dayRows.forEach(rawRow => {
-          const row = (rawRow as any)._mapped;
-          const unmapped = (rawRow as any)._unmapped;
-
-          const sqVal = parseInt(row.SQ);
-          if (!isNaN(sqVal) && !metricsSetForDate.has('SQ')) {
-            log.sleep_quality = sqVal;
-            metricsSetForDate.add('SQ');
-            metricsCaptured.add('SQ');
-          }
-
-          const rVal = parseInt(row.R);
-          if (!isNaN(rVal) && !metricsSetForDate.has('R')) {
-            log.morning_alertness = rVal;
-            metricsSetForDate.add('R');
-            metricsCaptured.add('R');
-          }
-
-          const lVal = parseInt(row.L);
-          if (!isNaN(lVal) && !metricsSetForDate.has('L')) {
-            log.daytime_energy = lVal;
-            metricsSetForDate.add('L');
-            metricsCaptured.add('L');
-          }
-          
-          let remarks = row.Remarks || '';
-          if (unmapped.length > 0) {
-            remarks += (remarks ? ' ' : '') + unmapped.map((u: string) => `[Unmapped: ${u}]`).join(' ');
-          }
-          if (remarks) {
-            log.daily_remarks = log.daily_remarks
-              ? log.daily_remarks + ' ' + remarks
-              : remarks;
-          }
-
-          if (row.Caffeine_Y) log.factors.caffeine.consumed = row.Caffeine_Y?.toString().toLowerCase() === 'yes';
-          if (row.Caffeine_Cups) log.factors.caffeine.amount = parseInt(row.Caffeine_Cups) || 0;
-          if (row.Caffeine_LastIntake) log.factors.caffeine.lastIntake = normalizeTime(row.Caffeine_LastIntake);
-          if (row.Alcohol_Y) log.factors.alcohol.consumed = row.Alcohol_Y?.toString().toLowerCase() === 'yes';
-          if (row.Alcohol_Drinks) log.factors.alcohol.drinks = parseInt(row.Alcohol_Drinks) || 0;
-          if (row.Alcohol_LastIntake) log.factors.alcohol.lastIntake = normalizeTime(row.Alcohol_LastIntake);
-          if (row.Medication_Y) log.factors.medication.taken = row.Medication_Y?.toString().toLowerCase() === 'yes';
-          if (row.Medication_Type) log.factors.medication.type = row.Medication_Type.toString();
-          if (row.Medication_Time) log.factors.medication.time = normalizeTime(row.Medication_Time);
-          if (row.Exercise_Y) log.factors.exercise.completed = row.Exercise_Y?.toString().toLowerCase() === 'yes';
-          if (row.Exercise_Type) log.factors.exercise.type = row.Exercise_Type.toString();
-          if (row.Exercise_Time) log.factors.exercise.time = normalizeTime(row.Exercise_Time);
-          if (row.Screens_Y) log.factors.screensInBed = row.Screens_Y?.toString().toLowerCase() === 'yes';
-          if (row.Stress) log.factors.stressLevel = parseInt(row.Stress) || 3;
-          if (row.LastMeal) log.factors.lastMealTime = normalizeTime(row.LastMeal);
-          if (row.NaturalWake) log.factors.naturalWake = row.NaturalWake?.toString().toLowerCase() === 'yes';
-          if (row.MoodScore) log.factors.moodScore = parseInt(row.MoodScore) || 3;
-          
-          if (row.Sleep_Gadgets && typeof row.Sleep_Gadgets === 'string' && row.Sleep_Gadgets.trim()) {
-            const gadgetStrings = row.Sleep_Gadgets.split(',').map((s: string) => s.trim()).filter(Boolean);
-            log.factors.sleepGadgets = gadgetStrings.map((g: string) => {
-              const timeMatch = g.match(/@(\w+)$/);
-              const durMatch = g.match(/\((\d+)min\)/);
-              const type = g.replace(/\(\d+min\)/, '').replace(/@\w+$/, '').trim();
-              return {
-                type: type as any,
-                ...(durMatch ? { durationMinutes: parseInt(durMatch[1]) } : {}),
-                ...(timeMatch ? { timeOfUse: timeMatch[1] as any } : {})
-              };
-            });
-          }
-        });
+        log.source = 'import';
+        log.visualTimeline = getGridFromEvents(log.sleepEvents);
 
         cleanedCount += dayRows.length;
       }
@@ -887,8 +893,9 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
               const buffer = new Uint8Array(e.target?.result as ArrayBuffer);
               const workbook = read(buffer, { type: 'array', cellDates: false });
               
-              // Always use the first sheet for consistency
-              const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+              // Target "DATA" sheet if it exists, otherwise use the first sheet
+              const sheetName = workbook.SheetNames.find(n => n.toUpperCase() === 'DATA') || workbook.SheetNames[0];
+              const worksheet = workbook.Sheets[sheetName];
               
               const json = utils.sheet_to_json(worksheet, { defval: "" });
               resolve(json as any[]);
@@ -917,8 +924,8 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
   const downloadTemplate = async () => {
     const workbook = new ExcelJS.Workbook();
     
-    // Data Sheet
-    const dataSheet = workbook.addWorksheet('Data');
+    // Sheet 1: DATA
+    const dataSheet = workbook.addWorksheet('DATA');
     const headers = TEMPLATE_HEADERS;
     
     // Row 1 — header row: background #2D2B55, white bold Arial text, centered.
@@ -939,7 +946,7 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
 
     // Row 2 — rule row: grey background #E8E8E8, italic grey text showing format hints
     const hints = [
-      'YYYY-MM-DD', 'HH:mm', 'HH:mm', 'SLEEP/AWAKE-IN', '0-10', 'Text'
+      'YYYY-MM-DD', 'HH:mm', 'HH:mm', 'SLEEP/AWAKE-IN', '0-10', '0-10', '0-10', 'Text'
     ];
     const ruleRow = dataSheet.addRow(hints);
     ruleRow.eachCell((cell) => {
@@ -957,21 +964,23 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
 
     // Rows 3-5 — three sample rows
     const sampleRows = [
-      ['2026-03-20', '23:00', '07:30', 'SLEEP', 8, 'Slept well'],
-      ['2026-03-20', '07:30', '08:00', 'AWAKE-IN', '', ''],
-      ['2026-03-21', '23:30', '07:00', 'SLEEP', 6, 'Stressed day']
+      ['2026-03-20', '23:00', '07:30', 'SLEEP', 8, 7, 7, 'Slept well'],
+      ['2026-03-20', '07:30', '08:00', 'AWAKE-IN', '', '', '', ''],
+      ['2026-03-21', '23:30', '07:00', 'SLEEP', 6, 5, 6, 'Stressed day']
     ];
 
     sampleRows.forEach((rowData) => {
       const row = dataSheet.addRow(rowData);
       const isSleep = rowData[3] === 'SLEEP';
       const fillColor = isSleep ? 'FFE8E6FF' : 'FFFFF8E1';
-      row.eachCell((cell) => {
-        cell.fill = {
-          type: 'pattern',
-          pattern: 'solid',
-          fgColor: { argb: fillColor }
-        };
+      row.eachCell((cell, colNumber) => {
+        if (colNumber <= 4) {
+          cell.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: fillColor }
+          };
+        }
       });
     });
 
@@ -981,46 +990,25 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
     ];
 
     // Set column widths
-    dataSheet.columns = [
-      { width: 13 }, // Date
-      { width: 9 },  // Bedtime
-      { width: 9 },  // Waketime
-      { width: 13 }, // Status_Code
-      { width: 5 },  // SQ
-      { width: 22 }  // Remarks
-    ];
-
-    // Instructions Sheet
-    const instSheet = workbook.addWorksheet('Instructions');
-    const instHeaders = ['COLUMN', 'FORMAT & NOTES'];
-    const instHeaderRow = instSheet.addRow(instHeaders);
-    instHeaderRow.eachCell((cell) => {
-      cell.fill = {
-        type: 'pattern',
-        pattern: 'solid',
-        fgColor: { argb: 'FF2D2B55' }
-      };
-      cell.font = {
-        color: { argb: 'FFFFFFFF' },
-        bold: true,
-        name: 'Arial'
-      };
-      cell.alignment = { vertical: 'middle', horizontal: 'center' };
+    dataSheet.columns = TEMPLATE_HEADERS.map((h, i) => {
+      if (i === 7) return { width: 40 }; // Remarks
+      if (i === 25) return { width: 40 }; // Sleep Gadgets
+      return { width: 15 };
     });
 
-    const instructionRows = [
-      ['Date', 'The date the sleep session started (YYYY-MM-DD).'],
-      ['Bedtime', 'The time you went to bed (HH:mm).'],
-      ['Waketime', 'The time you woke up (HH:mm).'],
-      ['Status_Code', 'SLEEP for main sleep, AWAKE-IN for wakeups mid-sleep.'],
-      ['SQ', 'Sleep Quality (0-10).'],
-      ['Remarks', 'Any notes about the night.'],
-      ['DISCLAIMER', 'SIA tracks patterns to help you understand your sleep habits. This is not medical advice. Share this data with your doctor for clinical interpretation.']
-    ];
-
-    instructionRows.forEach(row => instSheet.addRow(row));
-    instSheet.getColumn(1).width = 25;
-    instSheet.getColumn(2).width = 80;
+    // Sheet 2: INSTRUCTIONS
+    const instructionsSheet = workbook.addWorksheet('INSTRUCTIONS');
+    TEMPLATE_INSTRUCTIONS.forEach((row, i) => {
+      const r = instructionsSheet.addRow(row);
+      if (i === 0) {
+        r.getCell(1).font = { bold: true, size: 14 };
+      }
+      if (row[0] === 'Column' || row[0] === 'Important Notes:') {
+        r.getCell(1).font = { bold: true };
+      }
+    });
+    instructionsSheet.getColumn(1).width = 25;
+    instructionsSheet.getColumn(2).width = 80;
 
     // Download logic
     const buffer = await workbook.xlsx.writeBuffer();

@@ -8,10 +8,11 @@ import {
 } from 'firebase/firestore';
 import { User } from 'firebase/auth';
 import { DailyLog } from '../types';
-import { getGridFromEvents, convertGridToEvents, timeToIndex } from './sleepUtils';
+import { getGridFromEvents, convertGridToEvents, timeToIndex, addMinutes } from './sleepUtils';
+import { TEMPLATE_INSTRUCTIONS } from './templateInstructions';
 
 const TEMPLATE_HEADERS = [
-  'Date', 'Bedtime', 'Waketime', 'Status_Code', 'SQ', 'RL', 'Remarks', 
+  'Date', 'Bedtime', 'Waketime', 'Status_Code', 'SQ', 'R', 'L', 'Remarks', 
   'Caffeine_Y/N', 'Caffeine_Cups', 'Caffeine_LastIntake', 
   'Alcohol_Y/N', 'Alcohol_Drinks', 'Alcohol_LastIntake', 
   'Medication_Y/N', 'Medication_Type', 'Medication_Time', 
@@ -26,7 +27,7 @@ const TEMPLATE_HEADERS = [
  */
 export const exportToExcel = async (logs: DailyLog[]) => {
   const workbook = new ExcelJS.Workbook();
-  const worksheet = workbook.addWorksheet('Data');
+  const worksheet = workbook.addWorksheet('DATA');
 
   // Add headers with styling matching the template
   const headerRow = worksheet.addRow(TEMPLATE_HEADERS);
@@ -48,16 +49,19 @@ export const exportToExcel = async (logs: DailyLog[]) => {
   const sortedLogs = [...logs].sort((a, b) => a.date.localeCompare(b.date));
 
   sortedLogs.forEach(log => {
-    // Regenerate events from grid to ensure they are merged and consistent with importer logic
-    const grid = getGridFromEvents(log.sleepEvents || []);
-    const events = convertGridToEvents(grid);
+    // Export all events exactly as they are in the database
+    const processedEvents: { start: string; end: string; type: string }[] = (log.sleepEvents || []).map(e => ({
+      start: e.start,
+      end: e.end,
+      type: e.type.toUpperCase()
+    }));
 
     // Sort events by start time using the 20:00 anchor logic
-    events.sort((a, b) => {
+    processedEvents.sort((a, b) => {
       return timeToIndex(a.start) - timeToIndex(b.start);
     });
 
-    events.forEach((event, idx) => {
+    processedEvents.forEach((event, idx) => {
       // Determine the Calendar Date for the row
       // If start time is before 20:00, it belongs to the next calendar day relative to the sleep day
       const logDate = parseISO(log.date);
@@ -66,46 +70,47 @@ export const exportToExcel = async (logs: DailyLog[]) => {
       const dateStr = format(calendarDate, 'yyyy-MM-dd');
 
       const f = log.factors || {
-        caffeine: { consumed: false, amount: 0, lastIntake: '' },
-        alcohol: { consumed: false, drinks: 0, lastIntake: '' },
-        medication: { taken: false, type: '', time: '' },
-        exercise: { completed: false, type: '', time: '' },
-        screensInBed: false,
-        stressLevel: 3
+        caffeine: { consumed: null, amount: null, lastIntake: null },
+        alcohol: { consumed: null, drinks: null, lastIntake: null },
+        medication: { taken: null, type: null, time: null },
+        exercise: { completed: null, type: null, time: null },
+        screensInBed: null,
+        stressLevel: null
       };
 
       const rowData = [
         dateStr,
         event.start,
         event.end,
-        event.type === 'sleep' ? 'SLEEP' : event.type === 'awake-in' ? 'AWAKE-IN' : 'AWAKE-OUT',
+        event.type,
         idx === 0 ? (log.sleep_quality ?? '') : '',
         idx === 0 ? (log.morning_alertness ?? '') : '',
+        idx === 0 ? (log.daytime_energy ?? '') : '',
         idx === 0 ? (log.daily_remarks ?? '') : '',
         // Caffeine
-        idx === 0 ? (f.caffeine?.consumed ? 'yes' : 'no') : '',
+        idx === 0 ? (f.caffeine?.consumed === true ? 'yes' : f.caffeine?.consumed === false ? 'no' : '') : '',
         idx === 0 ? (f.caffeine?.amount ?? '') : '',
         idx === 0 ? (f.caffeine?.lastIntake ?? '') : '',
         // Alcohol
-        idx === 0 ? (f.alcohol?.consumed ? 'yes' : 'no') : '',
+        idx === 0 ? (f.alcohol?.consumed === true ? 'yes' : f.alcohol?.consumed === false ? 'no' : '') : '',
         idx === 0 ? (f.alcohol?.drinks ?? '') : '',
         idx === 0 ? (f.alcohol?.lastIntake ?? '') : '',
         // Medication
-        idx === 0 ? (f.medication?.taken ? 'yes' : 'no') : '',
+        idx === 0 ? (f.medication?.taken === true ? 'yes' : f.medication?.taken === false ? 'no' : '') : '',
         idx === 0 ? (f.medication?.type ?? '') : '',
         idx === 0 ? (f.medication?.time ?? '') : '',
         // Exercise
-        idx === 0 ? (f.exercise?.completed ? 'yes' : 'no') : '',
+        idx === 0 ? (f.exercise?.completed === true ? 'yes' : f.exercise?.completed === false ? 'no' : '') : '',
         idx === 0 ? (f.exercise?.type ?? '') : '',
         idx === 0 ? (f.exercise?.time ?? '') : '',
         // Screens
-        idx === 0 ? (f.screensInBed ? 'yes' : 'no') : '',
+        idx === 0 ? (f.screensInBed === true ? 'yes' : f.screensInBed === false ? 'no' : '') : '',
         // Stress
         idx === 0 ? (f.stressLevel ?? '') : '',
         // Last Meal
         idx === 0 ? (f.lastMealTime ?? '') : '',
         // Natural Wake
-        idx === 0 ? (f.naturalWake ? 'yes' : 'no') : '',
+        idx === 0 ? (f.naturalWake === true ? 'yes' : f.naturalWake === false ? 'no' : '') : '',
         // Morning Mood
         idx === 0 ? (f.moodScore ?? '') : '',
         // Sleep Gadgets
@@ -120,7 +125,7 @@ export const exportToExcel = async (logs: DailyLog[]) => {
       const row = worksheet.addRow(rowData);
       
       // Apply conditional styling matching the template
-      const isSleep = event.type === 'sleep';
+      const isSleep = event.type === 'SLEEP';
       const fillColor = isSleep ? 'FFE8E6FF' : 'FFFFF8E1';
       row.eachCell((cell, colNumber) => {
         // Only color the first 4 columns (Date, Bedtime, Waketime, Status_Code)
@@ -137,10 +142,24 @@ export const exportToExcel = async (logs: DailyLog[]) => {
 
   // Set column widths for readability
   worksheet.columns = TEMPLATE_HEADERS.map((h, i) => {
-    if (i === 6) return { width: 40 }; // Remarks
-    if (i === 24) return { width: 40 }; // Sleep Gadgets
+    if (i === 7) return { width: 40 }; // Remarks
+    if (i === 25) return { width: 40 }; // Sleep Gadgets
     return { width: 15 };
   });
+
+  // Sheet 2: INSTRUCTIONS
+  const instructionsSheet = workbook.addWorksheet('INSTRUCTIONS');
+  TEMPLATE_INSTRUCTIONS.forEach((row, i) => {
+    const r = instructionsSheet.addRow(row);
+    if (i === 0) {
+      r.getCell(1).font = { bold: true, size: 14 };
+    }
+    if (row[0] === 'Column' || row[0] === 'Important Notes:') {
+      r.getCell(1).font = { bold: true };
+    }
+  });
+  instructionsSheet.getColumn(1).width = 25;
+  instructionsSheet.getColumn(2).width = 80;
 
   // Trigger file download
   const buffer = await workbook.xlsx.writeBuffer();

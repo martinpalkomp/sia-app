@@ -21,15 +21,15 @@ export interface FullLog extends BaseLog {
   timeline?: SleepState[]; // 96 slots for 15-min intervals (20:00 to 20:00) - Deprecated
   sleepEvents: SleepEvent[];    // New event-based ledger
   factors: {
-    caffeine: { consumed: boolean; amount: number; lastIntake: string };
-    alcohol: { consumed: boolean; drinks: number; lastIntake: string };
-    medication: { taken: boolean; type: string; time: string };
-    exercise: { completed: boolean; type: string; time: string };
-    screensInBed: boolean;
-    stressLevel: number; // 1-5
-    lastMealTime?: string;     // HH:mm — time of last meal before sleep
-    naturalWake?: boolean;     // true = woke without alarm, false = alarm woke user
-    moodScore?: number;        // 1-5 subjective mood on waking
+    caffeine: { consumed: boolean | null; amount: number | null; lastIntake: string | null };
+    alcohol: { consumed: boolean | null; drinks: number | null; lastIntake: string | null };
+    medication: { taken: boolean | null; type: string | null; time: string | null };
+    exercise: { completed: boolean | null; type: string | null; time: string | null };
+    screensInBed: boolean | null;
+    stressLevel: number | null; // 1-5
+    lastMealTime?: string | null;     // HH:mm — time of last meal before sleep
+    naturalWake?: boolean | null;     // true = woke without alarm, false = alarm woke user
+    moodScore?: number | null;        // 1-5 subjective mood on waking
     sleepGadgets?: Array<{
       type: 'light_therapy' | 'breathing_trainer' | 'pre_sleep_heating' | 'aromatherapy' | 'meditation_app' | 'cooling_pad' | 'white_noise' | 'sleep_mask' | 'earplugs' | 'weighted_blanket' | 'smart_ring' | 'smartwatch_tracking' | 'fitness_band' | 'phone_sleep_app';
       durationMinutes?: number;
@@ -127,15 +127,15 @@ export interface DailyLog extends Partial<FullLog>, Partial<SummaryLog> {
   timeline?: SleepState[]; // Deprecated
   sleepEvents?: SleepEvent[];   // New event-based ledger
   factors: {
-    caffeine: { consumed: boolean; amount: number; lastIntake: string };
-    alcohol: { consumed: boolean; drinks: number; lastIntake: string };
-    medication: { taken: boolean; type: string; time: string };
-    exercise: { completed: boolean; type: string; time: string };
-    screensInBed: boolean;
-    stressLevel: number; // 1-5
-    lastMealTime?: string;     // HH:mm — time of last meal before sleep
-    naturalWake?: boolean;     // true = woke without alarm, false = alarm woke user
-    moodScore?: number;        // 1-5 subjective mood on waking
+    caffeine: { consumed: boolean | null; amount: number | null; lastIntake: string | null };
+    alcohol: { consumed: boolean | null; drinks: number | null; lastIntake: string | null };
+    medication: { taken: boolean | null; type: string | null; time: string | null };
+    exercise: { completed: boolean | null; type: string | null; time: string | null };
+    screensInBed: boolean | null;
+    stressLevel: number | null; // 1-5
+    lastMealTime?: string | null;     // HH:mm — time of last meal before sleep
+    naturalWake?: boolean | null;     // true = woke without alarm, false = alarm woke user
+    moodScore?: number | null;        // 1-5 subjective mood on waking
     sleepGadgets?: Array<{
       type: 'light_therapy' | 'breathing_trainer' | 'pre_sleep_heating' | 'aromatherapy' | 'meditation_app' | 'cooling_pad' | 'white_noise' | 'sleep_mask' | 'earplugs' | 'weighted_blanket' | 'smart_ring' | 'smartwatch_tracking' | 'fitness_band' | 'phone_sleep_app';
       durationMinutes?: number;
@@ -144,4 +144,5 @@ export interface DailyLog extends Partial<FullLog>, Partial<SummaryLog> {
   };
   modifiedBySync?: boolean[];
   source?: 'manual' | 'import';
+  visualTimeline?: SleepState[];
 }
