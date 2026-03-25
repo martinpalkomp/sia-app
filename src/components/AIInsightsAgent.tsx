@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { subDays, parseISO } from 'date-fns';
 import { GoogleGenAI } from "@google/genai";
 import { 
@@ -11,11 +11,13 @@ import {
   Ghost,
   Droplets,
   FileText,
-  ChevronDown
+  ChevronDown,
+  AlertCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { DailyLog, PersonalizationProfile, Insight, UnstructuredData } from '../types';
+import { DailyLog, PersonalizationProfile, Insight, UnstructuredData, UserProfile } from '../types';
 import { buildClinicalBrief } from '../lib/aiContextBuilder';
+import { AIService } from '../services/aiService';
 import { 
   db, 
   User, 
@@ -39,6 +41,8 @@ import { AvatarFrame } from './UI';
 import { getGridFromEvents } from '../utils/sleepUtils';
 import { calculateAge } from '../utils/dateUtils';
 
+const DISCLAIMER = "SIA provides lifestyle recommendations based on patterns. This is not a medical diagnosis. Consult a professional for clinical concerns.";
+
 interface Message {
   role: 'user' | 'assistant';
   content: string;
@@ -48,6 +52,7 @@ interface Message {
 interface AIInsightsAgentProps {
   logs: Record<string, DailyLog>;
   user: User | null;
+  userProfile: UserProfile | null;
   personalizationProfile: PersonalizationProfile | null;
   isProfileLoading?: boolean;
 }
@@ -93,10 +98,11 @@ const buildLogDigest = (logs: DailyLog[], days: number) => {
   }));
 };
 
-export default function AIInsightsAgent({ logs, user, personalizationProfile, isProfileLoading }: AIInsightsAgentProps) {
+export default function AIInsightsAgent({ logs, user, userProfile, personalizationProfile, isProfileLoading }: AIInsightsAgentProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isLimitReached, setIsLimitReached] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analyzingLabel, setAnalyzingLabel] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -106,6 +112,13 @@ export default function AIInsightsAgent({ logs, user, personalizationProfile, is
 
   const isEnhanced = !!personalizationProfile;
   const daysCount = isEnhanced ? 180 : 30;
+
+  const dataMaturity = useMemo(() => {
+    const count = Object.keys(logs).length;
+    if (count >= 90) return { level: 3, label: 'Full Insight', nextThreshold: 90, count };
+    if (count >= 14) return { level: 2, label: 'Emerging Patterns', nextThreshold: 90, count };
+    return { level: 1, label: 'Baseline', nextThreshold: 14, count };
+  }, [logs]);
 
   const getAnalyzingLabel = (prompt: string): string => {
     if (/last\s+7\s+days?|past\s+week/i.test(prompt)) return 'ANALYZING 7 DAYS';
@@ -176,15 +189,17 @@ export default function AIInsightsAgent({ logs, user, personalizationProfile, is
       return;
     }
 
-    if (!text.trim() || isLoading || !user || isProfileLoading) return;
+    if (!text.trim() || isLoading || !user || !userProfile || isProfileLoading) return;
 
     setErrorMsg(null);
+    setIsLimitReached(false);
     setAnalyzingLabel(getAnalyzingLabel(text));
     setIsAnalyzing(true);
     setIsLoading(true);
     setIsTyping(true);
 
     try {
+      // Save user message to Firestore
       await addDoc(collection(db, 'users', user.uid, 'chats'), {
         role: 'user',
         content: text,
@@ -197,7 +212,7 @@ export default function AIInsightsAgent({ logs, user, personalizationProfile, is
       const logsQuery = query(
         logsRef,
         orderBy('date', 'desc'),
-        limit(14) // Context builder uses last 14 days
+        limit(14)
       );
       
       const [logsSnap, profileSnap, unstructuredSnap] = await Promise.all([
@@ -218,193 +233,96 @@ export default function AIInsightsAgent({ logs, user, personalizationProfile, is
       
       const clinicalBrief = buildClinicalBrief(recentLogs, unstructuredData);
       const profile = profileSnap.exists() ? profileSnap.data() : personalizationProfile;
-      
-      const age = profile?.demographics?.dateOfBirth
-        ? calculateAge(profile.demographics.dateOfBirth)
-        : 'unknown';
-      const country = profile?.demographics?.country ?? 'unknown';
 
-      const deviceContext = profile?.connectedDevices?.filter((d: any) => d.inUse)
-        .map((d: any) => `${d.brand}${d.model ? ' ' + d.model : ''} (${d.type})`)
-        .join(', ') ?? 'none logged';
+      const history = messages.slice(-6).map(m => ({
+        role: m.role === 'user' ? 'user' : 'model',
+        parts: [{ text: m.content }]
+      }));
 
-      const apiKey = process.env.GEMINI_API_KEY;
-      if (!apiKey) { console.error('GEMINI_API_KEY not set — AI features disabled'); return; }
-      const ai = new GoogleGenAI({ apiKey });
-      
-      const systemInstruction = `
-        You are SIA, a clinical sleep scientist. 
-        
-        GUARDRAIL: Strictly stick to sleep science, recovery, and circadian health. If the user asks about unrelated topics, politely redirect them back to sleep analysis.
-        
-        USER CONTEXT:
-        - User demographics: age ${age}, country: ${country}
-        - User's sleep devices: ${deviceContext}. 
-        - Clinical Brief (Historical Context):
-        ${clinicalBrief}
-        
-        INSTRUCTIONS:
-        1. Use the provided data to find correlations, patterns, and triggers.
-        2. Deliver insights in a conversational, supportive, and professional tone.
-        3. Use Markdown formatting (bolding, bullet points, and headers) to make insights easy to read.
-        4. If you identify a significant new Pattern, Risk, or Recommendation, include it in the 'newInsights' array in your JSON response.
-        5. PRIORITY WEIGHTING: The Clinical Brief contains priority annotations:
-           - [HIGH PRIORITY]: Data from the last 3 days. This is most relevant for current state.
-           - [MEDIUM PRIORITY]: Data from the last 7 days.
-           - [LOW PRIORITY]: Older historical data.
-           Prioritize [HIGH PRIORITY] correlations and anomalies when forming immediate recommendations, but use lower priority data to establish long-term baseline trends.
-        
-        RESPONSE FORMAT:
-        You must return a JSON object with the following structure:
+      const response = await AIService.chatWithSIA(
+        user.uid,
+        text,
+        userProfile.tier,
         {
-          "answer": "Your conversational response in Markdown",
-          "newInsights": [
-            {
-              "type": "Pattern" | "Risk" | "Recommendation",
-              "confidence": 0.0 to 1.0,
-              "summary": "Short 1-sentence takeaway",
-              "details": "Optional longer explanation",
-              "linkedDates": ["YYYY-MM-DD", ...]
-            }
-          ]
+          clinicalBrief,
+          personalizationProfile: profile,
+          history
         }
-      `;
+      );
 
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: [
-          { role: "user", parts: [{ text: text }] }
-        ],
-        config: {
-          systemInstruction: systemInstruction,
-          temperature: 0.7,
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              answer: { type: Type.STRING },
-              newInsights: {
-                type: Type.ARRAY,
-                items: {
-                  type: Type.OBJECT,
-                  properties: {
-                    type: { type: Type.STRING, enum: ["Pattern", "Risk", "Recommendation"] },
-                    confidence: { type: Type.NUMBER },
-                    summary: { type: Type.STRING },
-                    details: { type: Type.STRING },
-                    linkedDates: { type: Type.ARRAY, items: { type: Type.STRING } }
-                  },
-                  required: ["type", "confidence", "summary", "linkedDates"]
-                }
-              }
-            },
-            required: ["answer"]
-          }
-        }
-      });
+      if (response.limitReached) {
+        setIsLimitReached(true);
+        const limitMsg = "You've reached your daily message limit. Upgrade to Enhanced or Pro for more messages.";
+        await addDoc(collection(db, 'users', user.uid, 'chats'), {
+          role: 'assistant',
+          content: limitMsg,
+          createdAt: serverTimestamp()
+        });
+        return;
+      }
 
-      const result = JSON.parse(response.text || '{}');
-      const answer = result.answer || "I'm sorry, I couldn't process that. Please try again.";
-      const newInsights = result.newInsights || [];
+      if (response.answer) {
+        await addDoc(collection(db, 'users', user.uid, 'chats'), {
+          role: 'assistant',
+          content: response.answer,
+          createdAt: serverTimestamp()
+        });
 
-      // Save insights to Firestore with historical evolution
-      if (newInsights.length > 0) {
-        const insightsRef = collection(db, 'users', user.uid, 'insights');
-        
-        const computeConfidence = (linkedDates: string[]): number => {
-          const count = linkedDates.length;
-          if (count > 5) return 0.9; // High (0.8-1.0)
-          if (count >= 2) return 0.65; // Medium (0.5-0.8)
-          return 0.3; // Low (<0.5)
-        };
-
-        for (const insight of newInsights) {
-          // Fetch existing insights of the same type to find "similar" ones
-          const q = query(insightsRef, where('type', '==', insight.type));
-          const querySnapshot = await getDocs(q);
+        // Save insights if any
+        if (response.newInsights && response.newInsights.length > 0) {
+          const insightsRef = collection(db, 'users', user.uid, 'insights');
           
-          let existingInsightId: string | null = null;
-          let existingData: Insight | null = null;
+          const computeConfidence = (linkedDates: string[]): number => {
+            const count = linkedDates.length;
+            if (count > 5) return 0.9;
+            if (count >= 2) return 0.65;
+            return 0.3;
+          };
 
-          const normalize = (s: string) => s.toLowerCase().replace(/[^\w\s]/g, '').trim();
-          const targetSummary = normalize(insight.summary);
-
-          querySnapshot.forEach((doc) => {
-            const data = doc.data() as Insight;
-            if (normalize(data.summary) === targetSummary) {
-              existingInsightId = doc.id;
-              existingData = data;
-            }
-          });
-
-          const aiConfidence = insight.confidence;
-          const computedConfidence = computeConfidence(insight.linkedDates);
-
-          if (existingInsightId && existingData) {
-            // Update existing using weighted averaging for AI confidence
-            // But use computedConfidence for the primary confidence field based on merged dates
-            const prevOccurrences = existingData.occurrences || 1;
-            const newOccurrences = prevOccurrences + 1;
-            const newAiConfidence = ((existingData.aiConfidence * prevOccurrences) + aiConfidence) / newOccurrences;
+          for (const insight of response.newInsights) {
+            // Fetch existing insights of the same type to find "similar" ones
+            const q = query(insightsRef, where('type', '==', insight.type));
+            const querySnapshot = await getDocs(q);
             
-            // Append new linkedDates and remove duplicates
-            const mergedDates = Array.from(new Set([...(existingData.linkedDates || []), ...(insight.linkedDates || [])]));
-            const newComputedConfidence = computeConfidence(mergedDates);
+            let existingInsightId: string | null = null;
+            let existingData: Insight | null = null;
 
-            await updateDoc(doc(db, 'users', user.uid, 'insights', existingInsightId), {
-              confidence: newComputedConfidence, // Use computed for UI
-              aiConfidence: newAiConfidence,
-              computedConfidence: newComputedConfidence,
-              linkedDates: mergedDates,
-              occurrences: newOccurrences,
-              lastUpdated: serverTimestamp(),
-              details: insight.details || existingData.details
+            const normalize = (s: string) => s.toLowerCase().replace(/[^\w\s]/g, '').trim();
+            const targetSummary = normalize(insight.summary);
+
+            querySnapshot.forEach((doc) => {
+              const data = doc.data() as Insight;
+              if (normalize(data.summary) === targetSummary) {
+                existingInsightId = doc.id;
+                existingData = data;
+              }
             });
-          } else {
-            // Create new insight
-            await addDoc(insightsRef, {
-              ...insight,
-              confidence: computedConfidence, // Override with computed
-              aiConfidence: aiConfidence,
-              computedConfidence: computedConfidence,
-              occurrences: 1,
-              createdAt: serverTimestamp(),
-              lastUpdated: serverTimestamp()
-            });
+
+            if (existingInsightId && existingData) {
+              const updatedDates = Array.from(new Set([...existingData.linkedDates, ...insight.linkedDates]));
+              await updateDoc(doc(db, 'users', user.uid, 'insights', existingInsightId), {
+                confidence: computeConfidence(updatedDates),
+                linkedDates: updatedDates,
+                lastSeen: serverTimestamp(),
+                occurrences: (existingData.occurrences || 1) + 1,
+                details: insight.details || existingData.details
+              });
+            } else {
+              await addDoc(insightsRef, {
+                ...insight,
+                confidence: computeConfidence(insight.linkedDates),
+                createdAt: serverTimestamp(),
+                lastSeen: serverTimestamp(),
+                occurrences: 1,
+                status: 'active'
+              });
+            }
           }
         }
       }
-
-      const assistantMessage: Message = { 
-        role: 'assistant', 
-        content: answer,
-        createdAt: serverTimestamp()
-      };
-      
-      await addDoc(collection(db, 'users', user.uid, 'chats'), assistantMessage);
     } catch (error: any) {
-      setIsAnalyzing(false);
-      setIsLoading(false);
-      setIsTyping(false);
-
-      console.error('SIA Chat Error:', error);
-      let friendlyMessage = "I encountered an error while analyzing your data. Please check your connection and try again.";
-      
-      if (error.message === 'TIMEOUT') {
-        friendlyMessage = "SIA is taking longer than usual. Please try a shorter question.";
-      } else {
-        const errorStr = String(error);
-        if (errorStr.includes('429')) {
-          friendlyMessage = "SIA is currently resting (Rate Limit). Please try again in a moment.";
-        } else if (errorStr.includes('400')) {
-          friendlyMessage = "I had trouble understanding that request. Could you try rephrasing it?";
-        } else if (errorStr.includes('500')) {
-          friendlyMessage = "My analytical systems are temporarily offline. Please try again later.";
-        }
-      }
-
-      setErrorMsg(friendlyMessage);
-      setMessages(prev => [...prev, { role: 'assistant', content: friendlyMessage }]);
+      console.error("Chat Error:", error);
+      setErrorMsg("I'm sorry, I encountered an error. Please try again later.");
     } finally {
       setIsLoading(false);
       setIsAnalyzing(false);
@@ -542,6 +460,17 @@ export default function AIInsightsAgent({ logs, user, personalizationProfile, is
 
       {/* Input Area */}
       <div className="p-4 bg-zinc-900 border-t border-zinc-800">
+        {dataMaturity.level < 2 && (
+          <div className="mb-4 p-3 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <p className="text-xs font-bold text-amber-400 uppercase tracking-widest">Low Data Fidelity</p>
+              <p className="text-[10px] text-zinc-400 leading-relaxed">
+                SIA is currently in Baseline mode. For more accurate clinical correlations, please log at least 14 days of data. (Progress: {dataMaturity.count}/14)
+              </p>
+            </div>
+          </div>
+        )}
         <form 
           onSubmit={(e) => {
             e.preventDefault();
@@ -565,6 +494,28 @@ export default function AIInsightsAgent({ logs, user, personalizationProfile, is
             {isAnalyzing ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
           </button>
         </form>
+        
+        {/* Quota Display */}
+        <div className="mt-3 flex items-center justify-between px-1">
+          <div className="flex items-center gap-2">
+            <div className="h-1.5 w-24 bg-zinc-800 rounded-full overflow-hidden">
+              <motion.div 
+                initial={{ width: 0 }}
+                animate={{ width: `${Math.min(100, (userProfile.quota.chatMessagesUsed / AIService.getQuotaLimit(userProfile.tier)) * 100)}%` }}
+                className={`h-full ${isLimitReached ? 'bg-red-500' : 'bg-indigo-500'}`}
+              />
+            </div>
+            <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">
+              {userProfile.quota.chatMessagesUsed} / {AIService.getQuotaLimit(userProfile.tier)} Messages
+            </span>
+          </div>
+          
+          {userProfile.tier === 'Basic' && (
+            <button className="text-[10px] text-indigo-400 font-bold uppercase tracking-widest hover:text-indigo-300 transition-colors">
+              Upgrade for More
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

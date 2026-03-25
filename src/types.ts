@@ -146,3 +146,27 @@ export interface DailyLog extends Partial<FullLog>, Partial<SummaryLog> {
   source?: 'manual' | 'import';
   visualTimeline?: SleepState[];
 }
+
+export type UserTier = 'Basic' | 'Enhanced' | 'Pro';
+
+export interface UserQuota {
+  chatMessagesUsed: number;
+  lastPromptReset: any; // Firestore Timestamp
+}
+
+export interface UserProfile {
+  uid: string;
+  email: string;
+  displayName?: string;
+  photoURL?: string;
+  tier: UserTier;
+  quota: UserQuota;
+  createdAt: any;
+}
+
+export interface DailyBrief {
+  id?: string;
+  date: string;
+  content: string;
+  createdAt: any;
+}

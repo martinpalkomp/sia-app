@@ -26,6 +26,7 @@ import DataManager from './DataManager';
 import FeedbackForm from './FeedbackForm';
 import AdminFeedback from './AdminFeedback';
 import { calculateAge, getAgeDecade } from '../utils/dateUtils';
+import { MaturityInfo } from '../services/aiService';
 
 interface AccountPageProps {
   user: User;
@@ -33,9 +34,10 @@ interface AccountPageProps {
   onModifyAssessment: () => void;
   onRefresh?: () => void;
   logs?: Record<string, DailyLog>;
+  maturity?: MaturityInfo | null;
 }
 
-export default function AccountPage({ user, personalizationProfile, onModifyAssessment, onRefresh, logs }: AccountPageProps) {
+export default function AccountPage({ user, personalizationProfile, onModifyAssessment, onRefresh, logs, maturity }: AccountPageProps) {
   const [view, setView] = React.useState<'main' | 'data-ledger' | 'feedback' | 'admin-feedback'>('main');
   const [userData, setUserData] = React.useState<any>(null);
 
@@ -162,33 +164,97 @@ export default function AccountPage({ user, personalizationProfile, onModifyAsse
         </div>
       </div>
 
-      {/* Status Card */}
-      <Card className={`relative overflow-hidden ${isEnhanced ? 'bg-zinc-950 border-violet-500/30 shadow-[0_0_20px_rgba(139,92,246,0.1)]' : 'bg-zinc-900 border border-zinc-800'}`}>
-        {isEnhanced && (
-          <div className="absolute top-0 right-0 p-6 opacity-10">
-            <ShieldCheck size={120} className="text-violet-400" />
-          </div>
-        )}
-        <div className="relative z-10 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${isEnhanced ? 'bg-violet-500/10 text-violet-400 border border-violet-500/20' : 'bg-zinc-800 text-zinc-300'}`}>
-              {isEnhanced ? <ShieldCheck size={24} /> : <Settings size={24} />}
-            </div>
-            <div>
-              <div className={`text-[10px] font-black uppercase tracking-[0.2em] ${isEnhanced ? 'text-violet-300/60' : 'text-zinc-400'}`}>Data Fidelity Tier</div>
-              <div className="text-xl font-black text-white">Fidelity: {isEnhanced ? 'Enhanced Analysis' : 'Baseline'}</div>
-            </div>
-          </div>
-          {!isEnhanced && (
-            <button 
-              onClick={onModifyAssessment}
-              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-indigo-500/20"
-            >
-              Activate Clinical Intelligence
-            </button>
-          )}
+      {/* Intelligence Tier Section */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between px-1">
+          <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">My Intelligence Tier</h3>
+          <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">Upgrade Your Sleep Intelligence</span>
         </div>
-      </Card>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* BASIC TIER */}
+          <div className={`p-4 rounded-2xl border transition-all ${!isEnhanced ? 'bg-zinc-900 border-green-500 shadow-[0_0_15px_rgba(34,197,94,0.2)]' : 'bg-zinc-900/50 border-zinc-800 opacity-60'}`}>
+            <div className="flex justify-between items-start mb-3">
+              <div className="w-8 h-8 rounded-lg bg-zinc-800 flex items-center justify-center text-zinc-400">
+                <Shield size={16} />
+              </div>
+              {!isEnhanced && <span className="text-[8px] font-black bg-green-500 text-black px-1.5 py-0.5 rounded uppercase">Active</span>}
+            </div>
+            <h4 className="text-sm font-black text-white uppercase tracking-tight">Basic</h4>
+            <p className="text-[10px] text-zinc-500 mt-1 leading-tight">Standard sleep tracking and baseline metrics.</p>
+          </div>
+
+          {/* ENHANCED TIER */}
+          <div className={`p-4 rounded-2xl border transition-all relative overflow-hidden ${isEnhanced && userData?.tier !== 'Pro' ? 'bg-zinc-950 border-indigo-500 shadow-[0_0_20px_rgba(99,102,241,0.3)]' : 'bg-zinc-900/50 border-zinc-800 opacity-60'}`}>
+            <div className="flex justify-between items-start mb-3">
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isEnhanced ? 'bg-indigo-500/20 text-indigo-400' : 'bg-zinc-800 text-zinc-400'}`}>
+                <Sparkles size={16} />
+              </div>
+              {isEnhanced && userData?.tier !== 'Pro' && <span className="text-[8px] font-black bg-indigo-500 text-white px-1.5 py-0.5 rounded uppercase">Active</span>}
+            </div>
+            <h4 className="text-sm font-black text-white uppercase tracking-tight">Enhanced</h4>
+            <p className="text-[10px] text-zinc-500 mt-1 leading-tight">Clinical-grade analysis and personalized insights.</p>
+            {!isEnhanced && (
+              <button 
+                onClick={onModifyAssessment}
+                className="mt-3 w-full py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
+              >
+                Unlock ENHANCED
+              </button>
+            )}
+          </div>
+
+          {/* PRO TIER */}
+          <div className={`p-4 rounded-2xl border transition-all ${userData?.tier === 'Pro' ? 'bg-zinc-950 border-violet-500 shadow-[0_0_25px_rgba(139,92,246,0.4)]' : 'bg-zinc-900/50 border-zinc-800 opacity-60'}`}>
+            <div className="flex justify-between items-start mb-3">
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${userData?.tier === 'Pro' ? 'bg-violet-500/20 text-violet-400' : 'bg-zinc-800 text-zinc-400'}`}>
+                <Rocket size={16} />
+              </div>
+              {userData?.tier === 'Pro' && <span className="text-[8px] font-black bg-violet-500 text-white px-1.5 py-0.5 rounded uppercase">Active</span>}
+            </div>
+            <h4 className="text-sm font-black text-white uppercase tracking-tight">Pro</h4>
+            <p className="text-[10px] text-zinc-500 mt-1 leading-tight">Advanced predictive modeling and full SIA intelligence.</p>
+            {userData?.tier !== 'Pro' && (
+              <button 
+                className="mt-3 w-full py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
+              >
+                Activate PRO Intelligence
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Data Maturity Tracker */}
+      {maturity && (
+        <Card className="bg-zinc-900/50 border-zinc-800 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-400">
+                <Database size={20} />
+              </div>
+              <div>
+                <h3 className="text-sm font-black text-white uppercase tracking-tight">Data Maturity</h3>
+                <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">{maturity.label} Status</p>
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="text-lg font-black text-white tracking-tighter">{maturity.count}/{maturity.nextThreshold}</div>
+              <div className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">Days to Full Calibration</div>
+            </div>
+          </div>
+          <div className="w-full h-2 bg-zinc-800 rounded-full overflow-hidden">
+            <motion.div 
+              initial={{ width: 0 }}
+              animate={{ width: `${Math.min(100, (maturity.count / maturity.nextThreshold) * 100)}%` }}
+              className="h-full bg-gradient-to-r from-indigo-600 to-indigo-400"
+            />
+          </div>
+          <p className="text-[10px] text-zinc-500 mt-4 leading-relaxed italic">
+            SIA requires consistent data to calibrate its intelligence. As your maturity increases, insights become more accurate and personalized.
+          </p>
+        </Card>
+      )}
 
       {/* Data Overview */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

@@ -118,9 +118,12 @@ import {
   getDoc,
   getDocFromServer,
   setDoc,
+  updateDoc,
+  getDocs,
   setPersistence,
   browserLocalPersistence
 } from './lib/firebase';
+import { MaturityInfo, AIService } from './services/aiService';
 
 // Lazy load heavy components
 const SleepGuideInteractive = React.lazy(() => import('./components/SleepGuideInteractive'));
@@ -199,6 +202,7 @@ export default function App() {
   const [originalSuggestion, setOriginalSuggestion] = useState<Partial<DailyLog> | null>(null);
   const [isImporting, setIsImporting] = useState(false);
   const [showPrefillConfirm, setShowPrefillConfirm] = useState(false);
+  const [maturity, setMaturity] = useState<MaturityInfo | null>(null);
   const [isSleepToolsExpanded, setIsSleepToolsExpanded] = useState(false);
 
   const currentLog = useMemo(() => {
@@ -476,9 +480,40 @@ export default function App() {
     }
 
     const userRef = doc(db, 'users', user.uid);
-    const unsubscribe = onSnapshot(userRef, (doc) => {
-      if (doc.exists()) {
-        setUserProfile(doc.data());
+    const unsubscribe = onSnapshot(userRef, async (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.data();
+        // Migration: Ensure tier and quota exist for legacy users
+        if (!data.tier || !data.quota) {
+          const updatedProfile = {
+            ...data,
+            tier: data.tier || 'Basic',
+            quota: data.quota || {
+              chatMessagesUsed: 0,
+              lastPromptReset: new Date()
+            }
+          };
+          await updateDoc(userRef, updatedProfile);
+          setUserProfile(updatedProfile);
+        } else {
+          setUserProfile(data);
+        }
+      } else {
+        // Initialize profile
+        const initialProfile = {
+          uid: user.uid,
+          email: user.email,
+          displayName: user.displayName,
+          photoURL: user.photoURL,
+          tier: 'Basic',
+          quota: {
+            chatMessagesUsed: 0,
+            lastPromptReset: serverTimestamp()
+          },
+          createdAt: serverTimestamp()
+        };
+        await setDoc(userRef, initialProfile);
+        setUserProfile(initialProfile);
       }
     }, (error) => {
       // Handle "offline" error gracefully - it will retry automatically
@@ -491,6 +526,12 @@ export default function App() {
 
     return () => unsubscribe();
   }, [user]);
+
+  // Fetch maturity info
+  useEffect(() => {
+    if (!user) return;
+    AIService.getUserDataMaturity(user.uid).then(setMaturity);
+  }, [user, logs]);
 
   // Load Personalization Profile
   useEffect(() => {
@@ -1159,15 +1200,36 @@ export default function App() {
               <div className="hidden sm:block">
                 <h1 className="text-2xl md:text-4xl font-black tracking-tighter text-white flex items-center gap-2">
                   SIA
-                  {personalizationProfile && (
-                    <span className="text-[10px] md:text-xs font-black bg-violet-500/20 text-violet-400 px-1.5 py-0.5 rounded border border-violet-500/30 animate-pulse">
-                      ✨
+                  {userProfile?.tier && (
+                    <span className={`text-[8px] md:text-[10px] font-black px-1.5 py-0.5 rounded border uppercase tracking-widest ${
+                      userProfile.tier === 'Pro' ? 'bg-violet-500/20 text-violet-400 border-violet-500/30' :
+                      userProfile.tier === 'Enhanced' ? 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30' :
+                      'bg-zinc-500/20 text-zinc-400 border-zinc-500/30'
+                    }`}>
+                      {userProfile.tier}
                     </span>
                   )}
                 </h1>
                 <p className="text-[9px] md:text-[10px] text-zinc-500 uppercase tracking-[0.3em] font-black">Sleep Intelligence Agent</p>
               </div>
           </div>
+
+          {/* Maturity Progress in Header */}
+          {maturity && (
+            <div className="hidden md:flex flex-col items-end gap-1">
+              <div className="flex items-center gap-2">
+                <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Maturity: {maturity.label}</span>
+                <span className="text-[9px] font-bold text-indigo-400">{maturity.count}/{maturity.nextThreshold}d</span>
+              </div>
+              <div className="w-24 h-1 bg-zinc-800 rounded-full overflow-hidden">
+                <motion.div 
+                  initial={{ width: 0 }}
+                  animate={{ width: `${Math.min(100, (maturity.count / maturity.nextThreshold) * 100)}%` }}
+                  className="h-full bg-indigo-500" 
+                />
+              </div>
+            </div>
+          )}
           
           <div className="flex items-center gap-x-2 md:gap-x-3 flex-nowrap">
             <div className="flex bg-zinc-900/50 p-1 rounded-xl border border-zinc-800/50 gap-x-2 md:gap-x-3 flex-nowrap items-center">
@@ -1250,6 +1312,7 @@ export default function App() {
                     <Dashboard 
                       logs={logs} 
                       user={user}
+                      userProfile={userProfile}
                       selectedDate={selectedDate}
                       correctionsCount={correctionsCount}
                       personalizationProfile={personalizationProfile}
@@ -2253,6 +2316,7 @@ export default function App() {
                 <AIInsightsAgent 
                   logs={logs} 
                   user={user} 
+                  userProfile={userProfile}
                   personalizationProfile={personalizationProfile}
                   isProfileLoading={isProfileLoading}
                 />
@@ -2267,6 +2331,7 @@ export default function App() {
               onModifyAssessment={() => setShowPersonalizationWizard(true)}
               onRefresh={refreshAllData}
               logs={logs}
+              maturity={maturity}
             />
           ) : (
             <motion.div 

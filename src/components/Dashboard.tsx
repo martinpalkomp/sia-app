@@ -12,16 +12,19 @@ import {
   Brain,
   Sparkles,
   Loader2,
-  Settings
+  Settings,
+  Ghost,
+  FileText
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { DailyLog, SleepState, SleepEvent, Insight } from '../types';
+import { DailyLog, SleepState, SleepEvent, Insight, UserProfile } from '../types';
 import { GoogleGenAI } from "@google/genai";
 import { Card, AvatarFrame, MetricDisplay, CircadianWaveform } from './UI';
 import { calculateSleepDuration, calculateSleepEfficiency, formatDuration, getGridFromEvents, getMinutesFrom2000 } from '../utils/sleepUtils';
 import { calculateSafeAverage } from '../utils/statsEngine';
 import { getSlotLabel } from '../constants';
 import { PersonalizationProfile } from '../types';
+import { AIService, MaturityInfo } from '../services/aiService';
 import { 
   db, 
   User, 
@@ -37,10 +40,13 @@ import {
 } from '../lib/firebase';
 import { getTodayDate, formatDisplayDate } from '../utils/dateUtils';
 import SleepGuideCard from './SleepGuideCard';
+import { SleepWindow } from './SleepWindow';
+import SleepPatternCard from './SleepPatternCard';
 
 interface DashboardProps {
   logs: Record<string, DailyLog>;
   user: User | null;
+  userProfile: UserProfile | null;
   selectedDate: string;
   correctionsCount: number;
   personalizationProfile: PersonalizationProfile | null;
@@ -56,6 +62,7 @@ interface DashboardProps {
 export default function Dashboard({ 
   logs, 
   user,
+  userProfile,
   selectedDate,
   correctionsCount, 
   personalizationProfile,
@@ -68,10 +75,43 @@ export default function Dashboard({
   isRefreshing
 }: DashboardProps) {
   const [aiInsight, setAiInsight] = useState<string | null>(null);
+  const [dailyBrief, setDailyBrief] = useState<string | null>(null);
   const [insights, setInsights] = useState<Insight[]>([]);
   const [isAiLoading, setIsAiLoading] = useState(false);
+  const [isBriefLoading, setIsBriefLoading] = useState(false);
   const [isDeepAnalysis, setIsDeepAnalysis] = useState(false);
   const [isFirstVisit, setIsFirstVisit] = useState(false);
+  const [showUnlockEnhanced, setShowUnlockEnhanced] = useState(false);
+  const [maturity, setMaturity] = useState<MaturityInfo | null>(null);
+
+  // Fetch maturity info
+  useEffect(() => {
+    if (!user) return;
+    AIService.getUserDataMaturity(user.uid).then(setMaturity);
+  }, [user, logs]);
+
+  // Fetch/Generate Daily Brief
+  useEffect(() => {
+    if (!user || !userProfile) return;
+    
+    const fetchBrief = async () => {
+      setIsBriefLoading(true);
+      try {
+        const brief = await AIService.generateDailyBrief(
+          user.uid, 
+          Object.values(logs), 
+          userProfile.tier
+        );
+        setDailyBrief(brief);
+      } catch (err) {
+        console.error("Brief Error:", err);
+      } finally {
+        setIsBriefLoading(false);
+      }
+    };
+
+    fetchBrief();
+  }, [user, userProfile, logs]);
 
   // Fetch insights from Firestore
   useEffect(() => {
@@ -248,13 +288,19 @@ export default function Dashboard({
   }, [logs]);
 
   const handleDeepAnalysis = async () => {
-    if (!user || isAiLoading) return;
+    if (!user || !userProfile || isAiLoading) return;
     
+    // Check Maturity
+    if (maturity && maturity.level < 3) {
+      // Already handled by UI gating, but good to have here too
+      return;
+    }
+
     setIsAiLoading(true);
     setIsDeepAnalysis(true);
     try {
       const daysCount = personalizationProfile ? 180 : 30;
-      const logsRef = collection(db, 'users', user.uid, 'sleep_logs');
+      const logsRef = collection(db!, 'users', user.uid, 'sleep_logs');
       
       let querySnapshot = await getDocs(query(logsRef, where('type', '==', 'log'), orderBy('date', 'desc'), limit(daysCount)));
       
@@ -288,7 +334,7 @@ export default function Dashboard({
       `;
 
       const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
+        model: AIService.getModelForTier(userProfile.tier),
         contents: [{ role: "user", parts: [{ text: prompt }] }],
         config: {
           systemInstruction: "You are 'SIA', a Sleep Intelligence Agent. Provide deep, structured, data-backed long-term sleep analysis.",
@@ -296,7 +342,8 @@ export default function Dashboard({
         }
       });
 
-      setAiInsight(response.text || null);
+      const answer = response.text || null;
+      setAiInsight(answer ? `${answer}\n\n***\n\n${DISCLAIMER}` : null);
     } catch (e) {
       console.error("Deep Analysis Error:", e);
     } finally {
@@ -304,7 +351,22 @@ export default function Dashboard({
     }
   };
 
+  const dataMaturity = useMemo(() => {
+    if (maturity) return maturity;
+    const uniqueDates = Object.keys(logs).length;
+    if (uniqueDates >= 90) return { level: 3, count: uniqueDates, label: 'Full Insight', nextThreshold: 90 };
+    if (uniqueDates >= 15) return { level: 2, count: uniqueDates, label: 'Emerging Patterns', nextThreshold: 90 };
+    return { level: 1, count: uniqueDates, label: 'Baseline', nextThreshold: 15 };
+  }, [logs, maturity]);
+
+  const DISCLAIMER = "SIA provides lifestyle recommendations based on patterns. This is not a medical diagnosis. Consult a professional for clinical concerns.";
+
   const isEnhanced = !!personalizationProfile;
+
+  const FEATURE_FLAGS = {
+    showClinicalInsights: true,
+    showSiaIntelligence: true
+  };
 
   const recentGadgets = useMemo(() => {
     const counts = new Map<string, number>();
@@ -377,7 +439,254 @@ export default function Dashboard({
         </div>
       </section>
 
-      {/* Section 1: The Vital Signs (Metrics) */}
+      {/* Daily Brief Section */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-indigo-600/10 border border-indigo-500/30 rounded-[2.5rem] p-8 relative overflow-hidden"
+      >
+        <div className="absolute top-0 right-0 p-8 opacity-10">
+          <Sparkles size={120} className="text-indigo-500" />
+        </div>
+        
+        <div className="relative z-10 space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-indigo-500/20 flex items-center justify-center">
+              <Sparkles className="text-indigo-400" size={20} />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-white">SIA Daily Brief</h2>
+              <p className="text-xs text-indigo-300/70 font-medium uppercase tracking-widest">Personalized Recovery Summary</p>
+            </div>
+          </div>
+
+          {isBriefLoading ? (
+            <div className="flex items-center gap-3 py-4">
+              <Loader2 className="animate-spin text-indigo-500" size={20} />
+              <p className="text-zinc-400 text-sm italic">SIA is analyzing your recent patterns...</p>
+            </div>
+          ) : dailyBrief ? (
+            <div className="space-y-4">
+              <p className="text-zinc-200 leading-relaxed text-lg font-medium">
+                {dailyBrief.split('\n\n***\n\n')[0]}
+              </p>
+              <div className="flex items-center gap-4">
+                <button 
+                  onClick={() => onViewChange('ai')}
+                  className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl text-xs font-bold transition-all shadow-lg shadow-indigo-500/20"
+                >
+                  Discuss with SIA
+                </button>
+                {userProfile?.tier === 'Basic' && (
+                  <button 
+                    onClick={() => setShowUnlockEnhanced(true)}
+                    className="px-6 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-2xl text-xs font-bold transition-all border border-zinc-700"
+                  >
+                    Unlock ENHANCED
+                  </button>
+                )}
+              </div>
+            </div>
+          ) : (
+            <p className="text-zinc-500 text-sm italic py-4">No brief available for today yet. Log your sleep to get started.</p>
+          )}
+        </div>
+      </motion.div>
+
+      {/* Section: Advanced Insights Feed */}
+      {FEATURE_FLAGS.showClinicalInsights && (
+        <section className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h3 className="text-[10px] font-black text-zinc-300 uppercase tracking-[0.2em]">Advanced Insights</h3>
+            <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Tier: {userProfile?.tier}</p>
+          </div>
+
+          {/* Upgrade Selection for Basic Users */}
+          {userProfile?.tier === 'Basic' && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Card className="p-5 bg-indigo-500/5 border-indigo-500/20 hover:bg-indigo-500/10 transition-all cursor-pointer group" onClick={() => onOpenPersonalization?.()}>
+                <div className="flex items-start gap-4">
+                  <div className="p-3 bg-indigo-500/20 rounded-2xl text-indigo-400 group-hover:scale-110 transition-transform">
+                    <FileText size={24} />
+                  </div>
+                  <div className="space-y-1">
+                    <h4 className="text-sm font-black text-white uppercase tracking-widest">Unlock ENHANCED</h4>
+                    <p className="text-xs text-zinc-400 leading-relaxed">Upgrade Your Sleep Intelligence. Unlock Weekly Trends & 10 Chat Messages/Day by completing your Lifestyle Questionnaire (Free).</p>
+                    <div className="pt-2 flex items-center gap-1 text-[10px] font-black text-indigo-400 uppercase tracking-widest">
+                      <span>Start Questionnaire</span>
+                      <ChevronRight size={12} />
+                    </div>
+                  </div>
+                </div>
+              </Card>
+
+              <Card className="p-5 bg-violet-500/5 border-violet-500/20 hover:bg-violet-500/10 transition-all cursor-pointer group">
+                <div className="flex items-start gap-4">
+                  <div className="p-3 bg-violet-500/20 rounded-2xl text-violet-400 group-hover:scale-110 transition-transform">
+                    <Zap size={24} />
+                  </div>
+                  <div className="space-y-1">
+                    <h4 className="text-sm font-black text-white uppercase tracking-widest">Activate PRO Intelligence</h4>
+                    <p className="text-xs text-zinc-400 leading-relaxed">Upgrade Your Sleep Intelligence. Unlock Unlimited Chat & Premium AI Analysis with a Pro Subscription.</p>
+                    <div className="pt-2 flex items-center gap-1 text-[10px] font-black text-violet-400 uppercase tracking-widest">
+                      <span>View Plans</span>
+                      <ChevronRight size={12} />
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            </div>
+          )}
+
+          {/* Data Maturity Progress Bar for Level 1 & 2 */}
+          {dataMaturity.level < 3 && (
+            <div className="p-4 bg-zinc-900/50 border border-zinc-800 rounded-2xl space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Loader2 size={14} className="text-indigo-500 animate-spin" />
+                  <span className="text-[10px] font-black text-white uppercase tracking-widest">SIA is Learning Your Rhythms</span>
+                </div>
+                <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">{dataMaturity.count}/{dataMaturity.nextThreshold} Days</span>
+              </div>
+              <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                <motion.div 
+                  initial={{ width: 0 }}
+                  animate={{ width: `${(dataMaturity.count || 0) / (dataMaturity.nextThreshold || 1) * 100}%` }}
+                  className="h-full bg-indigo-500"
+                />
+              </div>
+              <p className="text-[10px] text-zinc-500 italic">
+                {userProfile?.tier === 'Pro' 
+                  ? "As a Pro member, your analysis will automatically deepen as you reach 90 days. Current insights are based on available baseline data."
+                  : `Log ${dataMaturity.nextThreshold} days to unlock ${dataMaturity.level === 1 ? 'Weekly Trends' : 'Deep Correlations'}.`}
+              </p>
+            </div>
+          )}
+          
+          {insights.length === 0 ? (
+            <Card className="bg-zinc-900/30 border-dashed border-zinc-800 p-8 text-center space-y-3">
+              <div className="w-12 h-12 bg-zinc-800/50 rounded-2xl flex items-center justify-center text-zinc-600 mx-auto">
+                <Ghost size={24} />
+              </div>
+              <div className="space-y-1">
+                <h4 className="text-sm font-bold text-zinc-400 uppercase tracking-widest">No Insights Yet</h4>
+                <p className="text-xs text-zinc-500 max-w-xs mx-auto leading-relaxed">
+                  SIA needs more data to identify patterns. Keep logging your sleep to unlock advanced analysis.
+                </p>
+              </div>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {insights.map((insight) => (
+                <Card key={insight.id} className="bg-zinc-900/50 border-zinc-800 hover:border-indigo-500/30 transition-all group relative overflow-hidden text-left p-5">
+                  <div className="absolute top-0 right-0 p-3 opacity-5 group-hover:opacity-10 transition-opacity">
+                    {insight.type === 'Pattern' ? <Zap size={40} /> : 
+                     insight.type === 'Risk' ? <AlertCircle size={40} /> : 
+                     <Sparkles size={40} />}
+                  </div>
+                  
+                  <div className="space-y-3 relative z-10">
+                    <div className="flex items-center justify-between">
+                      <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border uppercase tracking-widest ${
+                        insight.type === 'Pattern' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' :
+                        insight.type === 'Risk' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
+                        'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                      }`}>
+                        {insight.type}
+                      </span>
+                      <div className="flex items-center gap-1">
+                        <div className="flex gap-0.5">
+                          {[1, 2, 3].map(step => (
+                            <div key={step} className={`w-1.5 h-1.5 rounded-full ${step <= (insight.confidence * 3) ? 'bg-indigo-500' : 'bg-zinc-800'}`} />
+                          ))}
+                        </div>
+                        <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Confidence</span>
+                      </div>
+                    </div>
+
+                    <h4 className="text-sm font-black text-white leading-tight group-hover:text-indigo-400 transition-colors">{insight.summary}</h4>
+                    <p className="text-xs text-zinc-400 leading-relaxed line-clamp-2">{insight.details}</p>
+
+                    <div className="pt-2 flex items-center justify-between border-t border-zinc-800/50 mt-2">
+                      <div className="flex items-center gap-2">
+                        <div className="flex -space-x-1">
+                          {insight.linkedDates.slice(0, 3).map((date, idx) => (
+                            <div key={idx} className="w-4 h-4 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-[8px] font-bold text-zinc-500">
+                              {date.split('-')[2]}
+                            </div>
+                          ))}
+                        </div>
+                        <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">{insight.linkedDates.length} Events</span>
+                      </div>
+                      <button className="text-[10px] font-black text-indigo-400 uppercase tracking-widest flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+                        Deep Dive <ChevronRight size={12} />
+                      </button>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* Unlock Enhanced Modal */}
+              <AnimatePresence>
+                {showUnlockEnhanced && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md flex items-center justify-center p-4"
+                  >
+                    <motion.div
+                      initial={{ scale: 0.9, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      exit={{ scale: 0.9, opacity: 0 }}
+                      className="bg-zinc-900 border border-indigo-500/30 rounded-[3rem] p-10 max-w-lg w-full shadow-2xl relative overflow-hidden"
+                    >
+                      <div className="absolute -top-24 -right-24 w-64 h-64 bg-indigo-600/20 rounded-full blur-3xl" />
+                      
+                      <div className="relative z-10 space-y-8 text-center">
+                        <div className="w-20 h-20 bg-indigo-600/20 rounded-[2rem] flex items-center justify-center mx-auto">
+                          <Zap className="text-indigo-400" size={40} />
+                        </div>
+                        
+                        <div className="space-y-3">
+                          <h2 className="text-3xl font-bold text-white tracking-tight">Unlock ENHANCED</h2>
+                          <p className="text-zinc-400 leading-relaxed">
+                            Upgrade Your Sleep Intelligence. Get 10 messages per day and deeper pattern analysis by completing your lifestyle profile.
+                          </p>
+                        </div>
+
+                        <div className="grid gap-4">
+                          <button
+                            onClick={() => {
+                              setShowUnlockEnhanced(false);
+                              onOpenPersonalization();
+                            }}
+                            className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-bold transition-all shadow-xl shadow-indigo-500/20"
+                          >
+                            Complete Questionnaire
+                          </button>
+                          <button
+                            onClick={() => setShowUnlockEnhanced(false)}
+                            className="w-full py-4 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 rounded-2xl font-bold transition-all"
+                          >
+                            Maybe Later
+                          </button>
+                        </div>
+
+                        <div className="pt-4 border-t border-zinc-800">
+                          <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">
+                            Pro Tier also available for unlimited messages
+                          </p>
+                        </div>
+                      </div>
+                    </motion.div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
       <section className="space-y-4">
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
           <Card className="flex flex-col justify-center border-zinc-800/50 bg-zinc-900/30 p-3 md:p-4 min-h-[140px] md:min-h-[160px] hover:border-zinc-700/50 transition-colors">
@@ -488,7 +797,7 @@ export default function Dashboard({
                   {isDeepAnalysis ? `SIA ${personalizationProfile ? '180' : '30'}-Day Analysis` : "SIA 7-Day Insight"}
                 </h3>
                 <p className="text-white font-bold mt-1 leading-tight">
-                  {isAiLoading ? (isDeepAnalysis ? "Analyzing long-term trends..." : "Scanning recent logs...") : (aiInsight || "Log more nights to unlock my personalized insights.")}
+                  {isAiLoading ? (isDeepAnalysis ? "Analyzing long-term trends..." : "Scanning recent logs...") : (aiInsight ? `${aiInsight} ${DISCLAIMER}` : "Log more nights to unlock my personalized insights.")}
                 </p>
                 {!isDeepAnalysis && !isAiLoading && aiInsight && (
                   <button 
@@ -511,45 +820,72 @@ export default function Dashboard({
         </Card>
       </section>
 
-      {/* Section: AI Insights Feed */}
-      {insights.length > 0 && (
-        <section className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-[10px] font-black text-zinc-300 uppercase tracking-[0.2em]">Clinical Insights Feed</h3>
+      {/* Section: Data Maturity Progress */}
+      <section className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-[10px] font-black text-zinc-300 uppercase tracking-[0.2em]">SIA Intelligence Maturity</h3>
+          <span className={`text-[10px] font-bold uppercase tracking-widest ${
+            dataMaturity.level === 3 ? 'text-emerald-400' :
+            dataMaturity.level === 2 ? 'text-blue-400' :
+            'text-amber-400'
+          }`}>{dataMaturity.label} (Level {dataMaturity.level})</span>
+        </div>
+        <Card className="bg-zinc-900/30 border-zinc-800/50 p-6 relative overflow-hidden group">
+          <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+            <Zap size={48} className="text-indigo-500" />
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {insights.map((insight) => (
-              <Card key={insight.id} className="bg-zinc-900/50 border-zinc-800 hover:border-indigo-500/30 transition-all group relative overflow-hidden text-left">
-                <div className="flex items-start gap-3">
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                    insight.type === 'Risk' ? 'bg-red-500/10 text-red-400' :
-                    insight.type === 'Pattern' ? 'bg-blue-500/10 text-blue-400' :
-                    'bg-emerald-500/10 text-emerald-400'
-                  }`}>
-                    {insight.type === 'Risk' ? <AlertCircle size={16} /> :
-                     insight.type === 'Pattern' ? <TrendingUp size={16} /> :
-                     <Zap size={16} />}
-                  </div>
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[9px] font-black uppercase tracking-widest text-zinc-500">{insight.type}</span>
-                      <span className="text-[9px] font-bold text-zinc-600">• {Math.round(insight.confidence * 100)}% Confidence</span>
-                    </div>
-                    <h4 className="text-sm font-bold text-white leading-tight">{insight.summary}</h4>
-                    {insight.details && <p className="text-xs text-zinc-400 line-clamp-2 mt-1">{insight.details}</p>}
-                    <div className="pt-2 flex flex-wrap gap-1">
-                      {insight.linkedDates.slice(0, 2).map(date => (
-                        <span key={date} className="text-[8px] px-1.5 py-0.5 bg-zinc-800 rounded text-zinc-500 font-bold">{date}</span>
-                      ))}
-                      {insight.linkedDates.length > 2 && <span className="text-[8px] px-1.5 py-0.5 bg-zinc-800 rounded text-zinc-500 font-bold">+{insight.linkedDates.length - 2}</span>}
-                    </div>
-                  </div>
+          
+          <div className="relative z-10 space-y-4">
+            <div className="flex justify-between items-end mb-1">
+              <div className="text-left">
+                <p className="text-xs font-bold text-white">Data Fidelity Progress</p>
+                <p className="text-[10px] text-zinc-500 uppercase tracking-wider">
+                  {dataMaturity.level === 3 
+                    ? "Maximum insight level reached" 
+                    : `Next milestone: ${dataMaturity.nextThreshold} days`}
+                </p>
+              </div>
+              <div className="text-right">
+                <span className="text-2xl font-black text-white">{dataMaturity.count}</span>
+                <span className="text-xs text-zinc-500 font-bold uppercase ml-1">Days Logged</span>
+              </div>
+            </div>
+            
+            <div className="w-full h-2 bg-zinc-800 rounded-full overflow-hidden">
+              <motion.div 
+                initial={{ width: 0 }}
+                animate={{ width: `${Math.min(100, (dataMaturity.count / dataMaturity.nextThreshold) * 100)}%` }}
+                className={`h-full transition-all duration-1000 ${
+                  dataMaturity.level === 3 ? 'bg-emerald-500' :
+                  dataMaturity.level === 2 ? 'bg-blue-500' :
+                  'bg-amber-500'
+                }`}
+              />
+            </div>
+            
+            <div className="grid grid-cols-3 gap-2 pt-2">
+              {[
+                { level: 1, label: 'Baseline', days: '0+', active: dataMaturity.level >= 1 },
+                { level: 2, label: 'Rhythms', days: '15+', active: dataMaturity.level >= 2 },
+                { level: 3, label: 'Deep Analysis', days: '90+', active: dataMaturity.level >= 3 },
+              ].map((step) => (
+                <div key={step.level} className="text-center space-y-1">
+                  <div className={`h-1 rounded-full transition-colors ${step.active ? 'bg-indigo-500' : 'bg-zinc-800'}`} />
+                  <p className={`text-[8px] font-black uppercase tracking-tighter ${step.active ? 'text-indigo-400' : 'text-zinc-600'}`}>{step.label}</p>
+                  <p className="text-[8px] text-zinc-700 font-bold">{step.days} Days</p>
                 </div>
-              </Card>
-            ))}
+              ))}
+            </div>
+
+            {userProfile?.tier === 'Pro' && dataMaturity.level < 3 && (
+              <div className="pt-2 flex items-center gap-2 text-[10px] font-bold text-violet-400 uppercase tracking-widest">
+                <Sparkles size={12} />
+                <span>Pro Member: Your analysis will automatically deepen as data matures</span>
+              </div>
+            )}
           </div>
-        </section>
-      )}
+        </Card>
+      </section>
 
       {/* Section 3: Engagement & Actions */}
       <section className="space-y-6">
@@ -608,41 +944,7 @@ export default function Dashboard({
         <div className="grid grid-cols-1 gap-6">
           <SleepGuideCard onClick={onOpenSleepGuide} gadgetSummary={recentGadgets} />
           
-          {!personalizationProfile && (
-            <Card 
-              className="bg-zinc-900 border-indigo-500/20 relative overflow-hidden group cursor-pointer p-0"
-              onClick={onOpenPersonalization}
-            >
-              <div className="absolute inset-0 opacity-10 group-hover:opacity-20 transition-opacity pointer-events-none flex items-center justify-center">
-                <CircadianWaveform className="text-white w-full scale-150" />
-              </div>
-              
-              <div className="relative z-10 p-8 flex flex-col md:flex-row md:items-center justify-between gap-8">
-                <div className="flex items-start gap-6">
-                  <div className="w-16 h-16 bg-indigo-500/10 backdrop-blur-md rounded-2xl flex items-center justify-center text-indigo-400 shadow-xl group-hover:scale-110 transition-transform border border-indigo-500/20">
-                    <Zap size={32} />
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2 text-indigo-300">
-                      <span className="text-[10px] font-black uppercase tracking-[0.2em]">Clinical Intelligence</span>
-                    </div>
-                    <h3 className="text-2xl font-black text-white tracking-tight">Activate Clinical Intelligence</h3>
-                    <p className="text-zinc-300 text-sm font-medium leading-relaxed max-w-md">
-                      Provide your clinical parameters and goals to help SIA generate more accurate, medically-informed recovery insights tailored to your unique physiology.
-                    </p>
-                  </div>
-                </div>
-
-                <button 
-                  className="px-8 py-4 bg-indigo-600 text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-indigo-500 transition-all shadow-xl flex items-center justify-center gap-3 whitespace-nowrap"
-                >
-                  Activate Clinical Intelligence <ChevronRight size={18} />
-                </button>
-              </div>
-            </Card>
-          )}
-          
-          {isEnhanced && (
+          {FEATURE_FLAGS.showSiaIntelligence && isEnhanced && (
             <Card 
               className="bg-zinc-950 border-violet-500/30 relative overflow-hidden group p-0"
             >
@@ -661,37 +963,55 @@ export default function Dashboard({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="p-4 bg-zinc-900/50 border border-zinc-800 rounded-2xl border-l-2 border-l-violet-500/50">
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="w-2 h-2 rounded-full bg-violet-500 animate-pulse" />
-                      <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Neuro-Diagnostic</span>
+                {dataMaturity.level < 2 ? (
+                  <div className="py-12 text-center space-y-3">
+                    <div className="w-12 h-12 bg-zinc-900/50 rounded-2xl flex items-center justify-center text-zinc-700 mx-auto border border-zinc-800">
+                      <Brain size={24} />
                     </div>
-                    <h4 className="text-sm font-bold text-white mb-1">Alzheimer's Risk Evaluation</h4>
-                    <p className="text-xs text-zinc-400 leading-relaxed">
-                      Analyzing N3/REM architecture for early biomarkers. Intelligence activation required for full report.
-                    </p>
-                  </div>
-
-                  <div className="p-4 bg-zinc-900/50 border border-zinc-800 rounded-2xl border-l-2 border-l-emerald-500/50">
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                      <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Metabolic-Diagnostic</span>
+                    <div className="space-y-1">
+                      <h4 className="text-sm font-bold text-zinc-500 uppercase tracking-widest">Intelligence Gated</h4>
+                      <p className="text-xs text-zinc-600 max-w-xs mx-auto leading-relaxed">
+                        SIA Intelligence requires 14 days of baseline data to identify biological anomalies. (Progress: {dataMaturity.count}/14).
+                      </p>
                     </div>
-                    <h4 className="text-sm font-bold text-white mb-1">Obesity & Metabolic Flux</h4>
-                    <p className="text-xs text-zinc-400 leading-relaxed">
-                      Monitoring circadian alignment with last meal timing. Baseline established.
-                    </p>
                   </div>
-                </div>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="p-4 bg-zinc-900/50 border border-zinc-800 rounded-2xl border-l-2 border-l-violet-500/50">
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="w-2 h-2 rounded-full bg-violet-500 animate-pulse" />
+                          <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Neuro-Diagnostic</span>
+                        </div>
+                        <h4 className="text-sm font-bold text-white mb-1">Alzheimer's Risk Evaluation</h4>
+                        <p className="text-xs text-zinc-400 leading-relaxed">
+                          Analyzing N3/REM architecture for early biomarkers. Intelligence activation required for full report.
+                        </p>
+                        <p className="text-[8px] text-zinc-600 italic mt-2 leading-tight">{DISCLAIMER}</p>
+                      </div>
 
-                <div className="mt-6 flex items-center justify-center">
-                  <div className="px-4 py-2 bg-violet-500/5 border border-violet-500/10 rounded-full">
-                    <p className="text-[9px] font-black text-violet-300 uppercase tracking-[0.3em] animate-pulse">
-                      Scanning for biological anomalies...
-                    </p>
-                  </div>
-                </div>
+                      <div className="p-4 bg-zinc-900/50 border border-zinc-800 rounded-2xl border-l-2 border-l-emerald-500/50">
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                          <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Metabolic-Diagnostic</span>
+                        </div>
+                        <h4 className="text-sm font-bold text-white mb-1">Obesity & Metabolic Flux</h4>
+                        <p className="text-xs text-zinc-400 leading-relaxed">
+                          Monitoring circadian alignment with last meal timing. Baseline established.
+                        </p>
+                        <p className="text-[8px] text-zinc-600 italic mt-2 leading-tight">{DISCLAIMER}</p>
+                      </div>
+                    </div>
+
+                    <div className="mt-6 flex items-center justify-center">
+                      <div className="px-4 py-2 bg-violet-500/5 border border-violet-500/10 rounded-full">
+                        <p className="text-[9px] font-black text-violet-300 uppercase tracking-[0.3em] animate-pulse">
+                          Scanning for biological anomalies...
+                        </p>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             </Card>
           )}

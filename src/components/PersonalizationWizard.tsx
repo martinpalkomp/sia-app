@@ -241,8 +241,8 @@ export default function PersonalizationWizard({ user, onComplete, onClose }: Per
         <div className="p-8 pt-10 flex flex-col h-full">
           <div className="flex justify-between items-start mb-8">
             <div>
-              <h2 className="text-2xl font-bold text-white tracking-tight">Clinical Intelligence Activation</h2>
-              <p className="text-zinc-300 text-sm mt-1">Step {step + 1} of {totalSteps}</p>
+              <h2 className="text-2xl font-bold text-white tracking-tight">Unlock ENHANCED</h2>
+              <p className="text-indigo-400 text-xs font-bold uppercase tracking-widest mt-1">Upgrade Your Sleep Intelligence</p>
             </div>
             <button onClick={onClose} className="p-2 hover:bg-zinc-800 rounded-full text-zinc-300 transition-colors">
               <X size={20} />
