@@ -932,7 +932,7 @@ export default function App() {
       `;
 
       const response = await ai.models.generateContent({
-        model: "gemini-2.0-flash-lite",
+        model: "gemini-3-flash-preview",
         contents: [{ role: "user", parts: [{ text: reportPrompt }] }],
         config: { temperature: 0.2, maxOutputTokens: 2048 }
       });

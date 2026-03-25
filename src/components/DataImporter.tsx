@@ -30,9 +30,7 @@ import {
 import { DailyLog, SleepState } from '../types';
 import { TOTAL_SLOTS } from '../constants';
 import { saveLog } from '../services/sleepService';
-import { snapTo15Min, timeToIndex, convertGridToEvents, getMinutesFrom2000 } from '../utils/sleepUtils';
-
-import { exportToExcel } from '../utils/DataExporter';
+import { snapTo15Min, timeToIndex, getGridFromEvents, convertGridToEvents, getMinutesFrom2000 } from '../utils/sleepUtils';
 
 interface DataImporterProps {
   user: User;
@@ -44,7 +42,15 @@ interface DataImporterProps {
 }
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
-const TEMPLATE_HEADERS = ['Date', 'Bedtime', 'Waketime', 'Status_Code', 'SQ', 'Remarks'];
+const TEMPLATE_HEADERS = [
+  'Date', 'Bedtime', 'Waketime', 'Status_Code', 'SQ', 'RL', 'Remarks', 
+  'Caffeine_Y/N', 'Caffeine_Cups', 'Caffeine_LastIntake', 
+  'Alcohol_Y/N', 'Alcohol_Drinks', 'Alcohol_LastIntake', 
+  'Medication_Y/N', 'Medication_Type', 'Medication_Time', 
+  'Exercise_Y/N', 'Exercise_Type', 'Exercise_Time', 
+  'Screens_Y/N', 'Stress_1to5', 'LastMeal_Time', 
+  'NaturalWake_Y/N', 'MorningMood_1to5', 'Sleep_Gadgets'
+];
 
 export default function DataImporter({ user, onImportComplete, onRefresh, isImporting, setIsImporting, logs = {} }: DataImporterProps) {
   const [isCollapsed, setIsCollapsed] = useState(true);
@@ -86,7 +92,8 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
         const aiPromise = ai.models.generateContent({
           model: "gemini-3-flash-preview",
           config: {
-            systemInstruction: "Extract sleep insights from this text. Return only valid JSON: { summary, estimatedDateRange, extractedInsights (string array), rawDataType }."
+            systemInstruction: "Extract sleep insights from this text. Return only valid JSON: { summary, estimatedDateRange, extractedInsights (string array), rawDataType }.",
+            temperature: 0.4
           },
           contents: content.slice(0, 8000)
         });
@@ -133,25 +140,25 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
     if (h.includes('end') || h.includes('finish') || h === 'waketime') return 'End_Time';
     if (h.includes('status') || h.includes('type') || h.includes('code')) return 'Status_Code';
     if (h === 'sq' || h.includes('quality')) return 'SQ';
-    if (h === 'r' || h.includes('rest') || h.includes('awakening')) return 'R';
+    if (h === 'r' || h === 'rl' || h.includes('rest') || h.includes('awakening')) return 'R';
     if (h === 'l' || h.includes('energy') || h.includes('level')) return 'L';
     if (h.includes('remark') || h.includes('note') || h.includes('comment')) return 'Remarks';
-    if (h === 'caffeine_y' || h === 'caffeine') return 'Caffeine_Y';
+    if (h === 'caffeine_y' || h === 'caffeine' || h === 'caffeine_y/n') return 'Caffeine_Y';
     if (h === 'caffeine_cups' || h === 'cups') return 'Caffeine_Cups';
     if (h === 'caffeine_lastintake' || h === 'caffeine_time') return 'Caffeine_LastIntake';
-    if (h === 'alcohol_y' || h === 'alcohol') return 'Alcohol_Y';
+    if (h === 'alcohol_y' || h === 'alcohol' || h === 'alcohol_y/n') return 'Alcohol_Y';
     if (h === 'alcohol_drinks' || h === 'drinks') return 'Alcohol_Drinks';
     if (h === 'alcohol_lastintake' || h === 'alcohol_time') return 'Alcohol_LastIntake';
-    if (h === 'medication_y' || h === 'medication') return 'Medication_Y';
+    if (h === 'medication_y' || h === 'medication' || h === 'medication_y/n') return 'Medication_Y';
     if (h === 'medication_type') return 'Medication_Type';
     if (h === 'medication_time') return 'Medication_Time';
-    if (h === 'exercise_y' || h === 'exercise') return 'Exercise_Y';
+    if (h === 'exercise_y' || h === 'exercise' || h === 'exercise_y/n') return 'Exercise_Y';
     if (h === 'exercise_type') return 'Exercise_Type';
     if (h === 'exercise_time') return 'Exercise_Time';
-    if (h === 'screens_y' || h === 'screens') return 'Screens_Y';
+    if (h === 'screens_y' || h === 'screens' || h === 'screens_y/n') return 'Screens_Y';
     if (h === 'stress_1to5' || h === 'stress') return 'Stress';
     if (h === 'lastmeal_time' || h === 'lastmeal' || h === 'last_meal') return 'LastMeal';
-    if (h === 'naturalwake_y' || h === 'naturalwake' || h === 'natural_wake') return 'NaturalWake';
+    if (h === 'naturalwake_y' || h === 'naturalwake' || h === 'natural_wake' || h === 'naturalwake_y/n') return 'NaturalWake';
     if (h === 'morningmood_1to5' || h === 'morningmood' || h === 'morning_mood') return 'MoodScore';
     if (h === 'sleep_gadgets' || h === 'gadgets' || h.includes('gadget')) return 'Sleep_Gadgets';
     return null;
@@ -211,113 +218,22 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
     });
   };
 
-  const getSleepDay = (dateStr: string, startTime: string): string => {
+  const getSleepDay = (dateStr: string): string => {
     try {
-      // 1. Normalize the date string to a Date object
-      let date: Date;
+      if (!dateStr) return format(new Date(), 'yyyy-MM-dd');
       if (dateStr.includes('/') || dateStr.includes('.')) {
         const formats = ['dd/MM/yyyy', 'MM/dd/yyyy', 'dd.MM.yyyy', 'yyyy.MM.dd', 'yyyy/MM/dd'];
-        let parsed = null;
         for (const f of formats) {
           const p = parse(dateStr, f, new Date());
-          if (isValid(p)) {
-            parsed = p;
-            break;
-          }
+          if (isValid(p)) return format(p, 'yyyy-MM-dd');
         }
-        date = parsed || new Date(dateStr);
-      } else {
-        date = parseISO(dateStr);
       }
-
-      if (!isValid(date)) {
-        date = new Date(dateStr);
-      }
-
-      if (!isValid(date)) return dateStr;
-
-      // 2. Apply the 20:00 Anchor logic
-      if (!startTime || !startTime.includes(':')) return format(date, 'yyyy-MM-dd');
-
-      const [hours] = startTime.split(':').map(Number);
-      if (!isNaN(hours) && hours < 20) {
-        // If bedtime is before 20:00 (e.g., 07:00 AM), it belongs to the PREVIOUS day's sleep session
-        // Wait, if I wake up at 07:00 AM on Mar 22, the "Sleep Day" is Mar 21.
-        // But the CSV row usually says Date: Mar 21, Bedtime: 23:30, Waketime: 07:00.
-        // In this case, getSleepDay('2026-03-21', '23:30') should return '2026-03-21'.
-        // If the row says Date: Mar 22, Bedtime: 01:00, Waketime: 07:00.
-        // Then getSleepDay('2026-03-22', '01:00') should return '2026-03-21'.
-        return format(subDays(date, 1), 'yyyy-MM-dd');
-      }
-      
-      return format(date, 'yyyy-MM-dd');
+      const d = parseISO(dateStr);
+      if (isValid(d)) return format(d, 'yyyy-MM-dd');
+      return dateStr;
     } catch (e) {
-      console.error("Error in getSleepDay:", e);
       return dateStr;
     }
-  };
-
-  const generateSleepEventsLedger = (events: { start: string, end: string, status: string }[]): (number | null)[] => {
-    // The 96-Slot Ledger: Initialize an array of 96 nulls for each sleep day.
-    // null represents "unassigned" (Start-of-Day Gap)
-    const ledger = new Array(96).fill(null); 
-    
-    // Sort events by priority: SLEEP (1) > AWAKE-IN (2)
-    // This ensures that if we paint them in order, SLEEP can overwrite AWAKE-IN
-    const sortedEvents = [...events].sort((a, b) => {
-      const priority = (s: string) => {
-        const up = s.toUpperCase();
-        if (up.includes('SLEEP') || up === '1') return 2; // Higher priority for sorting
-        if (up.includes('AWAKE-IN') || up === '2') return 1;
-        return 0;
-      };
-      return priority(a.status) - priority(b.status);
-    });
-
-    sortedEvents.forEach(event => {
-      const startIdx = timeToIndex(event.start);
-      const endIdx = timeToIndex(event.end);
-      
-      let statusCode = 0;
-      const s = (event.status || '').toString().trim().toUpperCase();
-      
-      if (s.includes('SLEEP') || s === '1') {
-        statusCode = 1; // SLEEP
-      } else if (s.includes('AWAKE-IN') || s === '2') {
-        statusCode = 2; // AWAKE-IN
-      }
-
-      if (statusCode === 0) return;
-
-      const paintSlot = (idx: number, code: number) => {
-        if (idx < 0 || idx >= 96) return;
-        
-        // Priority Logic:
-        // 1. If slot is null/empty, paint it.
-        // 2. If slot is AWAKE-IN (2) and we have SLEEP (1), overwrite it.
-        if (ledger[idx] === null || ledger[idx] === 0) {
-          ledger[idx] = code;
-        } else if (ledger[idx] === 2 && code === 1) {
-          ledger[idx] = 1; 
-        }
-      };
-
-      if (startIdx < endIdx) {
-        for (let i = startIdx; i < endIdx; i++) {
-          paintSlot(i, statusCode);
-        }
-      } else if (startIdx > endIdx) {
-        // Wrap around (20:00 anchor)
-        for (let i = startIdx; i < 96; i++) {
-          paintSlot(i, statusCode);
-        }
-        for (let i = 0; i < endIdx; i++) {
-          paintSlot(i, statusCode);
-        }
-      }
-    });
-    
-    return ledger;
   };
 
   const normalizeTime = (t: any): string => {
@@ -363,24 +279,9 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
     return /^\d{2}:\d{2}$/.test(result) ? result : '';
   };
 
-  const addMinutes = (time: string, mins: number): string => {
-    if (!time || !time.includes(':')) return time;
-    const [h, m] = time.split(':').map(Number);
-    if (isNaN(h) || isNaN(m)) return time;
-    let totalMins = h * 60 + m + mins;
-    while (totalMins < 0) totalMins += 24 * 60;
-    const finalH = Math.floor(totalMins / 60) % 24;
-    const finalM = totalMins % 60;
-    return `${finalH.toString().padStart(2, '0')}:${finalM.toString().padStart(2, '0')}`;
-  };
-
   const validateAndMapRow = (row: any, idx: number, skippedRows?: string[], isStrict = false) => {
     const mappedRow: any = {};
     const unmappedData: string[] = [];
-
-    const originalKeys = Object.keys(row).map(k => k.toLowerCase().trim());
-    const hasBedtimeHeaders = originalKeys.includes('bedtime') && originalKeys.includes('waketime');
-    const isSleepWindow = isStrict || hasBedtimeHeaders;
 
     if (isStrict) {
       // Strict Template Mode: Direct mapping based on TEMPLATE_HEADERS
@@ -389,7 +290,26 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
       mappedRow.End_Time = row.Waketime;
       mappedRow.Status_Code = row.Status_Code;
       mappedRow.SQ = row.SQ;
+      mappedRow.R = row.RL; // RL maps to R (Morning_Alertness)
       mappedRow.Remarks = row.Remarks;
+      mappedRow.Caffeine_Y = row['Caffeine_Y/N'];
+      mappedRow.Caffeine_Cups = row.Caffeine_Cups;
+      mappedRow.Caffeine_LastIntake = row.Caffeine_LastIntake;
+      mappedRow.Alcohol_Y = row['Alcohol_Y/N'];
+      mappedRow.Alcohol_Drinks = row.Alcohol_Drinks;
+      mappedRow.Alcohol_LastIntake = row.Alcohol_LastIntake;
+      mappedRow.Medication_Y = row['Medication_Y/N'];
+      mappedRow.Medication_Type = row.Medication_Type;
+      mappedRow.Medication_Time = row.Medication_Time;
+      mappedRow.Exercise_Y = row['Exercise_Y/N'];
+      mappedRow.Exercise_Type = row.Exercise_Type;
+      mappedRow.Exercise_Time = row.Exercise_Time;
+      mappedRow.Screens_Y = row['Screens_Y/N'];
+      mappedRow.Stress = row.Stress_1to5;
+      mappedRow.LastMeal = row.LastMeal_Time;
+      mappedRow.NaturalWake = row['NaturalWake_Y/N'];
+      mappedRow.MoodScore = row.MorningMood_1to5;
+      mappedRow.Sleep_Gadgets = row.Sleep_Gadgets;
     } else {
       Object.keys(row).forEach(key => {
         const mappedKey = fuzzyMapHeader(key);
@@ -454,22 +374,9 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
     mappedRow.Start_Time = start;
     mappedRow.End_Time = end;
 
-    // Generate events based on whether it's a "Sleep Window"
-    const generatedEvents: { start: string, end: string, status: string }[] = [];
-    if (isSleepWindow) {
-      const sleepStart = addMinutes(start, 15);
-      generatedEvents.push({ start: start, end: sleepStart, status: 'AWAKE-IN' });
-      generatedEvents.push({ start: sleepStart, end: end, status: 'SLEEP' });
-      generatedEvents.push({ start: end, end: addMinutes(end, 15), status: 'AWAKE-IN' });
-    } else {
-      const rawStatus = (mappedRow.Status_Code || 'SLEEP').toString().toUpperCase();
-      generatedEvents.push({ start, end, status: rawStatus });
-    }
-
     return {
       _mapped: mappedRow,
-      _unmapped: unmappedData,
-      _events: generatedEvents
+      _unmapped: unmappedData
     };
   };
 
@@ -503,7 +410,8 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
 
       const aiPromise = ai.models.generateContent({
         model: "gemini-3-flash-preview",
-        contents: [{ role: 'user', parts: [{ text: prompt }] }]
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        config: { temperature: 0.4 }
       });
 
       const response = await withTimeout(aiPromise, 25000, "AI normalization timed out");
@@ -625,7 +533,7 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
       const rowsBySleepDay: Record<string, any[]> = {};
       validRows.forEach(rawRow => {
         const row = (rawRow as any)._mapped;
-        const sleepDay = getSleepDay(row.Date, row.Start_Time);
+        const sleepDay = getSleepDay(row.Date);
         if (!rowsBySleepDay[sleepDay]) rowsBySleepDay[sleepDay] = [];
         rowsBySleepDay[sleepDay].push(rawRow);
       });
@@ -647,75 +555,59 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
           return timeToIndex(startA) - timeToIndex(startB);
         });
 
-        // 2. Merge adjacent rows to prevent "ghost" buffers at fragment boundaries
-        const mergedRows: any[] = [];
-        if (dayRows.length > 0) {
-          let current = { ...dayRows[0] };
-          for (let i = 1; i < dayRows.length; i++) {
-            const next = dayRows[i];
-            const currentEndIdx = timeToIndex((current as any)._mapped.End_Time);
-            const nextStartIdx = timeToIndex((next as any)._mapped.Start_Time);
-            
-            // If adjacent or overlapping, merge them
-            if (nextStartIdx <= currentEndIdx) {
-              const currentEndMins = getMinutesFrom2000((current as any)._mapped.End_Time);
-              const nextEndMins = getMinutesFrom2000((next as any)._mapped.End_Time);
-              // In our 20:00-20:00 cycle, we need to be careful with comparison
-              // But within a single sleep day, getMinutesFrom2000 is linear 0-1440
-              if (nextEndMins > currentEndMins || (currentEndMins > 1200 && nextEndMins < 1200)) {
-                (current as any)._mapped.End_Time = (next as any)._mapped.End_Time;
-              }
-            } else {
-              mergedRows.push(current);
-              current = { ...next };
-            }
-          }
-          mergedRows.push(current);
-        }
-
-        // 3. Generate events for ledger generation
-        const eventsForLedger = mergedRows.flatMap(rawRow => {
+        // 2. Collect events for the day
+        const eventsForDay: any[] = [];
+        dayRows.forEach(rawRow => {
           const row = (rawRow as any)._mapped;
-          
-          // Re-generate events for merged windows to ensure buffers are only at the outer boundaries
-          const { _events: events } = validateAndMapRow(row, 0, [], isStrictTemplate) || { _events: [] };
-          
-          if (events && events.length > 0) {
-            return events;
+          const rawStatus = (row.Status_Code || row.status_code || row.Status || '')
+            .toString().trim().toUpperCase();
+
+          let eventType: 'sleep' | 'awake-in' | null = null;
+          if (rawStatus.includes('SLEEP') && !rawStatus.includes('AWAKE')) {
+            eventType = 'sleep';
+          } else if (rawStatus.includes('AWAKE-IN') || rawStatus.includes('AWAKE IN')) {
+            eventType = 'awake-in';
+          } else if (!rawStatus || rawStatus.includes('AWAKE-OUT') || rawStatus.includes('AWAKE OUT')) {
+            eventType = null; // skip — not an in-bed event
           }
 
-          const rawStatus = (row.Status_Code || row.status_code || row.Status || '').toString().trim();
-          return [{
-            start: row.Start_Time,
-            end: row.End_Time,
-            status: rawStatus
-          }];
+          // Only create an event if we have a valid type and valid times
+          if (eventType && row.Start_Time && row.End_Time) {
+            eventsForDay.push({
+              id: crypto.randomUUID(),
+              type: eventType,
+              start: row.Start_Time,
+              end: row.End_Time
+            });
+          }
         });
 
-        const ledger = generateSleepEventsLedger(eventsForLedger);
-        
-        // Efficiency Calculation
-        const totalSleepSlots = ledger.filter(s => s === 1).length;
-        const totalInBedSlots = ledger.filter(s => s === 1 || s === 2).length;
-        const efficiency = totalInBedSlots > 0 ? (totalSleepSlots / totalInBedSlots) * 100 : 0;
+        // 3. Merge contiguous same-type blocks using the grid logic
+        const grid = getGridFromEvents(eventsForDay);
+        const mergedEvents = convertGridToEvents(grid);
+        log.sleepEvents = mergedEvents;
+
+        // 4. Efficiency Calculation
+        const eventDurationMinutes = (e: any) => {
+          const startMins = getMinutesFrom2000(e.start);
+          const endMins = getMinutesFrom2000(e.end);
+          return endMins < startMins ? (1440 - startMins + endMins) : (endMins - startMins);
+        };
+
+        const sleepEvents = mergedEvents.filter(e => e.type === 'sleep');
+        const awakeInEvents = mergedEvents.filter(e => e.type === 'awake-in');
+        const totalSleepMins = sleepEvents.reduce((acc, e) => acc + eventDurationMinutes(e), 0);
+        const totalInBedMins = [...sleepEvents, ...awakeInEvents].reduce((acc, e) => acc + eventDurationMinutes(e), 0);
+        const efficiency = totalInBedMins > 0 ? Math.round((totalSleepMins / totalInBedMins) * 100) : 0;
         
         log.summaryMetrics = {
           sleep_quality: log.sleep_quality,
           morning_alertness: log.morning_alertness,
           daytime_energy: log.daytime_energy,
-          importedDuration: totalSleepSlots * 15,
-          importedInBed: totalInBedSlots * 15,
+          importedDuration: totalSleepMins,
+          importedInBed: totalInBedMins,
           sleep_efficiency: efficiency
         };
-
-        // Convert ledger back to SleepEvents
-        const grid: SleepState[] = ledger.map(code => {
-          if (code === 1) return 'sleep';
-          if (code === 2) return 'awake-in';
-          return 'awake-out';
-        });
-        
-        log.sleepEvents = convertGridToEvents(grid);
 
         // Process metadata
         dayRows.forEach(rawRow => {
@@ -1204,13 +1096,6 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
                   >
                     <Download size={14} />
                     Template
-                  </button>
-                  <button 
-                    onClick={() => exportToExcel(Object.values(logs))}
-                    className="flex items-center justify-center gap-2 px-3 py-2 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 rounded-xl text-[10px] font-bold uppercase tracking-widest text-indigo-400 transition-all"
-                  >
-                    <FileSpreadsheet size={14} />
-                    Export Data
                   </button>
                 </div>
               </div>

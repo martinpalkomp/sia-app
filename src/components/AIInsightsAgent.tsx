@@ -271,12 +271,13 @@ export default function AIInsightsAgent({ logs, user, personalizationProfile, is
       `;
 
       const response = await ai.models.generateContent({
-        model: "gemini-2.0-flash",
+        model: "gemini-3-flash-preview",
         contents: [
           { role: "user", parts: [{ text: text }] }
         ],
         config: {
           systemInstruction: systemInstruction,
+          temperature: 0.7,
           responseMimeType: "application/json",
           responseSchema: {
             type: Type.OBJECT,

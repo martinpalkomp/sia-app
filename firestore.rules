@@ -66,5 +66,10 @@ service cloud.firestore {
       allow create: if isAuthenticated() && isValidFeedback(request.resource.data);
       allow read, update, delete: if isAdmin();
     }
+
+    // Insights collection
+    match /users/{userId}/insights/{insightId} {
+      allow read, write: if isOwner(userId) || isAdmin();
+    }
   }
 }

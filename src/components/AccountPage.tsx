@@ -16,10 +16,7 @@ import {
   ArrowLeft,
   Trash2,
   MessageSquare,
-  Rocket,
-  Download,
-  Loader2,
-  CheckCircle2
+  Rocket
 } from 'lucide-react';
 import { PersonalizationProfile, DailyLog } from '../types';
 import { Card, AvatarFrame } from './UI';
@@ -28,7 +25,6 @@ import { seedTestData, purgeUserData } from '../utils/devTools';
 import DataManager from './DataManager';
 import FeedbackForm from './FeedbackForm';
 import AdminFeedback from './AdminFeedback';
-import { exportUserData } from '../utils/DataExporter';
 import { calculateAge, getAgeDecade } from '../utils/dateUtils';
 
 interface AccountPageProps {
@@ -42,8 +38,6 @@ interface AccountPageProps {
 export default function AccountPage({ user, personalizationProfile, onModifyAssessment, onRefresh, logs }: AccountPageProps) {
   const [view, setView] = React.useState<'main' | 'data-ledger' | 'feedback' | 'admin-feedback'>('main');
   const [userData, setUserData] = React.useState<any>(null);
-  const [isExporting, setIsExporting] = React.useState(false);
-  const [exportSuccess, setExportSuccess] = React.useState(false);
 
   React.useEffect(() => {
     if (!user) return;
@@ -58,35 +52,11 @@ export default function AccountPage({ user, personalizationProfile, onModifyAsse
 
   const isAdmin = userData?.role === 'admin' || user.email === 'martinpalko.mp@gmail.com';
 
-  /**
-   * MANUAL ADMIN SETUP:
-   * To promote a user to 'admin' manually:
-   * 1. Go to Firebase Console -> Firestore Database
-   * 2. Find the user's document in the 'users' collection (ID is their UID)
-   * 3. Add a field 'role' with string value 'admin'
-   * 4. The app will automatically pick up the change via onSnapshot
-   */
-
   const handleLogout = async () => {
     try {
       await signOut(auth);
     } catch (error) {
       console.error('Error signing out:', error);
-    }
-  };
-
-  const handleExportData = async () => {
-    setIsExporting(true);
-    setExportSuccess(false);
-    try {
-      await exportUserData(user, db);
-      setExportSuccess(true);
-      setTimeout(() => setExportSuccess(false), 3000);
-    } catch (error) {
-      console.error('Export error:', error);
-      alert('Failed to export data. Please try again.');
-    } finally {
-      setIsExporting(false);
     }
   };
 
@@ -315,30 +285,6 @@ export default function AccountPage({ user, personalizationProfile, onModifyAsse
           </div>
           <ChevronRight size={20} className="text-zinc-700 group-hover:text-white transition-colors" />
         </button>
-
-        <button 
-          onClick={handleExportData}
-          disabled={isExporting}
-          className="w-full p-4 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-2xl flex items-center justify-between group transition-all disabled:opacity-50"
-        >
-          <div className="flex items-center gap-4">
-            <div className="w-10 h-10 rounded-xl bg-zinc-800 flex items-center justify-center text-zinc-400 group-hover:text-clinical-primary transition-colors">
-              {isExporting ? <Loader2 className="animate-spin" size={20} /> : <Download size={20} />}
-            </div>
-            <div className="text-left">
-              <div className="text-sm font-black text-white">Export My Data</div>
-              <div className="text-[10px] text-zinc-400 uppercase tracking-widest">Download all your records as Excel</div>
-            </div>
-          </div>
-          {exportSuccess ? (
-            <CheckCircle2 size={20} className="text-emerald-500" />
-          ) : (
-            <ChevronRight size={20} className="text-zinc-700 group-hover:text-white transition-colors" />
-          )}
-        </button>
-        <div className="text-[10px] text-zinc-400 px-4 -mt-2">
-          Exports all sleep logs, factors, and profile data as a spreadsheet. The Sleep Logs sheet can be reimported if needed. Suitable to share with your doctor.
-        </div>
 
         <button 
           onClick={handleLogout}

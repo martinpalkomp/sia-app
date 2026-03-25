@@ -21,10 +21,14 @@ import {
   X, 
   Eye,
   ChevronRight,
-  RefreshCw
+  RefreshCw,
+  Download,
+  Loader2,
+  CheckCircle2
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { Card } from './UI';
+import { exportUserData } from '../utils/DataExporter';
 
 interface DataManagerProps {
   user: User;
@@ -45,6 +49,8 @@ export default function DataManager({ user, onRefresh }: DataManagerProps) {
   const [previewItem, setPreviewItem] = useState<DataItem | null>(null);
   const [showPurgeConfirm, setShowPurgeConfirm] = useState(false);
   const [isPurging, setIsPurging] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportSuccess, setExportSuccess] = useState(false);
 
   const fetchData = async () => {
     setIsLoading(true);
@@ -143,6 +149,21 @@ export default function DataManager({ user, onRefresh }: DataManagerProps) {
     }
   };
 
+  const handleExportData = async () => {
+    setIsExporting(true);
+    setExportSuccess(false);
+    try {
+      await exportUserData(user, db);
+      setExportSuccess(true);
+      setTimeout(() => setExportSuccess(false), 3000);
+    } catch (error) {
+      console.error('Export error:', error);
+      alert('Failed to export data. Please try again.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -153,12 +174,22 @@ export default function DataManager({ user, onRefresh }: DataManagerProps) {
           </h2>
           <p className="text-sm text-zinc-500 font-medium">Manage your personal health data sources</p>
         </div>
-        <button 
-          onClick={() => setShowPurgeConfirm(true)}
-          className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/30 rounded-xl text-xs font-black uppercase tracking-widest transition-all"
-        >
-          Purge All Data
-        </button>
+        <div className="flex items-center gap-2">
+          <button 
+            onClick={handleExportData}
+            disabled={isExporting}
+            className="px-4 py-2 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 disabled:opacity-50"
+          >
+            {isExporting ? <Loader2 className="animate-spin" size={14} /> : exportSuccess ? <CheckCircle2 size={14} className="text-emerald-500" /> : <Download size={14} />}
+            {isExporting ? 'Exporting...' : exportSuccess ? 'Exported!' : 'Export All'}
+          </button>
+          <button 
+            onClick={() => setShowPurgeConfirm(true)}
+            className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/30 rounded-xl text-xs font-black uppercase tracking-widest transition-all"
+          >
+            Purge All Data
+          </button>
+        </div>
       </div>
 
       {isLoading ? (
