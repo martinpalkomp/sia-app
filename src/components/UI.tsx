@@ -60,10 +60,30 @@ interface MetricDisplayProps {
 
 export const MetricDisplay: React.FC<MetricDisplayProps> = ({ title, value, unit, className = '' }) => {
   const isMissing = value === '--' || value === undefined || value === null;
+  const [showTooltip, setShowTooltip] = React.useState(false);
   
   return (
     <div className={className}>
-      <p className="text-[8px] md:text-[10px] font-black uppercase tracking-[0.2em] text-clinical-text-muted mb-1">{title}</p>
+      <div className="flex items-center gap-1 relative">
+        <p className="text-[8px] md:text-[10px] font-black uppercase tracking-[0.2em] text-clinical-text-muted mb-1">{title}</p>
+        <div 
+          className="w-3 h-3 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-500 cursor-help transition-opacity hover:text-white"
+          onMouseEnter={() => setShowTooltip(true)}
+          onMouseLeave={() => setShowTooltip(false)}
+          onClick={() => setShowTooltip(!showTooltip)}
+        >
+          <span className="text-[8px]">i</span>
+        </div>
+        {showTooltip && (
+          <div className="absolute bottom-full left-0 mb-2 w-48 p-2 bg-zinc-900/90 border border-zinc-800 rounded-lg text-[10px] text-zinc-300 z-50">
+            {title === 'Avg Quality' && "Composite score of sleep depth, cycles, and physical restoration."}
+            {title === 'Restedness' && "Subjective recovery level and mental readiness upon waking."}
+            {title === 'Energy Level' && "Sustained vitality and cognitive alertness throughout the day."}
+            {title === 'Avg Sleep Duration' && "Total time spent in actual sleep states, excluding wakeful periods."}
+            {title === 'Avg Efficiency' && "Percentage of time spent asleep relative to total time in bed."}
+          </div>
+        )}
+      </div>
       <div className="flex items-center h-10">
         {isMissing ? (
           <div className="h-8 w-20 rounded-lg animate-sia-pulse" />

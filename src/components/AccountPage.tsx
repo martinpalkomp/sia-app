@@ -180,7 +180,7 @@ export default function AccountPage({ user, personalizationProfile, onModifyAsse
               </div>
               {!isEnhanced && <span className="text-[8px] font-black bg-green-500 text-black px-1.5 py-0.5 rounded uppercase">Active</span>}
             </div>
-            <h4 className="text-sm font-black text-white uppercase tracking-tight">Basic</h4>
+            <h4 className="text-sm font-black text-white uppercase tracking-tight">Basic:</h4>
             <p className="text-[10px] text-zinc-500 mt-1 leading-tight">Standard sleep tracking and baseline metrics.</p>
           </div>
 
@@ -192,7 +192,7 @@ export default function AccountPage({ user, personalizationProfile, onModifyAsse
               </div>
               {isEnhanced && userData?.tier !== 'Pro' && <span className="text-[8px] font-black bg-indigo-500 text-white px-1.5 py-0.5 rounded uppercase">Active</span>}
             </div>
-            <h4 className="text-sm font-black text-white uppercase tracking-tight">Enhanced</h4>
+            <h4 className="text-sm font-black text-white uppercase tracking-tight">Enhanced:</h4>
             <p className="text-[10px] text-zinc-500 mt-1 leading-tight">Clinical-grade analysis and personalized insights.</p>
             {!isEnhanced && (
               <button 
@@ -212,7 +212,7 @@ export default function AccountPage({ user, personalizationProfile, onModifyAsse
               </div>
               {userData?.tier === 'Pro' && <span className="text-[8px] font-black bg-violet-500 text-white px-1.5 py-0.5 rounded uppercase">Active</span>}
             </div>
-            <h4 className="text-sm font-black text-white uppercase tracking-tight">Pro</h4>
+            <h4 className="text-sm font-black text-white uppercase tracking-tight">Pro:</h4>
             <p className="text-[10px] text-zinc-500 mt-1 leading-tight">Advanced predictive modeling and full SIA intelligence.</p>
             {userData?.tier !== 'Pro' && (
               <button 

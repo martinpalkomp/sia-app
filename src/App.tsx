@@ -1214,22 +1214,7 @@ export default function App() {
               </div>
           </div>
 
-          {/* Maturity Progress in Header */}
-          {maturity && (
-            <div className="hidden md:flex flex-col items-end gap-1">
-              <div className="flex items-center gap-2">
-                <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Maturity: {maturity.label}</span>
-                <span className="text-[9px] font-bold text-indigo-400">{maturity.count}/{maturity.nextThreshold}d</span>
-              </div>
-              <div className="w-24 h-1 bg-zinc-800 rounded-full overflow-hidden">
-                <motion.div 
-                  initial={{ width: 0 }}
-                  animate={{ width: `${Math.min(100, (maturity.count / maturity.nextThreshold) * 100)}%` }}
-                  className="h-full bg-indigo-500" 
-                />
-              </div>
-            </div>
-          )}
+          {/* Maturity Progress in Header - REMOVED */}
           
           <div className="flex items-center gap-x-2 md:gap-x-3 flex-nowrap">
             <div className="flex bg-zinc-900/50 p-1 rounded-xl border border-zinc-800/50 gap-x-2 md:gap-x-3 flex-nowrap items-center">
