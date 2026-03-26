@@ -51,7 +51,7 @@ export const calculateSocialJetlag = (log: DailyLog, recentLogs: DailyLog[]): nu
     if (endMin < startMin) endMin += 24 * 60;
     return (startMin + endMin) / 2;
   };
-  const relevantLogs = recentLogs.slice(0, 7);
+  const relevantLogs = recentLogs;
   if (relevantLogs.length === 0) return 0;
   
   const avgMidpoint = relevantLogs.reduce((acc, l) => acc + getMidpoint(l), 0) / relevantLogs.length;
@@ -76,12 +76,12 @@ export const calculateMetabolicGap = (log: DailyLog): number | null => {
 };
 
 /**
- * Calculates the bedtime consistency score, which is the standard deviation of bedtime over the last 7 logs.
+ * Calculates the bedtime consistency score, which is the standard deviation of bedtime over the provided logs.
  * @param logs - An array of daily sleep logs.
  * @returns The consistency score in hours rounded to 2 decimal places.
  */
 export const calculateBedtimeConsistency = (logs: DailyLog[]): number => {
-  const bedtimes = logs.slice(0, 7).map(l => {
+  const bedtimes = logs.map(l => {
     const ev = l.sleepEvents?.find(e => e.type === 'sleep');
     if (!ev) return null;
     const [h, m] = ev.start.split(':').map(Number);

@@ -7,16 +7,9 @@ import { UserTier } from '../types';
 interface HeaderProps {
   user: User | null;
   greeting: { prefix: string; suffix: string };
-  tier: UserTier;
 }
 
-export const Header: React.FC<HeaderProps> = ({ user, greeting, tier }) => {
-  const tierColors = {
-    Basic: 'bg-zinc-600',
-    Enhanced: 'bg-indigo-500',
-    Pro: 'bg-violet-500'
-  };
-
+export const Header: React.FC<HeaderProps> = ({ user, greeting }) => {
   return (
     <section className="flex items-center gap-6">
       <motion.div 
@@ -28,21 +21,20 @@ export const Header: React.FC<HeaderProps> = ({ user, greeting, tier }) => {
           src="https://i.imgur.com/MnI5hn3.png" 
           alt="SIA Avatar" 
           size="md"
-          className={`shadow-xl aspect-square object-cover rounded-full w-16 h-16 ${tier !== 'Basic' ? 'shadow-violet-500/20 border-violet-500/30' : 'shadow-indigo-500/10'}`}
+          className="shadow-xl aspect-square object-cover rounded-full w-16 h-16 shadow-indigo-500/10 border-zinc-800/50"
         />
-        <span className={`absolute -top-1 -right-1 ${tierColors[tier]} text-[8px] px-1.5 py-0.5 rounded-full uppercase tracking-widest font-bold text-white`}>{tier}</span>
       </motion.div>
 
-      <div className="flex flex-col items-start space-y-0.5">
-        <span className="bg-clinical-primary text-[8px] px-2 py-0.5 rounded-full uppercase tracking-widest font-bold text-white">Sleep Intelligence Agent</span>
+      <div className="flex flex-col items-start space-y-0.5 min-w-0">
+        <span className="bg-clinical-primary text-[8px] px-2 py-0.5 rounded-full uppercase tracking-widest font-bold text-white shrink-0">Sleep Intelligence Agent</span>
         <motion.h1 
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
-          className="text-2xl font-bold text-white whitespace-nowrap"
+          className="text-xl md:text-2xl font-bold text-white leading-tight"
         >
           {greeting.prefix}{user?.displayName ? `, ${user.displayName.split(' ')[0]}` : ''}
         </motion.h1>
-        <p className="text-xs text-zinc-400 whitespace-nowrap">
+        <p className="text-xs text-zinc-400 leading-relaxed">
           {greeting.suffix}
         </p>
       </div>

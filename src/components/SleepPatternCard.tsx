@@ -11,19 +11,20 @@ import { ClipboardCheck, Share2, Info } from 'lucide-react';
 
 interface SleepPatternCardProps {
   logs: DailyLog[];
+  periodType: '7-DAY' | '30-DAY' | 'CUSTOM';
 }
 
-const SleepPatternCard: React.FC<SleepPatternCardProps> = ({ logs }) => {
+const SleepPatternCard: React.FC<SleepPatternCardProps> = ({ logs, periodType }) => {
   if (!logs || !Array.isArray(logs) || logs.length === 0) return null;
 
   // We assume logs are sorted by date desc or represent the period.
-  const recentLogs = logs.slice().sort((a, b) => b.date.localeCompare(a.date)).slice(0, 7);
+  const recentLogs = logs.slice().sort((a, b) => b.date.localeCompare(a.date));
   
   if (recentLogs.length === 0) return null;
 
   const latestLog = recentLogs[0];
   
-  // Calculate averages for the last 7 days
+  // Calculate averages for the provided logs
   const avgDuration = recentLogs.reduce((acc, l) => acc + calculateTotalSleepHours(l), 0) / recentLogs.length;
   const avgFragmentation = recentLogs.reduce((acc, l) => acc + calculateFragmentationIndex(l), 0) / recentLogs.length;
   const bedtimeConsistency = calculateBedtimeConsistency(recentLogs);
@@ -34,7 +35,7 @@ const SleepPatternCard: React.FC<SleepPatternCardProps> = ({ logs }) => {
       label: "Sleep Duration Avg",
       value: `${avgDuration.toFixed(1)}h`,
       status: avgDuration >= 7 ? 'green' : avgDuration >= 6 ? 'amber' : 'red',
-      desc: "Average hours of sleep over the last 7 days."
+      desc: "Average hours of sleep over the selected period."
     },
     {
       label: "Fragmentation Index",
@@ -46,7 +47,7 @@ const SleepPatternCard: React.FC<SleepPatternCardProps> = ({ logs }) => {
       label: "Bedtime Consistency",
       value: `${bedtimeConsistency.toFixed(1)}h`,
       status: bedtimeConsistency < 0.5 ? 'green' : bedtimeConsistency < 1.5 ? 'amber' : 'red',
-      desc: "Variance in your bedtime over the last 7 days."
+      desc: "Variance in your bedtime over the selected period."
     },
     {
       label: "Social Jetlag",
@@ -60,7 +61,7 @@ const SleepPatternCard: React.FC<SleepPatternCardProps> = ({ logs }) => {
   
   const handleExport = () => {
     const report = `SIA Sleep Pattern Observation Report
-Period: Last 7 Days
+Period: ${periodType} Observation
 Generated: ${new Date().toLocaleDateString()}
 
 Observations:
@@ -81,7 +82,7 @@ Disclaimer: SIA provides observations based on your logged data. This is not med
       <div className="flex items-center justify-between">
         <div className="space-y-1 text-left">
           <h3 className="text-xs font-black text-indigo-400 uppercase tracking-[0.2em]">Sleep Pattern Summary</h3>
-          <p className="text-[10px] text-zinc-300 uppercase tracking-widest font-bold">7-Day Observation</p>
+          <p className="text-[10px] text-zinc-300 uppercase tracking-widest font-bold">{periodType} Observation</p>
         </div>
         <div className="w-8 h-8 bg-indigo-500/10 rounded-xl flex items-center justify-center text-indigo-400 border border-indigo-500/20">
           <Share2 size={16} />
@@ -93,12 +94,15 @@ Disclaimer: SIA provides observations based on your logged data. This is not med
           <div key={i} className="bg-zinc-900/80 border border-zinc-800 p-4 rounded-2xl space-y-2 relative group text-left">
             <div className="flex items-center justify-between">
               <span className="text-[9px] font-black text-zinc-300 uppercase tracking-widest">{m.label}</span>
+              <div className="w-3 h-3 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-500 cursor-help transition-opacity hover:text-white text-[8px]">i</div>
+            </div>
+            <div className="flex items-center justify-between">
+              <p className="text-xl font-black text-white tracking-tight">{m.value}</p>
               <div className={`w-1.5 h-1.5 rounded-full ${
                 m.status === 'green' ? 'bg-emerald-500' : 
                 m.status === 'amber' ? 'bg-amber-500' : 'bg-red-500'
               }`} />
             </div>
-            <p className="text-xl font-black text-white tracking-tight">{m.value}</p>
             
             {/* Tooltip on hover */}
             <div className="absolute bottom-full left-0 mb-2 w-48 p-2 bg-zinc-800 text-[10px] text-zinc-300 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 border border-zinc-700 shadow-xl">

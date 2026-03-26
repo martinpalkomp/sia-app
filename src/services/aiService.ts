@@ -41,6 +41,15 @@ export class AIService {
   }
 
   static async getUserDataMaturity(userId: string): Promise<MaturityInfo> {
+    const userSnap = await getDoc(doc(db!, 'users', userId));
+    const userData = userSnap.data();
+    if (userData?.levelOverride) {
+      const level = userData.levelOverride;
+      if (level === 3) return { level: 3, count: 90, label: 'Full Insight', nextThreshold: 90 };
+      if (level === 2) return { level: 2, count: 15, label: 'Emerging Patterns', nextThreshold: 90 };
+      return { level: 1, count: 0, label: 'Baseline', nextThreshold: 15 };
+    }
+
     const logsRef = collection(db!, 'users', userId, 'sleep_logs');
     const snapshot = await getDocs(query(logsRef, where('type', '==', 'log')));
     const count = snapshot.size;

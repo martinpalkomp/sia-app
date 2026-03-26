@@ -1,5 +1,5 @@
 import React from 'react';
-import { User, signOut, auth, db, doc, setDoc, onSnapshot } from '../lib/firebase';
+import { User, signOut, auth, db, doc, setDoc, onSnapshot, updateDoc } from '../lib/firebase';
 import { motion } from 'motion/react';
 import { 
   LogOut, 
@@ -64,6 +64,12 @@ export default function AccountPage({ user, personalizationProfile, onModifyAsse
 
   const isEnhanced = !!personalizationProfile;
 
+  const derivedTier = React.useMemo(() => {
+    if (userData?.tier === 'Pro') return 'Pro';
+    if (personalizationProfile) return 'Enhanced';
+    return 'Basic';
+  }, [userData, personalizationProfile]);
+
   const toggleSharing = async () => {
     if (!user) return;
     
@@ -97,6 +103,18 @@ export default function AccountPage({ user, personalizationProfile, onModifyAsse
         console.error("Purge error:", error);
         alert("Failed to purge data.");
       }
+    }
+  };
+
+  const handleTierChange = async (newTier: string) => {
+    try {
+      const levelOverride = newTier === 'Pro' ? 3 : newTier === 'Enhanced' ? 2 : 1;
+      await updateDoc(doc(db, 'users', user.uid), { tier: newTier, levelOverride });
+      alert(`Tier changed to ${newTier} (Level ${levelOverride}). Please refresh.`);
+      onRefresh();
+    } catch (error) {
+      console.error("Tier change error:", error);
+      alert("Failed to change tier.");
     }
   };
 
@@ -173,28 +191,28 @@ export default function AccountPage({ user, personalizationProfile, onModifyAsse
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* BASIC TIER */}
-          <div className={`p-4 rounded-2xl border transition-all ${!isEnhanced ? 'bg-zinc-900 border-green-500 shadow-[0_0_15px_rgba(34,197,94,0.2)]' : 'bg-zinc-900/50 border-zinc-800 opacity-60'}`}>
+          <div className={`p-4 rounded-2xl border transition-all ${derivedTier === 'Basic' ? 'bg-zinc-900 border-green-500 shadow-[0_0_15px_rgba(34,197,94,0.2)]' : 'bg-zinc-900/50 border-zinc-800 opacity-60'}`}>
             <div className="flex justify-between items-start mb-3">
-              <div className="w-8 h-8 rounded-lg bg-zinc-800 flex items-center justify-center text-zinc-400">
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${derivedTier === 'Basic' ? 'bg-green-500/20 text-green-400' : 'bg-zinc-800 text-zinc-400'}`}>
                 <Shield size={16} />
               </div>
-              {!isEnhanced && <span className="text-[8px] font-black bg-green-500 text-black px-1.5 py-0.5 rounded uppercase">Active</span>}
+              {derivedTier === 'Basic' && <span className="text-[8px] font-black bg-green-500 text-black px-1.5 py-0.5 rounded uppercase">Active</span>}
             </div>
             <h4 className="text-sm font-black text-white uppercase tracking-tight">Basic:</h4>
             <p className="text-[10px] text-zinc-500 mt-1 leading-tight">Standard sleep tracking and baseline metrics.</p>
           </div>
 
           {/* ENHANCED TIER */}
-          <div className={`p-4 rounded-2xl border transition-all relative overflow-hidden ${isEnhanced && userData?.tier !== 'Pro' ? 'bg-zinc-950 border-indigo-500 shadow-[0_0_20px_rgba(99,102,241,0.3)]' : 'bg-zinc-900/50 border-zinc-800 opacity-60'}`}>
+          <div className={`p-4 rounded-2xl border transition-all relative overflow-hidden ${derivedTier === 'Enhanced' ? 'bg-zinc-950 border-indigo-500 shadow-[0_0_20px_rgba(99,102,241,0.3)]' : 'bg-zinc-900/50 border-zinc-800 opacity-60'}`}>
             <div className="flex justify-between items-start mb-3">
-              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isEnhanced ? 'bg-indigo-500/20 text-indigo-400' : 'bg-zinc-800 text-zinc-400'}`}>
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${derivedTier === 'Enhanced' ? 'bg-indigo-500/20 text-indigo-400' : 'bg-zinc-800 text-zinc-400'}`}>
                 <Sparkles size={16} />
               </div>
-              {isEnhanced && userData?.tier !== 'Pro' && <span className="text-[8px] font-black bg-indigo-500 text-white px-1.5 py-0.5 rounded uppercase">Active</span>}
+              {derivedTier === 'Enhanced' && <span className="text-[8px] font-black bg-indigo-500 text-white px-1.5 py-0.5 rounded uppercase">Active</span>}
             </div>
             <h4 className="text-sm font-black text-white uppercase tracking-tight">Enhanced:</h4>
             <p className="text-[10px] text-zinc-500 mt-1 leading-tight">Clinical-grade analysis and personalized insights.</p>
-            {!isEnhanced && (
+            {derivedTier === 'Basic' && (
               <button 
                 onClick={onModifyAssessment}
                 className="mt-3 w-full py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
@@ -205,16 +223,16 @@ export default function AccountPage({ user, personalizationProfile, onModifyAsse
           </div>
 
           {/* PRO TIER */}
-          <div className={`p-4 rounded-2xl border transition-all ${userData?.tier === 'Pro' ? 'bg-zinc-950 border-violet-500 shadow-[0_0_25px_rgba(139,92,246,0.4)]' : 'bg-zinc-900/50 border-zinc-800 opacity-60'}`}>
+          <div className={`p-4 rounded-2xl border transition-all ${derivedTier === 'Pro' ? 'bg-zinc-950 border-violet-500 shadow-[0_0_25px_rgba(139,92,246,0.4)]' : 'bg-zinc-900/50 border-zinc-800 opacity-60'}`}>
             <div className="flex justify-between items-start mb-3">
-              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${userData?.tier === 'Pro' ? 'bg-violet-500/20 text-violet-400' : 'bg-zinc-800 text-zinc-400'}`}>
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${derivedTier === 'Pro' ? 'bg-violet-500/20 text-violet-400' : 'bg-zinc-800 text-zinc-400'}`}>
                 <Rocket size={16} />
               </div>
-              {userData?.tier === 'Pro' && <span className="text-[8px] font-black bg-violet-500 text-white px-1.5 py-0.5 rounded uppercase">Active</span>}
+              {derivedTier === 'Pro' && <span className="text-[8px] font-black bg-violet-500 text-white px-1.5 py-0.5 rounded uppercase">Active</span>}
             </div>
             <h4 className="text-sm font-black text-white uppercase tracking-tight">Pro:</h4>
             <p className="text-[10px] text-zinc-500 mt-1 leading-tight">Advanced predictive modeling and full SIA intelligence.</p>
-            {userData?.tier !== 'Pro' && (
+            {derivedTier !== 'Pro' && (
               <button 
                 className="mt-3 w-full py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
               >
@@ -423,6 +441,17 @@ export default function AccountPage({ user, personalizationProfile, onModifyAsse
               <Trash2 size={18} className="text-red-400" />
               <span className="text-sm font-black text-red-400 uppercase tracking-widest">PURGE ALL DATA</span>
             </button>
+          </div>
+          <div className="mt-4 grid grid-cols-3 gap-2">
+            {['Basic', 'Enhanced', 'Pro'].map((tier) => (
+              <button
+                key={tier}
+                onClick={() => handleTierChange(tier)}
+                className="p-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-lg text-[10px] font-bold text-zinc-300 uppercase tracking-widest transition-all"
+              >
+                {tier}
+              </button>
+            ))}
           </div>
         </div>
       )}

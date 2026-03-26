@@ -104,6 +104,12 @@ export default function Dashboard({
   useEffect(() => {
     if (!user || !userProfile) return;
     
+    if (!logs || Object.keys(logs).length === 0) {
+      setDailyBrief(null);
+      setIsBriefLoading(false);
+      return;
+    }
+
     const fetchBrief = async () => {
       setIsBriefLoading(true);
       try {
@@ -122,6 +128,38 @@ export default function Dashboard({
 
     fetchBrief();
   }, [user, userProfile, logs]);
+
+  const StaticFallbackUI = ({ tier, onLogClick }: { tier: string, onLogClick: () => void }) => {
+    const message = tier === 'Pro' 
+      ? "Consistency is key. Log now to maintain your high-precision forecasting."
+      : tier === 'Enhanced'
+      ? "Log 7 nights to unlock your weekly trend analysis."
+      : "Log 3 nights to see your first patterns.";
+
+    return (
+      <div className="space-y-4">
+        <p className="text-zinc-200 leading-relaxed text-sm font-medium">
+          Awaiting Initial Data. Log your first sleep session to activate your Intelligence Agent.
+        </p>
+        <p className="text-zinc-400 text-xs italic">{message}</p>
+        <button 
+          onClick={onLogClick}
+          className="px-6 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-2xl text-xs font-bold transition-all border border-zinc-700"
+        >
+          Log Last Night
+        </button>
+      </div>
+    );
+  };
+
+  const getTierColors = (tier: string) => {
+    switch (tier) {
+      case 'Pro': return "bg-violet-600/10 border-violet-500/30";
+      case 'Enhanced': return "bg-indigo-600/10 border-indigo-500/30";
+      default: return "bg-zinc-600/10 border-zinc-500/30";
+    }
+  };
+
 
   // Fetch insights from Firestore
   useEffect(() => {
@@ -426,13 +464,13 @@ export default function Dashboard({
       </AnimatePresence>
 
       {/* Header Section */}
-      <Header user={user} greeting={greeting} tier={userProfile?.tier || 'Basic'} />
+      <Header user={user} greeting={greeting} />
 
       {/* Daily Brief Section */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-indigo-600/10 border border-indigo-500/30 rounded-[2.5rem] p-8 relative overflow-hidden"
+        className={`${getTierColors(userProfile?.tier || 'Basic')} rounded-[2.5rem] p-8 relative overflow-hidden`}
       >
         <div className="absolute top-0 right-0 p-8 opacity-10">
           <Sparkles size={120} className="text-indigo-500" />
@@ -454,6 +492,8 @@ export default function Dashboard({
               <Loader2 className="animate-spin text-indigo-500" size={20} />
               <p className="text-zinc-400 text-sm italic">SIA is analyzing your recent patterns...</p>
             </div>
+          ) : (!logs || Object.keys(logs).length === 0) ? (
+            <StaticFallbackUI tier={userProfile?.tier || 'Basic'} onLogClick={onLogClick} />
           ) : dailyBrief ? (
             <div className="space-y-4">
               <p className="text-zinc-200 leading-relaxed text-sm font-medium">
@@ -476,8 +516,8 @@ export default function Dashboard({
 
       {/* Section: Status Report */}
       <section className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
-          <Card className="flex flex-col justify-center border-zinc-800/50 bg-zinc-900/30 p-3 md:p-4 min-h-[140px] md:min-h-[160px] hover:border-zinc-700/50 transition-colors">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
+          <Card className="col-span-2 md:col-span-1 flex flex-col justify-center border-zinc-800/50 bg-zinc-900/30 p-3 md:p-4 min-h-[140px] md:min-h-[160px] hover:border-zinc-700/50 transition-colors">
             <div className="flex items-center gap-2 mb-2">
               <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
               <span className="text-[8px] md:text-[10px] text-zinc-300 uppercase tracking-widest font-bold">Status Report</span>

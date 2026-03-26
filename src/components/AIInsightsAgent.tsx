@@ -341,7 +341,7 @@ export default function AIInsightsAgent({ logs, user, userProfile, personalizati
   }
 
   return (
-    <div className="flex flex-col h-[600px] bg-zinc-950 border border-zinc-800 rounded-3xl overflow-hidden animate-scanning relative">
+    <div className="flex flex-col h-[100dvh] md:h-[80vh] w-full bg-zinc-950 border border-zinc-800 rounded-none md:rounded-3xl overflow-hidden animate-scanning relative">
       {/* Header */}
       <div className="p-4 border-b border-zinc-800 bg-zinc-900/80 backdrop-blur-md flex items-center justify-between text-left relative z-10">
         <div className="flex items-center gap-3">
@@ -369,7 +369,7 @@ export default function AIInsightsAgent({ logs, user, userProfile, personalizati
       {/* Messages Area */}
       <div 
         ref={scrollRef}
-        className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-hide"
+        className="flex-1 overflow-y-auto p-2 md:p-4 space-y-4 scrollbar-hide"
       >
         <AnimatePresence initial={false}>
           {messages.map((msg, i) => (
@@ -427,46 +427,43 @@ export default function AIInsightsAgent({ logs, user, userProfile, personalizati
 
       {/* Quick Prompts */}
       <div className="px-4 py-2 border-t border-zinc-800 bg-zinc-900/30">
-        <div className="flex items-center justify-between mb-2">
+        <button 
+          onClick={() => setIsExpanded(!isExpanded)}
+          className="flex items-center justify-between mb-2 w-full text-left"
+        >
           <p className="text-[10px] text-zinc-300 uppercase tracking-widest font-bold ml-1">Quick Ask</p>
-        </div>
-        <div className="flex flex-wrap gap-2 pb-2">
-          {(isExpanded ? QUICK_PROMPTS : QUICK_PROMPTS.slice(0, 5)).map((qp, i) => (
-            <button
-              key={i}
-              onClick={() => handleSend(qp.prompt)}
-              disabled={isLoading || isAnalyzing}
-              className={`flex items-center gap-2 px-3 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-2xl text-xs font-medium transition-colors disabled:opacity-50 ${
-                qp.category === 'diagnose' ? 'hover:border-red-500/30' :
-                qp.category === 'trend' ? 'hover:border-blue-500/30' :
-                qp.category === 'action' ? 'hover:border-indigo-500/30' :
-                'hover:border-emerald-500/30'
-              }`}
-            >
-              {qp.label}
-            </button>
-          ))}
-          {QUICK_PROMPTS.length > 5 && (
-            <button
-              onClick={() => setIsExpanded(!isExpanded)}
-              className="flex items-center gap-1 px-3 py-2 bg-zinc-800/50 hover:bg-zinc-800 border border-zinc-700 rounded-2xl text-[10px] font-bold uppercase tracking-widest text-zinc-300 transition-all"
-            >
-              {isExpanded ? 'Less' : 'More'}
-              <ChevronDown size={12} className={`transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />
-            </button>
-          )}
-        </div>
+          <ChevronDown size={12} className={`text-zinc-300 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />
+        </button>
+        {isExpanded && (
+          <div className="flex flex-wrap gap-2 pb-2">
+            {QUICK_PROMPTS.map((qp, i) => (
+              <button
+                key={i}
+                onClick={() => handleSend(qp.prompt)}
+                disabled={isLoading || isAnalyzing}
+                className={`flex items-center gap-2 px-3 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-2xl text-xs font-medium transition-colors disabled:opacity-50 ${
+                  qp.category === 'diagnose' ? 'hover:border-red-500/30' :
+                  qp.category === 'trend' ? 'hover:border-blue-500/30' :
+                  qp.category === 'action' ? 'hover:border-indigo-500/30' :
+                  'hover:border-emerald-500/30'
+                }`}
+              >
+                {qp.label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Input Area */}
-      <div className="p-4 bg-zinc-900 border-t border-zinc-800">
+      <div className="p-2 md:p-4 bg-zinc-900 border-t border-zinc-800">
         {dataMaturity.level < 2 && (
-          <div className="mb-4 p-3 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
-            <div className="space-y-1">
-              <p className="text-xs font-bold text-amber-400 uppercase tracking-widest">Low Data Fidelity</p>
-              <p className="text-[10px] text-zinc-400 leading-relaxed">
-                SIA is currently in Baseline mode. For more accurate clinical correlations, please log at least 14 days of data. (Progress: {dataMaturity.count}/14)
+          <div className="mb-2 p-2 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-start gap-2">
+            <AlertCircle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+            <div className="space-y-0.5">
+              <p className="text-[10px] font-bold text-amber-400 uppercase tracking-widest">Low Data Fidelity</p>
+              <p className="text-[9px] text-zinc-400 leading-relaxed">
+                SIA is in Baseline mode. Log 14 days for better correlations. (Progress: {dataMaturity.count}/14)
               </p>
             </div>
           </div>

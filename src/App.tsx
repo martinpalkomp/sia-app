@@ -91,7 +91,8 @@ import SleepRibbon from './components/SleepRibbon';
 import SleepPatternCard from './components/SleepPatternCard';
 import { SleepWindow } from './components/SleepWindow';
 import DataImporter from './components/DataImporter';
-import { AvatarFrame } from './components/UI';
+import { AvatarFrame, MetricDisplay } from './components/UI';
+import { Navbar } from './components/Navbar';
 
 import { saveLog, validateLogMetrics } from './services/sleepService';
 import { getSuggestedLog, AICorrection, SuggestionResult } from './utils/patternEngine';
@@ -204,6 +205,16 @@ export default function App() {
   const [showPrefillConfirm, setShowPrefillConfirm] = useState(false);
   const [maturity, setMaturity] = useState<MaturityInfo | null>(null);
   const [isSleepToolsExpanded, setIsSleepToolsExpanded] = useState(false);
+
+  const derivedTier = useMemo(() => {
+    // Temporary override for testing
+    const override = localStorage.getItem('sia_tier_override');
+    if (override) return override;
+
+    if (userProfile?.tier === 'Pro') return 'Pro';
+    if (personalizationProfile) return 'Enhanced';
+    return 'Basic';
+  }, [userProfile, personalizationProfile]);
 
   const currentLog = useMemo(() => {
     const defaultFactors = {
@@ -1187,90 +1198,16 @@ export default function App() {
 
   return (
     <div className={`min-h-screen bg-clinical-bg text-clinical-text font-sans selection:bg-indigo-500/30 max-w-[100vw] overflow-x-hidden ${personalizationProfile ? 'enhanced-mode' : ''}`}>
-      {/* Header */}
-      <header className={`absolute top-0 left-0 right-0 w-full z-50 bg-clinical-bg/80 backdrop-blur-md border-b border-clinical-border px-4 py-3 transition-all ${personalizationProfile ? 'border-b-2 border-indigo-500' : ''}`}>
-        <div className="max-w-4xl mx-auto flex flex-row justify-between items-center gap-4">
-          <div className="flex items-center gap-3 cursor-pointer shrink-0" onClick={() => setView('dashboard')}>
-              <AvatarFrame 
-                src="https://i.imgur.com/MnI5hn3.png" 
-                alt="SIA" 
-                size="sm"
-                className="w-10 h-10 md:w-12 md:h-12 shadow-lg shadow-indigo-500/20 border-indigo-500/30 bg-indigo-600"
-              />
-              <div className="hidden sm:block">
-                <h1 className="text-2xl md:text-4xl font-black tracking-tighter text-white flex items-center gap-2">
-                  SIA
-                  {userProfile?.tier && (
-                    <span className={`text-[8px] md:text-[10px] font-black px-1.5 py-0.5 rounded border uppercase tracking-widest ${
-                      userProfile.tier === 'Pro' ? 'bg-violet-500/20 text-violet-400 border-violet-500/30' :
-                      userProfile.tier === 'Enhanced' ? 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30' :
-                      'bg-zinc-500/20 text-zinc-400 border-zinc-500/30'
-                    }`}>
-                      {userProfile.tier}
-                    </span>
-                  )}
-                </h1>
-                <p className="text-[9px] md:text-[10px] text-zinc-500 uppercase tracking-[0.3em] font-black">Sleep Intelligence Agent</p>
-              </div>
-          </div>
+      {/* Navbar */}
+      <Navbar 
+        user={user} 
+        view={view} 
+        setView={setView} 
+        handleLogout={handleLogout} 
+        derivedTier={derivedTier} 
+      />
 
-          {/* Maturity Progress in Header - REMOVED */}
-          
-          <div className="flex items-center gap-x-2 md:gap-x-3 flex-nowrap">
-            <div className="flex bg-zinc-900/50 p-1 rounded-xl border border-zinc-800/50 gap-x-2 md:gap-x-3 flex-nowrap items-center">
-              {[
-                { id: 'dashboard', label: 'DASHBOARD' },
-                { id: 'log', label: 'LOG' },
-                { id: 'insights', label: 'INSIGHT' },
-                { id: 'ai', label: 'AI ANALYSIS' }
-              ].map((v) => (
-                <button 
-                  key={v.id}
-                  onClick={() => setView(v.id === 'insights' ? 'weekly' : v.id as any)}
-                  className={`px-1.5 md:px-3 py-1.5 rounded-lg md:rounded-xl text-[9px] md:text-[10px] font-black transition-all uppercase tracking-tighter md:tracking-widest flex items-center gap-1.5 whitespace-nowrap ${
-                    view === v.id || (v.id === 'insights' && ['weekly', 'monthly', 'custom'].includes(view))
-                      ? 'bg-zinc-800 text-white shadow-sm' 
-                      : 'text-zinc-500 hover:text-zinc-300'
-                  } ${v.id === 'ai' ? 'border border-indigo-500/30 bg-indigo-500/5 text-indigo-300 shadow-[0_0_10px_rgba(99,102,241,0.1)]' : ''}`}
-                >
-                  {v.label}
-                </button>
-              ))}
-              
-              {/* User Icon */}
-              <button 
-                onClick={() => setView('account')}
-                className={`p-0.5 rounded-full transition-all border-2 flex-shrink-0 aspect-square ${view === 'account' ? 'border-indigo-500 shadow-lg shadow-indigo-500/20' : 'border-transparent hover:border-zinc-700'}`}
-                title={user?.displayName || 'Account'}
-              >
-                {user?.photoURL ? (
-                  <img 
-                    src={user.photoURL} 
-                    alt="Profile" 
-                    className="w-8 h-8 rounded-full object-cover flex-shrink-0" 
-                    referrerPolicy="no-referrer"
-                  />
-                ) : (
-                  <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center text-[10px] font-bold text-zinc-400 flex-shrink-0 aspect-square">
-                    {user?.displayName?.charAt(0) || 'U'}
-                  </div>
-                )}
-              </button>
-            </div>
-
-            {/* Logout Icon */}
-            <button 
-              onClick={handleLogout}
-              className="p-2 text-zinc-500 hover:text-white transition-colors flex-shrink-0"
-              title="Logout"
-            >
-              <LogOut size={18} />
-            </button>
-          </div>
-        </div>
-      </header>
-
-      <main className="max-w-4xl mx-auto p-4 pb-24 pt-24 md:pt-28 touch-pan-y">
+      <main className="max-w-4xl mx-auto p-4 pb-24 pt-20 md:pt-24 touch-pan-y">
         <AnimatePresence mode="wait">
           {view === 'dashboard' ? (
             <motion.div
@@ -1297,7 +1234,7 @@ export default function App() {
                     <Dashboard 
                       logs={logs} 
                       user={user}
-                      userProfile={userProfile}
+                      userProfile={{ ...userProfile, tier: derivedTier }}
                       selectedDate={selectedDate}
                       correctionsCount={correctionsCount}
                       personalizationProfile={personalizationProfile}
@@ -2301,7 +2238,7 @@ export default function App() {
                 <AIInsightsAgent 
                   logs={logs} 
                   user={user} 
-                  userProfile={userProfile}
+                  userProfile={userProfile ? { ...userProfile, tier: derivedTier } : null}
                   personalizationProfile={personalizationProfile}
                   isProfileLoading={isProfileLoading}
                 />
@@ -2396,26 +2333,35 @@ export default function App() {
               {/* Averages Grid */}
               {averageStats ? (
                 <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
-                  <div className="bg-zinc-900/50 border border-zinc-800 p-5 rounded-3xl space-y-1">
-                    <p className="text-[10px] text-zinc-300 uppercase tracking-widest font-bold">Avg Quality</p>
-                    <p className="text-2xl font-bold text-indigo-400">{averageStats.sq}<span className="text-xs text-zinc-400 ml-1">/10</span></p>
-                  </div>
-                  <div className="bg-zinc-900/50 border border-zinc-800 p-5 rounded-3xl space-y-1">
-                    <p className="text-[10px] text-zinc-300 uppercase tracking-widest font-bold">Avg Rested</p>
-                    <p className="text-2xl font-bold text-emerald-400">{averageStats.r}<span className="text-xs text-zinc-400 ml-1">/10</span></p>
-                  </div>
-                  <div className="bg-zinc-900/50 border border-zinc-800 p-5 rounded-3xl space-y-1">
-                    <p className="text-[10px] text-zinc-300 uppercase tracking-widest font-bold">Avg Energy</p>
-                    <p className="text-2xl font-bold text-amber-400">{averageStats.l}<span className="text-xs text-zinc-400 ml-1">/10</span></p>
-                  </div>
-                  <div className="bg-zinc-900/50 border border-zinc-800 p-5 rounded-3xl space-y-1">
-                    <p className="text-[10px] text-zinc-300 uppercase tracking-widest font-bold">Avg Sleep</p>
-                    <p className="text-2xl font-bold text-white">{averageStats.duration}</p>
-                  </div>
-                  <div className="bg-zinc-900/50 border border-zinc-800 p-5 rounded-3xl space-y-1">
-                    <p className="text-[10px] text-zinc-300 uppercase tracking-widest font-bold">Avg Efficiency</p>
-                    <p className="text-2xl font-bold text-purple-400">{averageStats.efficiency}<span className="text-xs text-zinc-400 ml-1">%</span></p>
-                  </div>
+                  <MetricDisplay 
+                    title="Avg Quality" 
+                    value={averageStats.sq} 
+                    unit="/10" 
+                    className="bg-zinc-900/50 border border-zinc-800 p-5 rounded-3xl" 
+                  />
+                  <MetricDisplay 
+                    title="Avg Rested" 
+                    value={averageStats.r} 
+                    unit="/10" 
+                    className="bg-zinc-900/50 border border-zinc-800 p-5 rounded-3xl" 
+                  />
+                  <MetricDisplay 
+                    title="Avg Energy" 
+                    value={averageStats.l} 
+                    unit="/10" 
+                    className="bg-zinc-900/50 border border-zinc-800 p-5 rounded-3xl" 
+                  />
+                  <MetricDisplay 
+                    title="Avg Sleep" 
+                    value={averageStats.duration} 
+                    className="bg-zinc-900/50 border border-zinc-800 p-5 rounded-3xl" 
+                  />
+                  <MetricDisplay 
+                    title="Avg Efficiency" 
+                    value={averageStats.efficiency} 
+                    unit="%" 
+                    className="bg-zinc-900/50 border border-zinc-800 p-5 rounded-3xl" 
+                  />
                 </div>
               ) : (
                 <div className="bg-zinc-900/50 border border-dashed border-zinc-800 p-12 rounded-3xl text-center">
@@ -2488,7 +2434,10 @@ export default function App() {
               </div>
 
               {/* Sleep Pattern Summary Card */}
-              <SleepPatternCard logs={activeDates.map(date => logs[date]).filter(Boolean)} />
+              <SleepPatternCard 
+                logs={activeDates.map(date => logs[date]).filter(Boolean)} 
+                periodType={view === 'monthly' ? '30-DAY' : view === 'custom' ? 'CUSTOM' : '7-DAY'}
+              />
             </motion.div>
           )}
         </AnimatePresence>

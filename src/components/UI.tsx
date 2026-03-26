@@ -78,8 +78,11 @@ export const MetricDisplay: React.FC<MetricDisplayProps> = ({ title, value, unit
           <div className="absolute bottom-full left-0 mb-2 w-48 p-2 bg-zinc-900/90 border border-zinc-800 rounded-lg text-[10px] text-zinc-300 z-50">
             {title === 'Avg Quality' && "Composite score of sleep depth, cycles, and physical restoration."}
             {title === 'Restedness' && "Subjective recovery level and mental readiness upon waking."}
+            {title === 'Avg Rested' && "Subjective recovery level and mental readiness upon waking."}
             {title === 'Energy Level' && "Sustained vitality and cognitive alertness throughout the day."}
+            {title === 'Avg Energy' && "Sustained vitality and cognitive alertness throughout the day."}
             {title === 'Avg Sleep Duration' && "Total time spent in actual sleep states, excluding wakeful periods."}
+            {title === 'Avg Sleep' && "Total time spent in actual sleep states, excluding wakeful periods."}
             {title === 'Avg Efficiency' && "Percentage of time spent asleep relative to total time in bed."}
           </div>
         )}

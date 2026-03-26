@@ -4,9 +4,9 @@ import { getGridFromEvents } from './sleepUtils';
 
 export interface SuggestionResult {
   suggestion: Partial<DailyLog>;
-  confidence: number;
+  confidenceMap: Record<string, number>;
   reasons: string[];
-  hasSleepWindowSuggestion: boolean; // true if sleepEvents were predicted
+  hasSleepWindowSuggestion: boolean;
 }
 
 export interface AICorrection {
@@ -16,6 +16,64 @@ export interface AICorrection {
   actualValue: any;
   timestamp: any;
 }
+
+/**
+ * Predicts and snaps the sleep window to 15-minute increments.
+ */
+export const generateSleepWindowSuggestion = (
+  historicalLogs: DailyLog[],
+  targetDate: string
+): { sleepEvents: import('../types').SleepEvent[]; confidence: number; reasons: string[] } => {
+  const targetDay = getDay(parse(targetDate, 'yyyy-MM-dd', new Date()));
+  const sortedLogs = [...historicalLogs].sort((a, b) => b.date.localeCompare(a.date));
+  
+  // 1. Prioritize day-of-week (last 2 occurrences)
+  const sameDayLogs = sortedLogs.filter(log => getDay(parse(log.date, 'yyyy-MM-dd', new Date())) === targetDay);
+  const relevantLogs = sameDayLogs.length >= 2 ? sameDayLogs.slice(0, 2) : sortedLogs.slice(0, 14);
+
+  const sleepRanges = relevantLogs.map(l => {
+    const timeline = l.sleepEvents ? getGridFromEvents(l.sleepEvents) : (l.timeline || []);
+    const firstSleep = timeline.indexOf('sleep');
+    const lastSleep = timeline.lastIndexOf('sleep');
+    return { start: firstSleep, end: lastSleep };
+  }).filter(r => r.start !== -1);
+
+  if (sleepRanges.length < 2) return { sleepEvents: [], confidence: 0, reasons: [] };
+
+  // 2. Median calculation and snapping
+  const starts = sleepRanges.map(r => r.start).sort((a, b) => a - b);
+  const ends = sleepRanges.map(r => r.end).sort((a, b) => a - b);
+  
+  const medianStart = starts[Math.floor(starts.length / 2)];
+  const medianEnd = ends[Math.floor(ends.length / 2)];
+
+  // 3. Variance Check (Standard Deviation > 45 mins = 3 slots)
+  const variance = sleepRanges.reduce((acc, r) => acc + Math.pow(r.start - medianStart, 2), 0) / sleepRanges.length;
+  const stdDevMinutes = Math.sqrt(variance) * 15;
+  
+  if (stdDevMinutes > 45) {
+    return { sleepEvents: [], confidence: 0.3, reasons: ['Sleep window too variable'] };
+  }
+
+  // 4. Convert to HH:mm
+  const slotToTime = (slot: number): string => {
+    const totalMinutes = (20 * 60) + (slot * 15);
+    const hours = Math.floor((totalMinutes / 60) % 24);
+    const mins = totalMinutes % 60;
+    return `${hours.toString().padStart(2,'0')}:${mins.toString().padStart(2,'0')}`;
+  };
+
+  return {
+    sleepEvents: [{
+      id: 'suggested-sleep-1',
+      type: 'sleep',
+      start: slotToTime(medianStart),
+      end: slotToTime(medianEnd)
+    }],
+    confidence: 0.9,
+    reasons: ['+ Predicted based on recent schedule']
+  };
+};
 
 /**
  * Identifies recurring user habits and suggests a log for the current day.
@@ -59,8 +117,13 @@ export const getSuggestedLog = (
   };
 
   const reasons: string[] = [];
-  let confidencePoints = 0;
-  let totalPossiblePoints = 0;
+  const confidenceMap: Record<string, number> = {};
+  
+  // Helper to calculate confidence (0-1) based on history length
+  const calculateConfidence = (count: number, total: number, minRequired: number) => {
+    if (count < minRequired) return 0;
+    return Math.min(1, count / total);
+  };
 
   // Helper to get value considering corrections
   const getValueWithCorrections = (field: string, historicalValues: any[], defaultValue: any) => {
@@ -74,209 +137,97 @@ export const getSuggestedLog = (
     return getMode(historicalValues) || defaultValue;
   };
 
-  // 1. Frequency Detection (Daily Constants from last 7 days)
-  if (last7Days.length >= 5) {
-    totalPossiblePoints += 5;
-    
+  // 1. Frequency Detection (Daily Constants from last 14 days)
+  const last14Days = sortedLogs.filter(log => {
+    const diff = Math.abs(new Date(targetDate).getTime() - new Date(log.date).getTime());
+    return diff <= 14 * 24 * 60 * 60 * 1000;
+  });
+
+  if (last14Days.length >= 7) {
     // Caffeine
-    const caffeineCount = last7Days.filter(l => l.factors?.caffeine?.consumed).length;
-    if (caffeineCount / last7Days.length >= 0.8) {
-      const avgAmount = Math.round(last7Days.reduce((acc, l) => acc + (l.factors?.caffeine?.amount || 0), 0) / caffeineCount);
-      const lastIntake = getValueWithCorrections(
-        'factors.caffeine.lastIntake', 
-        last7Days.map(l => l.factors?.caffeine?.lastIntake).filter(Boolean),
-        '14:00'
-      );
-      
+    const caffeineCount = last14Days.filter(l => l.factors?.caffeine?.consumed).length;
+    const caffeineConf = calculateConfidence(caffeineCount, last14Days.length, 5);
+    if (caffeineConf >= 0.6) {
+      const avgAmount = Math.round(last14Days.reduce((acc, l) => acc + (l.factors?.caffeine?.amount || 0), 0) / caffeineCount);
       suggestion.factors!.caffeine = { 
         consumed: true, 
         amount: avgAmount, 
-        lastIntake
+        lastIntake: getValueWithCorrections('factors.caffeine.lastIntake', last14Days.map(l => l.factors?.caffeine?.lastIntake).filter(Boolean), '14:00')
       };
-      reasons.push(`+ ${avgAmount} Coffees (Daily Habit)`);
-      confidencePoints += 1;
+      confidenceMap['factors.caffeine'] = caffeineConf;
+      reasons.push(`+ Caffeine usage detected`);
+    }
+
+    // Alcohol (Daily Factor)
+    const alcoholCount = last14Days.filter(l => l.factors?.alcohol?.consumed).length;
+    const alcoholConf = calculateConfidence(alcoholCount, last14Days.length, 5);
+    if (alcoholConf >= 0.6) {
+        suggestion.factors!.alcohol = {
+            consumed: true,
+            drinks: Math.round(last14Days.reduce((acc, l) => acc + (l.factors?.alcohol?.drinks || 0), 0) / alcoholCount),
+            lastIntake: getValueWithCorrections('factors.alcohol.lastIntake', last14Days.map(l => l.factors?.alcohol?.lastIntake).filter(Boolean), '20:00')
+        };
+        confidenceMap['factors.alcohol'] = alcoholConf;
+        reasons.push(`+ Alcohol usage detected`);
+    }
+
+    // Stress Level (Daily Factor)
+    const stressLevels = last14Days.map(l => l.factors?.stressLevel).filter((s): s is number => typeof s === 'number');
+    if (stressLevels.length >= 7) {
+        const avgStress = Math.round(stressLevels.reduce((a, b) => a + b, 0) / stressLevels.length);
+        suggestion.factors!.stressLevel = avgStress;
+        confidenceMap['factors.stressLevel'] = 0.7; // Fixed confidence for average
+        reasons.push(`+ Stress level baseline`);
     }
 
     // Screens in bed
-    const screensCount = last7Days.filter(l => l.factors?.screensInBed).length;
-    if (screensCount / last7Days.length >= 0.8) {
-      suggestion.factors!.screensInBed = getValueWithCorrections(
-        'factors.screensInBed',
-        last7Days.map(l => l.factors?.screensInBed),
-        true
-      );
-      reasons.push(`+ Screens in Bed (Daily Habit)`);
-      confidencePoints += 1;
+    const screensCount = last14Days.filter(l => l.factors?.screensInBed).length;
+    const screensConf = calculateConfidence(screensCount, last14Days.length, 5);
+    if (screensConf >= 0.6) {
+      suggestion.factors!.screensInBed = getValueWithCorrections('factors.screensInBed', last14Days.map(l => l.factors?.screensInBed), true);
+      confidenceMap['factors.screensInBed'] = screensConf;
+      reasons.push(`+ Screens in Bed habit`);
     }
-
-    // Last meal time suggestion (from last 7 days)
-    const mealTimes = last7Days
-      .map(l => l.factors?.lastMealTime)
-      .filter((t): t is string => !!t);
-    if (mealTimes.length >= 4) {
-      suggestion.factors!.lastMealTime = getValueWithCorrections(
-        'factors.lastMealTime', mealTimes, '19:30'
-      );
-      reasons.push(`+ Last meal ~${suggestion.factors!.lastMealTime}`);
-      confidencePoints += 1;
-    }
-
-    // Natural wake suggestion (same day of week pattern)
-    if (sameDayOfWeekLogs.length >= 3) {
-      const naturalWakeCount = sameDayOfWeekLogs.filter(l => l.factors?.naturalWake).length;
-      if (naturalWakeCount / sameDayOfWeekLogs.length >= 0.7) {
-        suggestion.factors!.naturalWake = true;
-        reasons.push(`+ Natural wake (typical for this day)`);
-      }
-    }
-
-    // Morning mood baseline (7-day average)
-    const moodScores = last7Days
-      .map(l => l.factors?.moodScore)
-      .filter((m): m is number => typeof m === 'number');
-    if (moodScores.length >= 4) {
-      const avgMood = Math.round(moodScores.reduce((a, b) => a + b, 0) / moodScores.length);
-      suggestion.factors!.moodScore = avgMood;
-    }
-
-    // Stress level baseline (7-day average, only if consistent)
-    const stressLevels = last7Days
-      .map(l => l.factors?.stressLevel)
-      .filter((s): s is number => typeof s === 'number');
-    if (stressLevels.length >= 5) {
-      const avgStress = Math.round(stressLevels.reduce((a, b) => a + b, 0) / stressLevels.length);
-      suggestion.factors!.stressLevel = avgStress;
-    }
-
-    // Medication suggestion (same day of week)
-    if (sameDayOfWeekLogs.length >= 3) {
-      const medCount = sameDayOfWeekLogs.filter(l => l.factors?.medication?.taken).length;
-      if (medCount / sameDayOfWeekLogs.length >= 0.8) {
-        const modeType = getValueWithCorrections(
-          'factors.medication.type',
-          sameDayOfWeekLogs.map(l => l.factors?.medication?.type).filter(Boolean),
-          ''
-        );
-        const modeTime = getValueWithCorrections(
-          'factors.medication.time',
-          sameDayOfWeekLogs.map(l => l.factors?.medication?.time).filter(Boolean),
-          '22:00'
-        );
-        suggestion.factors!.medication = { taken: true, type: modeType, time: modeTime };
-        reasons.push(`+ ${modeType || 'Medication'} (Weekly Pattern)`);
-        confidencePoints += 1;
-      }
-    }
-
-    // Gadget suggestion (same day of week)
-    if (sameDayOfWeekLogs.length >= 3) {
-      const gadgetCounts = new Map<string, number>();
-      const gadgetDetails = new Map<string, any>();
-      sameDayOfWeekLogs.forEach(l => {
-        l.factors?.sleepGadgets?.forEach(g => {
-          gadgetCounts.set(g.type, (gadgetCounts.get(g.type) ?? 0) + 1);
-          if (!gadgetDetails.has(g.type)) gadgetDetails.set(g.type, g);
-        });
-      });
-      const suggestedGadgets = Array.from(gadgetCounts.entries())
-        .filter(([, count]) => count / sameDayOfWeekLogs.length >= 0.6)
-        .map(([type]) => gadgetDetails.get(type));
-      if (suggestedGadgets.length > 0) {
-        suggestion.factors!.sleepGadgets = suggestedGadgets;
-        reasons.push(`+ ${suggestedGadgets.map(g => g.type.replace(/_/g,' ')).join(', ')} (weekly pattern)`);
-        confidencePoints += 1;
-      }
-    }
-  }
-
-  // 2. Schedule Detection (Same day of week for 3+ weeks)
-  if (sameDayOfWeekLogs.length >= 3) {
-    totalPossiblePoints += 5;
     
-    // Exercise on this specific day
-    const exerciseCount = sameDayOfWeekLogs.filter(l => l.factors?.exercise?.completed).length;
-    if (exerciseCount / sameDayOfWeekLogs.length >= 0.75) {
-      const modeType = getValueWithCorrections(
-        'factors.exercise.type',
-        sameDayOfWeekLogs.map(l => l.factors?.exercise?.type).filter(Boolean),
-        'Exercise'
-      );
-      const modeTime = getValueWithCorrections(
-        'factors.exercise.time',
-        sameDayOfWeekLogs.map(l => l.factors?.exercise?.time).filter(Boolean),
-        '17:00'
-      );
-      
-      suggestion.factors!.exercise = { 
-        completed: true, 
-        type: modeType, 
-        time: modeTime 
-      };
-      reasons.push(`+ ${modeType || 'Gym'} Schedule`);
-      confidencePoints += 2;
-    }
-
-    // Typical Bedtime/Wake time
-    const sleepRanges = sameDayOfWeekLogs.map(l => {
-      const timeline = l.sleepEvents ? getGridFromEvents(l.sleepEvents) : (l.timeline || []);
-      const firstSleep = timeline.indexOf('sleep');
-      const lastSleep = timeline.lastIndexOf('sleep');
-      return { start: firstSleep, end: lastSleep };
-    }).filter(r => r.start !== -1);
-
-    if (sleepRanges.length >= 3) {
-      const avgStart = Math.round(sleepRanges.reduce((acc, r) => acc + r.start, 0) / sleepRanges.length);
-      const avgEnd = Math.round(sleepRanges.reduce((acc, r) => acc + r.end, 0) / sleepRanges.length);
-      
-      // Convert slot indices back to HH:mm times for sleepEvents
-      const slotToTime = (slot: number): string => {
-        const totalMinutes = (20 * 60) + (slot * 15); // 20:00 base
-        const hours = Math.floor((totalMinutes / 60) % 24);
-        const mins = totalMinutes % 60;
-        return `${hours.toString().padStart(2,'0')}:${mins.toString().padStart(2,'0')}`;
-      };
-
-      // Also detect typical AWAKE-IN patterns (pre-sleep restlessness)
-      const awakeInRanges = sameDayOfWeekLogs
-        .map(l => l.sleepEvents?.filter(ev => ev.type === 'awake-in') ?? [])
-        .filter(evs => evs.length > 0);
-
-      const suggestedEvents: import('../types').SleepEvent[] = [];
-
-      // Add pre-sleep awake-in if user typically has one (>60% of same-day logs)
-      if (awakeInRanges.length / sameDayOfWeekLogs.length >= 0.6) {
-        const typicalAwakeIn = awakeInRanges[0]?.[0]; // use most recent as template
-        if (typicalAwakeIn) {
-          suggestedEvents.push({
-            id: 'suggested-awake-1',
-            type: 'awake-in',
-            start: typicalAwakeIn.start,
-            end: typicalAwakeIn.end
-          });
-          reasons.push(`+ Pre-sleep restless period (~${typicalAwakeIn.start})`);
-        }
-      }
-
-      // Main sleep event
-      suggestedEvents.push({
-        id: 'suggested-sleep-1',
-        type: 'sleep',
-        start: slotToTime(avgStart),
-        end: slotToTime(avgEnd)
-      });
-
-      suggestion.sleepEvents = suggestedEvents;
-      reasons.push(`+ ${slotToTime(avgStart)} Bedtime`);
-      confidencePoints += 2;
+    // Sleep Support Tools (last 10 logs)
+    const last10Logs = sortedLogs.slice(0, 10);
+    const gadgetCounts = new Map<string, number>();
+    last10Logs.forEach(l => l.factors?.sleepGadgets?.forEach(g => gadgetCounts.set(g.type, (gadgetCounts.get(g.type) || 0) + 1)));
+    
+    const suggestedGadgets = Array.from(gadgetCounts.entries())
+        .filter(([, count]) => count / last10Logs.length >= 0.7)
+        .map(([type]) => ({ type }));
+    
+    if (suggestedGadgets.length > 0) {
+        suggestion.factors!.sleepGadgets = suggestedGadgets as any;
+        confidenceMap['factors.sleepGadgets'] = 0.8;
+        reasons.push(`+ Sleep support tools detected`);
     }
   }
 
-  const confidence = totalPossiblePoints > 0 ? confidencePoints / totalPossiblePoints : 0;
+    // Daily Metrics (7-day average for that day of week)
+    const sameDayMetrics = sameDayOfWeekLogs.filter(l => l.morning_alertness && l.daytime_energy);
+    if (sameDayMetrics.length >= 2) {
+        suggestion.morning_alertness = Math.round(sameDayMetrics.reduce((a, l) => a + (l.morning_alertness || 0), 0) / sameDayMetrics.length);
+        suggestion.daytime_energy = Math.round(sameDayMetrics.reduce((a, l) => a + (l.daytime_energy || 0), 0) / sameDayMetrics.length);
+        confidenceMap['morning_alertness'] = 0.7;
+        confidenceMap['daytime_energy'] = 0.7;
+        reasons.push(`+ Historical energy baseline for this day`);
+    }
+
+  // 2. Schedule Detection (Same day of week for 2+ weeks)
+  const sleepWindow = generateSleepWindowSuggestion(sortedLogs, targetDate);
+  if (sleepWindow.sleepEvents.length > 0 && sleepWindow.confidence >= 0.6) {
+    suggestion.sleepEvents = sleepWindow.sleepEvents;
+    confidenceMap['sleepEvents'] = sleepWindow.confidence;
+    reasons.push(...sleepWindow.reasons);
+  }
+
   const hasSleepWindowSuggestion = !!suggestion.sleepEvents && suggestion.sleepEvents.length > 0;
 
   return {
     suggestion,
-    confidence,
+    confidenceMap,
     reasons,
     hasSleepWindowSuggestion
   };
