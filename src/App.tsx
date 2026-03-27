@@ -58,6 +58,30 @@ import {
   getSlotLabel
 } from './constants';
 
+const getDefaultLog = (date: string): DailyLog => ({
+  date: date,
+  type: 'log',
+  factors: {
+    caffeine: { consumed: false, amount: 0, lastIntake: '' },
+    alcohol: { consumed: false, drinks: 0, lastIntake: '' },
+    medication: { taken: false, type: '', time: '' },
+    exercise: { completed: false, type: '', time: '' },
+    screensInBed: false,
+    stressLevel: 3,
+    lastMealTime: '',
+    naturalWake: false,
+    moodScore: 3,
+    sleepGadgets: []
+  },
+  sleepEvents: [],
+  daily_remarks: '',
+  sleep_quality: 3,
+  morning_alertness: 3,
+  daytime_energy: 3,
+  source: 'manual',
+  isIgnored: false
+});
+
 import { format, isAfter, parseISO, startOfDay, startOfWeek, startOfMonth, eachDayOfInterval, endOfDay, subDays } from 'date-fns';
 
 import { 
@@ -731,20 +755,27 @@ export default function App() {
     }
   };
 
-  const updateLog = (updates: Partial<DailyLog>) => {
-    const newLog = { ...currentLog, ...updates };
-    // If the log was imported and is now being manually adjusted, update the source
-    if (newLog.source === 'import') {
-      newLog.source = 'manual';
-    }
-    const newLogs = { ...logs, [selectedDate]: newLog };
-    setLogs(newLogs);
+  const updateLog = (updates: Partial<DailyLog> | ((prevLog: DailyLog) => Partial<DailyLog>)) => {
+    setLogs(prevLogs => {
+      const currentLogForDate = prevLogs[selectedDate] || getDefaultLog(selectedDate);
+      const newUpdates = typeof updates === 'function' ? updates(currentLogForDate) : updates;
+      const newLog = { ...currentLogForDate, ...newUpdates };
+      
+      if (newLog.source === 'import') {
+        newLog.source = 'manual';
+      }
+      
+      const newLogs = { ...prevLogs, [selectedDate]: newLog };
+      saveLogs(newLogs, selectedDate);
+      return newLogs;
+    });
     setSaveStatus('saving');
-    saveLogs(newLogs, selectedDate);
   };
 
   const updateFactors = (updates: Partial<DailyLog['factors']>) => {
-    updateLog({ factors: { ...currentLog.factors, ...updates } });
+    updateLog(prevLog => ({
+      factors: { ...prevLog.factors, ...updates }
+    }));
   };
 
   const toggleGadget = (type: string) => {
