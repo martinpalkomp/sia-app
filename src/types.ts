@@ -147,6 +147,8 @@ export interface DailyLog extends Partial<FullLog>, Partial<SummaryLog> {
   modifiedBySync?: boolean[];
   source?: 'manual' | 'import';
   visualTimeline?: SleepState[];
+  bedTime?: string;
+  wakeTime?: string;
 }
 
 export type UserTier = 'Basic' | 'Enhanced' | 'Pro';

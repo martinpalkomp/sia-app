@@ -369,6 +369,13 @@ export default function App() {
     setShowPatternReview(true);
   };
 
+  const slotToTimeString = (slotIndex: number) => {
+    const totalMinutes = slotIndex * 15;
+    const hours = Math.floor(totalMinutes / 60) % 24;
+    const minutes = totalMinutes % 60;
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+  };
+
   const handleConfirmPattern = () => {
     if (!pendingSuggestion) return;
     const suggestion = pendingSuggestion.suggestion;
@@ -390,6 +397,8 @@ export default function App() {
     const newLogData: Partial<DailyLog> = {
       factors: mergedFactors,
       daily_remarks: suggestion.daily_remarks || currentLog.daily_remarks,
+      bedTime: (suggestion as any).bedTime || ((suggestion as any).bedTimeSlot !== undefined ? slotToTimeString((suggestion as any).bedTimeSlot) : undefined),
+      wakeTime: (suggestion as any).wakeTime || ((suggestion as any).wakeTimeSlot !== undefined ? slotToTimeString((suggestion as any).wakeTimeSlot) : undefined),
     };
 
     // Apply predicted sleep range if available
@@ -1560,7 +1569,7 @@ export default function App() {
                               );
                             }
 
-                            if (confidence < 0.8) {
+                            if (confidence < 0.8 && !(activeSuggestion as any).median) {
                               return (
                                 <button
                                   onClick={() => setShowPrefillConfirm(true)}
