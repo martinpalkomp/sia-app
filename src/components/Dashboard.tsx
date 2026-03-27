@@ -14,7 +14,8 @@ import {
   Loader2,
   Settings,
   Ghost,
-  FileText
+  FileText,
+  Activity
 } from 'lucide-react';
 import { 
   ResponsiveContainer, 
@@ -52,6 +53,7 @@ import SleepGuideCard from './SleepGuideCard';
 import { SleepWindow } from './SleepWindow';
 import SleepPatternCard from './SleepPatternCard';
 import { Header } from './Header';
+import { InsightCard } from './InsightCard';
 
 interface DashboardProps {
   logs: Record<string, DailyLog>;
@@ -524,7 +526,7 @@ export default function Dashboard({
           <Card className={`flex flex-col justify-between hover:border-indigo-500/50 group hover:-translate-y-1 hover:shadow-indigo-500/10 transition-all duration-300 min-h-[140px] md:min-h-[160px] animate-sia-pulse ${isEnhanced ? 'bg-gradient-to-br from-zinc-900 to-indigo-950/30 border-indigo-500/10' : ''}`}>
             <div className="flex justify-between items-start">
               <div className="w-8 h-8 md:w-10 md:h-10 bg-indigo-500/10 rounded-lg md:rounded-xl flex items-center justify-center text-indigo-400 border border-indigo-500/20">
-                <Sparkles size={18} className="md:w-5 md:h-5" />
+                <Activity size={18} className="md:w-5 md:h-5" />
               </div>
               <TrendingUp size={14} className="text-zinc-700 group-hover:text-indigo-400 transition-colors md:w-4 md:h-4" />
             </div>
@@ -600,44 +602,32 @@ export default function Dashboard({
       {/* Section: SIA Quick Insight */}
       <section className="grid grid-cols-1 gap-4">
         <Card 
-          className="bg-zinc-900/50 border-indigo-500/30 relative overflow-hidden group hover:bg-zinc-900/80 cursor-pointer animate-scanning" 
+          className="bg-zinc-900/50 border-indigo-500/30 relative overflow-hidden group hover:bg-zinc-900/80 cursor-pointer" 
           onClick={() => onViewChange('ai')}
         >
           <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:opacity-20 transition-opacity">
-            <CircadianWaveform className="text-indigo-400 w-32" />
+            <Sparkles size={120} className="text-indigo-500" />
           </div>
-          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div className="text-left">
-                <h3 className="text-[10px] font-black text-indigo-300 uppercase tracking-[0.2em]">
-                  SIA QUICK INSIGHT
-                </h3>
-                <p className="text-white font-bold mt-1 leading-tight text-sm">
-                  {isAiLoading ? (isDeepAnalysis ? "Analyzing long-term trends..." : "Scanning recent logs...") : (aiInsight ? `${aiInsight} ${DISCLAIMER}` : "Log more nights to unlock my personalized insights.")}
-                </p>
-                {!isDeepAnalysis && !isAiLoading && aiInsight && (
-                  <button 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeepAnalysis();
-                    }}
-                    className="mt-2 text-[9px] font-black text-indigo-400 hover:text-indigo-300 uppercase tracking-widest flex items-center gap-1"
-                  >
-                    <Sparkles size={10} />
-                    Run Deep Analysis ({personalizationProfile ? '180' : '30'} Days)
-                  </button>
-                )}
+          <div className="relative z-10 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-indigo-500/20 flex items-center justify-center">
+                <Sparkles className="text-indigo-400" size={20} />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-white">SIA QUICK INSIGHT</h2>
+                <p className="text-xs text-indigo-300/70 font-medium uppercase tracking-widest">Personalized Pattern Analysis</p>
               </div>
             </div>
-            <button className="flex items-center gap-2 text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em] hover:text-indigo-300 transition-colors">
-              Full Report <ChevronRight size={16} />
-            </button>
+            
+            <p className="text-zinc-200 leading-relaxed text-sm font-medium">
+              {isAiLoading ? (isDeepAnalysis ? "Analyzing long-term trends..." : "Scanning recent logs...") : (aiInsight ? `${aiInsight} ${DISCLAIMER}` : "Log more nights to unlock my personalized insights.")}
+            </p>
           </div>
         </Card>
       </section>
 
       {/* Section: Advanced Insights Feed */}
-      <section className="space-y-4">
+      <section className="space-y-6">
         <div className="flex items-center justify-between">
           <h3 className="text-[10px] font-black text-zinc-300 uppercase tracking-[0.2em]">Advanced Insights Feed</h3>
         </div>
@@ -658,16 +648,21 @@ export default function Dashboard({
           </Card>
         )}
         <div className="space-y-3">
-          {insights.map(insight => (
-            <Card key={insight.id} className="bg-zinc-900/50 border-zinc-800 p-4">
-              <p className="text-xs text-zinc-300">{insight.summary}</p>
-            </Card>
+          {insights.map((insight, index) => (
+            <motion.div
+              key={insight.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.1 }}
+            >
+              <InsightCard insight={insight} tier={userProfile?.tier} />
+            </motion.div>
           ))}
         </div>
       </section>
 
       {/* Section: Data Maturity Progress */}
-      <section className="space-y-4">
+      <section className="space-y-6">
         <div className="flex items-center justify-between group relative">
           <h3 className="text-[10px] font-black text-zinc-300 uppercase tracking-[0.2em]">SIA Intelligence Maturity</h3>
           <div className="w-4 h-4 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-500 cursor-help opacity-0 group-hover:opacity-100 transition-opacity">
@@ -691,7 +686,7 @@ export default function Dashboard({
           </div>
           
           <div className="relative z-10 space-y-4">
-            <div className="flex justify-between items-end mb-1">
+            <div className="flex flex-col md:flex-row md:justify-between items-start md:items-end mb-1 gap-2">
               <div className="text-left">
                 <p className="text-xs font-bold text-white">Data Fidelity Progress</p>
                 <p className="text-[10px] text-zinc-500 uppercase tracking-wider">
@@ -700,7 +695,7 @@ export default function Dashboard({
                     : `Next milestone: ${dataMaturity.nextThreshold} days`}
                 </p>
               </div>
-              <div className="text-right">
+              <div className="text-left md:text-right">
                 <span className="text-2xl font-black text-white">{dataMaturity.count}</span>
                 <span className="text-xs text-zinc-500 font-bold uppercase ml-1">Days Logged</span>
               </div>

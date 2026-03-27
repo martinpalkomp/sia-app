@@ -340,12 +340,21 @@ export default function App() {
     if (!activeSuggestion) return;
     
     const suggestion = activeSuggestion.suggestion;
+    console.log("SIA Suggestion Applied:", suggestion);
+    
     setOriginalSuggestion(suggestion);
     setPrefillUsed(true);
     
-    // Apply suggested factors
+    // Apply suggested factors using deep merge
     if (suggestion.factors) {
-      updateFactors(suggestion.factors);
+      updateFactors({
+        ...currentLog.factors,
+        ...suggestion.factors,
+        caffeine: { ...currentLog.factors.caffeine, ...suggestion.factors.caffeine },
+        alcohol: { ...currentLog.factors.alcohol, ...suggestion.factors.alcohol },
+        medication: { ...currentLog.factors.medication, ...suggestion.factors.medication },
+        exercise: { ...currentLog.factors.exercise, ...suggestion.factors.exercise },
+      });
     }
     
     // Apply predicted sleep range if available
@@ -364,6 +373,15 @@ export default function App() {
       
       const newEvents = convertGridToEvents(newTimeline);
       updateLog({ sleepEvents: newEvents });
+    }
+    
+    // Visual feedback: Add a class to the form container to trigger a glow/pulse
+    const formElement = document.getElementById('log-form-container');
+    if (formElement) {
+      formElement.classList.add('animate-pulse', 'ring-2', 'ring-indigo-500', 'ring-offset-2', 'ring-offset-zinc-900');
+      setTimeout(() => {
+        formElement.classList.remove('animate-pulse', 'ring-2', 'ring-indigo-500', 'ring-offset-2', 'ring-offset-zinc-900');
+      }, 1000);
     }
     
     setToast({ message: 'Routine applied! You can still make adjustments.', type: 'success' });
@@ -1297,6 +1315,7 @@ export default function App() {
           ) : view === 'log' ? (
             <motion.div 
               key="log"
+              id="log-form-container"
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}

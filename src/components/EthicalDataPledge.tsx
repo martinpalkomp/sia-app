@@ -15,26 +15,19 @@ export default function EthicalDataPledge({ agreed, onToggle, isEnhanced }: Ethi
   return (
     <div className="space-y-4">
       <Card className="bg-indigo-900/10 border-indigo-500/20 p-4">
-        <div className="flex items-start gap-4">
+        <div className="grid grid-cols-[40px_1fr] gap-3">
           <div className="w-10 h-10 rounded-xl bg-indigo-500/20 flex items-center justify-center text-indigo-400 flex-shrink-0">
             <Shield size={20} />
           </div>
-          <div className="flex-1">
+          <div className="min-w-0">
             <h4 className="text-sm font-black text-white uppercase tracking-widest mb-1">Ethical Data Pledge</h4>
-            <p className="text-xs text-zinc-400 leading-relaxed mb-3">
+            <p className="text-xs text-zinc-400 leading-relaxed mb-4">
               Your privacy is our priority. We anonymize your trends to fund research and keep SIA free for everyone.
             </p>
             
-            <div className="flex items-center justify-between">
-              <button 
-                onClick={() => setShowModal(true)}
-                className="text-[10px] font-black uppercase tracking-widest text-indigo-400 hover:text-indigo-300 flex items-center gap-1 transition-colors"
-              >
-                Read Our Full Pledge <ExternalLink size={10} />
-              </button>
-              
-              <div className="flex items-center gap-3">
-                <span className="text-[9px] font-bold text-zinc-400 uppercase tracking-tighter max-w-[120px] text-right leading-tight">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+              <div className="flex items-center justify-between md:justify-start gap-3">
+                <span className="text-[9px] font-bold text-zinc-400 uppercase tracking-tighter leading-tight">
                   {isEnhanced ? 'Included in Enhanced Analysis' : 'Powers your free AI tokens'}
                 </span>
                 <button 
@@ -44,6 +37,12 @@ export default function EthicalDataPledge({ agreed, onToggle, isEnhanced }: Ethi
                   <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-all ${agreed ? (agreed ? 'left-5.5' : 'left-0.5') : 'left-0.5'}`} />
                 </button>
               </div>
+              <button 
+                onClick={() => setShowModal(true)}
+                className="text-[10px] font-black uppercase tracking-widest text-indigo-400 hover:text-indigo-300 flex items-center gap-1 transition-colors self-start md:self-auto"
+              >
+                Read Our Full Pledge <ExternalLink size={10} />
+              </button>
             </div>
           </div>
         </div>
