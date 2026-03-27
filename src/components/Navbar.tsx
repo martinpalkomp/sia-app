@@ -94,19 +94,6 @@ export const Navbar: React.FC<NavbarProps> = ({ user, view, setView, handleLogou
 
         {/* Mobile Logo + Hamburger (on right) */}
         <div className="flex md:hidden items-center gap-3 ml-auto">
-          {/* Temporary Tier Switcher */}
-          <select 
-            className="bg-zinc-800 text-white text-[10px] p-1 rounded"
-            onChange={(e) => {
-              localStorage.setItem('sia_tier_override', e.target.value);
-              window.location.reload();
-            }}
-            value={localStorage.getItem('sia_tier_override') || derivedTier || 'Basic'}
-          >
-            <option value="Basic">Basic</option>
-            <option value="Enhanced">Enhanced</option>
-            <option value="Pro">Pro</option>
-          </select>
 
           <button onClick={() => setView('dashboard')} className="hover:opacity-80 transition-opacity">
             <AvatarFrame 

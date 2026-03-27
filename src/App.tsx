@@ -652,6 +652,30 @@ export default function App() {
               });
             }
 
+            if (log.factors.alcohol.consumed !== originalSuggestion.factors?.alcohol?.consumed)
+              correctionsToLog.push({ field: 'factors.alcohol.consumed', suggestedValue: originalSuggestion.factors?.alcohol?.consumed, actualValue: log.factors.alcohol.consumed });
+
+            if (log.factors.screensInBed !== originalSuggestion.factors?.screensInBed)
+              correctionsToLog.push({ field: 'factors.screensInBed', suggestedValue: originalSuggestion.factors?.screensInBed, actualValue: log.factors.screensInBed });
+
+            if (log.factors.stressLevel !== originalSuggestion.factors?.stressLevel)
+              correctionsToLog.push({ field: 'factors.stressLevel', suggestedValue: originalSuggestion.factors?.stressLevel, actualValue: log.factors.stressLevel });
+
+            if (log.factors.lastMealTime !== originalSuggestion.factors?.lastMealTime)
+              correctionsToLog.push({ field: 'factors.lastMealTime', suggestedValue: originalSuggestion.factors?.lastMealTime, actualValue: log.factors.lastMealTime });
+
+            if (log.factors.naturalWake !== originalSuggestion.factors?.naturalWake)
+              correctionsToLog.push({ field: 'factors.naturalWake', suggestedValue: originalSuggestion.factors?.naturalWake, actualValue: log.factors.naturalWake });
+
+            if (log.factors.moodScore !== originalSuggestion.factors?.moodScore)
+              correctionsToLog.push({ field: 'factors.moodScore', suggestedValue: originalSuggestion.factors?.moodScore, actualValue: log.factors.moodScore });
+
+            if (log.morning_alertness !== originalSuggestion.morning_alertness)
+              correctionsToLog.push({ field: 'morning_alertness', suggestedValue: originalSuggestion.morning_alertness, actualValue: log.morning_alertness });
+
+            if (log.daytime_energy !== originalSuggestion.daytime_energy)
+              correctionsToLog.push({ field: 'daytime_energy', suggestedValue: originalSuggestion.daytime_energy, actualValue: log.daytime_energy });
+
             if (correctionsToLog.length > 0) {
               const correctionsRef = collection(db, 'users', user.uid, 'ai_corrections');
               for (const corr of correctionsToLog) {
@@ -1448,7 +1472,10 @@ export default function App() {
                           className="w-full max-h-10 flex flex-col items-center justify-center"
                         >
                           {(() => {
-                            const confidence = activeSuggestion.confidence;
+                            const confidenceValues = Object.values(activeSuggestion.confidenceMap);
+                            const confidence = confidenceValues.length > 0
+                              ? confidenceValues.reduce((a, b) => a + b, 0) / confidenceValues.length
+                              : 0;
                             
                             if (historyCount < 3) {
                               return (

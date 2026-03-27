@@ -84,7 +84,7 @@ export const getSuggestedLog = (
   corrections: AICorrection[] = []
 ): SuggestionResult => {
   if (historicalLogs.length < 3) {
-    return { suggestion: {}, confidence: 0, reasons: ['Not enough history'], hasSleepWindowSuggestion: false };
+    return { suggestion: {}, confidenceMap: {}, reasons: ['Not enough history'], hasSleepWindowSuggestion: false };
   }
 
   const sortedLogs = [...historicalLogs].sort((a, b) => b.date.localeCompare(a.date));
@@ -189,19 +189,24 @@ export const getSuggestedLog = (
       reasons.push(`+ Screens in Bed habit`);
     }
     
-    // Sleep Support Tools (last 10 logs)
-    const last10Logs = sortedLogs.slice(0, 10);
-    const gadgetCounts = new Map<string, number>();
-    last10Logs.forEach(l => l.factors?.sleepGadgets?.forEach(g => gadgetCounts.set(g.type, (gadgetCounts.get(g.type) || 0) + 1)));
-    
-    const suggestedGadgets = Array.from(gadgetCounts.entries())
-        .filter(([, count]) => count / last10Logs.length >= 0.7)
-        .map(([type]) => ({ type }));
-    
-    if (suggestedGadgets.length > 0) {
-        suggestion.factors!.sleepGadgets = suggestedGadgets as any;
-        confidenceMap['factors.sleepGadgets'] = 0.8;
-        reasons.push(`+ Sleep support tools detected`);
+    // Sleep Support Tools (weekly pattern)
+    if (sameDayOfWeekLogs.length >= 3) {
+      const gadgetCounts = new Map<string, number>();
+      const gadgetDetails = new Map<string, any>();
+      sameDayOfWeekLogs.forEach(l => {
+        l.factors?.sleepGadgets?.forEach(g => {
+          gadgetCounts.set(g.type, (gadgetCounts.get(g.type) ?? 0) + 1);
+          if (!gadgetDetails.has(g.type)) gadgetDetails.set(g.type, g);
+        });
+      });
+      const suggestedGadgets = Array.from(gadgetCounts.entries())
+        .filter(([, count]) => count / sameDayOfWeekLogs.length >= 0.6)
+        .map(([type]) => gadgetDetails.get(type));
+      if (suggestedGadgets.length > 0) {
+        suggestion.factors!.sleepGadgets = suggestedGadgets;
+        confidenceMap['factors.sleepGadgets'] = 0.7;
+        reasons.push(`+ Sleep tools (weekly pattern)`);
+      }
     }
   }
 

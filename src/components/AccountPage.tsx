@@ -26,7 +26,7 @@ import DataManager from './DataManager';
 import FeedbackForm from './FeedbackForm';
 import AdminFeedback from './AdminFeedback';
 import { calculateAge, getAgeDecade } from '../utils/dateUtils';
-import { MaturityInfo } from '../services/aiService';
+import { MaturityInfo, AIService } from '../services/aiService';
 
 interface AccountPageProps {
   user: User;
@@ -83,10 +83,13 @@ export default function AccountPage({ user, personalizationProfile, onModifyAsse
     }
   };
 
-  const handleSeedData = async () => {
-    if (window.confirm("This will populate 60 days of logs. Continue?")) {
+  const handleSeed = async (days: number) => {
+    if (window.confirm(`This will populate ${days} days of logs. Continue?`)) {
       try {
-        await seedTestData(user.uid, onRefresh);
+        await seedTestData(days, user.uid, async () => {
+          await AIService.getUserDataMaturity(user.uid);
+          onRefresh();
+        });
       } catch (error) {
         console.error("Seeding error:", error);
         alert("Failed to seed data.");
@@ -428,12 +431,26 @@ export default function AccountPage({ user, personalizationProfile, onModifyAsse
             <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 ml-1">Developer Tools</h3>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <button 
-              onClick={handleSeedData}
-              className="w-full p-4 bg-indigo-600/10 hover:bg-indigo-600/20 border border-indigo-500/30 rounded-2xl flex items-center justify-center gap-3 group transition-all"
-            >
-              <span className="text-sm font-black text-indigo-400 uppercase tracking-widest">🚀 SEED DATA</span>
-            </button>
+            <div className="flex gap-2">
+              <button 
+                onClick={() => handleSeed(7)}
+                className="flex-1 p-4 bg-indigo-600/10 hover:bg-indigo-600/20 border border-indigo-500/30 rounded-2xl flex items-center justify-center gap-3 group transition-all"
+              >
+                <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">7d</span>
+              </button>
+              <button 
+                onClick={() => handleSeed(60)}
+                className="flex-1 p-4 bg-indigo-600/10 hover:bg-indigo-600/20 border border-indigo-500/30 rounded-2xl flex items-center justify-center gap-3 group transition-all"
+              >
+                <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">60d</span>
+              </button>
+              <button 
+                onClick={() => handleSeed(90)}
+                className="flex-1 p-4 bg-indigo-600/10 hover:bg-indigo-600/20 border border-indigo-500/30 rounded-2xl flex items-center justify-center gap-3 group transition-all"
+              >
+                <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">90d</span>
+              </button>
+            </div>
             <button 
               onClick={handlePurgeData}
               className="w-full p-4 bg-red-600/10 hover:bg-red-600/20 border border-red-500/30 rounded-2xl flex items-center justify-center gap-3 group transition-all"

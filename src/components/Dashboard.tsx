@@ -98,18 +98,12 @@ export default function Dashboard({
   useEffect(() => {
     if (!user) return;
     AIService.getUserDataMaturity(user.uid).then(setMaturity);
-  }, [user, logs]);
+  }, [user?.uid]);
 
   // Fetch/Generate Daily Brief
+  const today = new Date().toISOString().split('T')[0];
   useEffect(() => {
-    if (!user || !userProfile) return;
-    
-    if (!logs || Object.keys(logs).length === 0) {
-      setDailyBrief(null);
-      setIsBriefLoading(false);
-      return;
-    }
-
+    if (!user || !userProfile || !logs || Object.keys(logs).length === 0) return;
     const fetchBrief = async () => {
       setIsBriefLoading(true);
       try {
@@ -127,7 +121,7 @@ export default function Dashboard({
     };
 
     fetchBrief();
-  }, [user, userProfile, logs]);
+  }, [user?.uid, userProfile?.tier, today]);
 
   const StaticFallbackUI = ({ tier, onLogClick }: { tier: string, onLogClick: () => void }) => {
     const message = tier === 'Pro' 
@@ -319,7 +313,7 @@ export default function Dashboard({
       `;
 
       const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
+        model: "gemini-2.0-flash-lite",
         contents: [{ role: "user", parts: [{ text: prompt }] }],
         config: {
           systemInstruction: "You are 'SIA', a Sleep Intelligence Agent. Provide punchy, clinical, data-backed weekly sleep insights.",
@@ -824,7 +818,7 @@ export default function Dashboard({
                   </div>
                 </div>
 
-                {dataMaturity.level < 2 ? (
+                {dataMaturity.level < 3 ? (
                   <div className="py-12 text-center space-y-3">
                     <div className="w-12 h-12 bg-zinc-900/50 rounded-2xl flex items-center justify-center text-zinc-700 mx-auto border border-zinc-800">
                       <Brain size={24} />
@@ -832,7 +826,7 @@ export default function Dashboard({
                     <div className="space-y-1">
                       <h4 className="text-sm font-bold text-zinc-500 uppercase tracking-widest">Intelligence Gated</h4>
                       <p className="text-xs text-zinc-600 max-w-xs mx-auto leading-relaxed">
-                        SIA Intelligence requires 14 days of baseline data to identify biological anomalies. (Progress: {dataMaturity.count}/14).
+                        SIA Intelligence requires 90 days of baseline data to identify biological anomalies. (Progress: {dataMaturity.count}/90).
                       </p>
                     </div>
                   </div>

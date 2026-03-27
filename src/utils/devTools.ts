@@ -24,39 +24,34 @@ const REMARKS = [
 ];
 
 /**
- * Seeds 60 days of realistic sleep data for testing.
+ * Seeds data for a specified number of days.
  */
-export const seedTestData = async (userId: string, onComplete?: () => void) => {
+export const seedTestData = async (days: number, userId: string, onComplete?: () => void) => {
   if (!db) throw new Error('Firestore is not initialized');
   const batch = writeBatch(db);
   const today = new Date();
 
-  for (let i = 0; i < 60; i++) {
+  for (let i = 0; i < days; i++) {
     const targetDate = subDays(today, i);
     const dateStr = format(targetDate, 'yyyy-MM-dd');
     
-    // 1. Generate Times
-    // Bedtime: 22:00 - 23:00
-    const bedHour = 22 + Math.floor(Math.random() * 1); 
+    // 1. Generate Times (Snapped to 15-minute increments)
+    const bedHour = 22 + Math.floor(Math.random() * 2); // 22:00 - 23:59
     const bedMin = [0, 15, 30, 45][Math.floor(Math.random() * 4)];
     
-    // Actually falling asleep: 15-30 mins after bedtime
     const sleepHour = bedHour;
-    const sleepMin = bedMin + 15; // Simplified logic for seed
+    const sleepMin = bedMin + 15;
     
-    // Waking up but staying in bed: 06:00 - 07:30
-    const wakeHour = 6 + Math.floor(Math.random() * 2);
+    const wakeHour = 6 + Math.floor(Math.random() * 2); // 06:00 - 07:59
     const wakeMin = [0, 15, 30, 45][Math.floor(Math.random() * 4)];
     
-    // Getting out of bed: 15 mins after waking
     const outHour = wakeHour;
     const outMin = wakeMin + 15;
 
-    // Formatting helpers
     const formatT = (h: number, m: number) => {
-      let finalH = h;
+      let finalH = h % 24;
       let finalM = m;
-      if (m >= 60) { finalH += 1; finalM -= 60; }
+      if (finalM >= 60) { finalH += 1; finalM -= 60; }
       return `${finalH.toString().padStart(2, '0')}:${finalM.toString().padStart(2, '0')}`;
     };
 
@@ -65,11 +60,10 @@ export const seedTestData = async (userId: string, onComplete?: () => void) => {
     const wakeTime = formatT(wakeHour, wakeMin);
     const outTime = formatT(outHour, outMin);
 
-    // 2. Build Realistic Sleep Events
     const sleepEvents = [
-      { id: `seed-${i}-awake-start`, type: 'awake-in' as const, start: bedTime, end: sleepStartTime },
-      { id: `seed-${i}-sleep`, type: 'sleep' as const, start: sleepStartTime, end: wakeTime },
-      { id: `seed-${i}-awake-end`, type: 'awake-in' as const, start: wakeTime, end: outTime }
+      { id: `seed-${dateStr}-awake-start`, type: 'awake-in' as const, start: bedTime, end: sleepStartTime },
+      { id: `seed-${dateStr}-sleep`, type: 'sleep' as const, start: sleepStartTime, end: wakeTime },
+      { id: `seed-${dateStr}-awake-end`, type: 'awake-in' as const, start: wakeTime, end: outTime }
     ];
 
     // ... (rest of your gadgets logic remains the same)
