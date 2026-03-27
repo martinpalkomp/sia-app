@@ -397,8 +397,8 @@ export default function App() {
     const newLogData: Partial<DailyLog> = {
       factors: mergedFactors,
       daily_remarks: suggestion.daily_remarks || currentLog.daily_remarks,
-      bedTime: (suggestion as any).bedTime || ((suggestion as any).bedTimeSlot !== undefined ? slotToTimeString((suggestion as any).bedTimeSlot) : undefined),
-      wakeTime: (suggestion as any).wakeTime || ((suggestion as any).wakeTimeSlot !== undefined ? slotToTimeString((suggestion as any).wakeTimeSlot) : undefined),
+      bedTime: (suggestion as any).bedTime || ((suggestion as any).bedTimeSlot !== undefined ? slotToTimeString((suggestion as any).bedTimeSlot) : null),
+      wakeTime: (suggestion as any).wakeTime || ((suggestion as any).wakeTimeSlot !== undefined ? slotToTimeString((suggestion as any).wakeTimeSlot) : null),
     };
 
     // Apply predicted sleep range if available
