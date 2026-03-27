@@ -21,11 +21,12 @@ export interface FullLog extends BaseLog {
   timeline?: SleepState[]; // 96 slots for 15-min intervals (20:00 to 20:00) - Deprecated
   sleepEvents: SleepEvent[];    // New event-based ledger
   factors: {
-    caffeine: { consumed: boolean | null; amount: number | null; lastIntake: string | null };
-    alcohol: { consumed: boolean | null; drinks: number | null; lastIntake: string | null };
-    medication: { taken: boolean | null; type: string | null; time: string | null };
-    exercise: { completed: boolean | null; type: string | null; time: string | null };
+    caffeine: { consumed: boolean | null; amount: number | null; lastIntake: string | null; isStreak?: boolean };
+    alcohol: { consumed: boolean | null; drinks: number | null; lastIntake: string | null; isStreak?: boolean };
+    medication: { taken: boolean | null; type: string | null; time: string | null; isStreak?: boolean };
+    exercise: { completed: boolean | null; type: string | null; time: string | null; isStreak?: boolean };
     screensInBed: boolean | null;
+    isStreak?: boolean;
     stressLevel: number | null; // 1-5
     lastMealTime?: string | null;     // HH:mm — time of last meal before sleep
     naturalWake?: boolean | null;     // true = woke without alarm, false = alarm woke user
@@ -127,11 +128,12 @@ export interface DailyLog extends Partial<FullLog>, Partial<SummaryLog> {
   timeline?: SleepState[]; // Deprecated
   sleepEvents?: SleepEvent[];   // New event-based ledger
   factors: {
-    caffeine: { consumed: boolean | null; amount: number | null; lastIntake: string | null };
-    alcohol: { consumed: boolean | null; drinks: number | null; lastIntake: string | null };
-    medication: { taken: boolean | null; type: string | null; time: string | null };
-    exercise: { completed: boolean | null; type: string | null; time: string | null };
+    caffeine: { consumed: boolean | null; amount: number | null; lastIntake: string | null; isStreak?: boolean };
+    alcohol: { consumed: boolean | null; drinks: number | null; lastIntake: string | null; isStreak?: boolean };
+    medication: { taken: boolean | null; type: string | null; time: string | null; isStreak?: boolean };
+    exercise: { completed: boolean | null; type: string | null; time: string | null; isStreak?: boolean };
     screensInBed: boolean | null;
+    isStreak?: boolean;
     stressLevel: number | null; // 1-5
     lastMealTime?: string | null;     // HH:mm — time of last meal before sleep
     naturalWake?: boolean | null;     // true = woke without alarm, false = alarm woke user

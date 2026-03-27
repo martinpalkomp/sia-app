@@ -376,19 +376,22 @@ export default function App() {
     
     setOriginalSuggestion(suggestion);
     setPrefillUsed(true);
-    
-    // Apply suggested factors using deep merge
-    if (suggestion.factors) {
-      updateFactors({
-        ...currentLog.factors,
-        ...suggestion.factors,
-        caffeine: { ...currentLog.factors.caffeine, ...suggestion.factors.caffeine },
-        alcohol: { ...currentLog.factors.alcohol, ...suggestion.factors.alcohol },
-        medication: { ...currentLog.factors.medication, ...suggestion.factors.medication },
-        exercise: { ...currentLog.factors.exercise, ...suggestion.factors.exercise },
-      });
-    }
-    
+
+    // Create a deep-merged factors object
+    const mergedFactors = {
+      ...currentLog.factors,
+      ...suggestion.factors,
+      caffeine: { ...currentLog.factors.caffeine, ...(suggestion.factors?.caffeine || {}) },
+      alcohol: { ...currentLog.factors.alcohol, ...(suggestion.factors?.alcohol || {}) },
+      medication: { ...currentLog.factors.medication, ...(suggestion.factors?.medication || {}) },
+      exercise: { ...currentLog.factors.exercise, ...(suggestion.factors?.exercise || {}) },
+    };
+
+    const newLogData: Partial<DailyLog> = {
+      factors: mergedFactors,
+      daily_remarks: suggestion.daily_remarks || currentLog.daily_remarks,
+    };
+
     // Apply predicted sleep range if available
     if ((suggestion as any).predictedSleepRange) {
       const { start, end } = (suggestion as any).predictedSleepRange;
@@ -403,17 +406,23 @@ export default function App() {
         newTimeline[i] = 'sleep';
       }
       
-      const newEvents = convertGridToEvents(newTimeline);
-      updateLog({ sleepEvents: newEvents });
-    }
-    
-    if (suggestion.daily_remarks) {
-      updateLog(prev => ({ ...prev, daily_remarks: suggestion.daily_remarks }));
+      newLogData.sleepEvents = convertGridToEvents(newTimeline);
     }
 
+    // Trigger a single update and save
+    updateLog(newLogData);
+    
     setToast({ message: 'Routine applied! You can still make adjustments.', type: 'success' });
     setShowPatternReview(false);
     setPendingSuggestion(null);
+
+    // UI Feedback: Scroll to "Sleep Window" section
+    setTimeout(() => {
+      const sleepWindowSection = document.getElementById('sleep-window-section');
+      if (sleepWindowSection) {
+        sleepWindowSection.scrollIntoView({ behavior: 'smooth' });
+      }
+    }, 100);
   };
 
   const slideVariants = {
