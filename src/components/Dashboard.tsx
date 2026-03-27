@@ -315,7 +315,7 @@ export default function Dashboard({
       `;
 
       const response = await ai.models.generateContent({
-        model: "gemini-2.0-flash-lite",
+        model: "gemini-3-flash-preview",
         contents: [{ role: "user", parts: [{ text: prompt }] }],
         config: {
           systemInstruction: "You are 'SIA', a Sleep Intelligence Agent. Provide punchy, clinical, data-backed weekly sleep insights.",

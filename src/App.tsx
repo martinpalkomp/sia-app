@@ -117,6 +117,7 @@ import { SleepWindow } from './components/SleepWindow';
 import DataImporter from './components/DataImporter';
 import { AvatarFrame, MetricDisplay } from './components/UI';
 import { Navbar } from './components/Navbar';
+import { SiaPatternReview } from './components/SiaPatternReview';
 
 import { saveLog, validateLogMetrics } from './services/sleepService';
 import { getSuggestedLog, AICorrection, SuggestionResult } from './utils/patternEngine';
@@ -229,6 +230,8 @@ export default function App() {
   const [showPrefillConfirm, setShowPrefillConfirm] = useState(false);
   const [maturity, setMaturity] = useState<MaturityInfo | null>(null);
   const [isSleepToolsExpanded, setIsSleepToolsExpanded] = useState(false);
+  const [showPatternReview, setShowPatternReview] = useState(false);
+  const [pendingSuggestion, setPendingSuggestion] = useState<SuggestionResult | null>(null);
 
   const derivedTier = useMemo(() => {
     // Temporary override for testing
@@ -362,8 +365,13 @@ export default function App() {
 
   const applySuggestion = () => {
     if (!activeSuggestion) return;
-    
-    const suggestion = activeSuggestion.suggestion;
+    setPendingSuggestion(activeSuggestion);
+    setShowPatternReview(true);
+  };
+
+  const handleConfirmPattern = () => {
+    if (!pendingSuggestion) return;
+    const suggestion = pendingSuggestion.suggestion;
     console.log("SIA Suggestion Applied:", suggestion);
     
     setOriginalSuggestion(suggestion);
@@ -399,16 +407,13 @@ export default function App() {
       updateLog({ sleepEvents: newEvents });
     }
     
-    // Visual feedback: Add a class to the form container to trigger a glow/pulse
-    const formElement = document.getElementById('log-form-container');
-    if (formElement) {
-      formElement.classList.add('animate-pulse', 'ring-2', 'ring-indigo-500', 'ring-offset-2', 'ring-offset-zinc-900');
-      setTimeout(() => {
-        formElement.classList.remove('animate-pulse', 'ring-2', 'ring-indigo-500', 'ring-offset-2', 'ring-offset-zinc-900');
-      }, 1000);
+    if (suggestion.daily_remarks) {
+      updateLog(prev => ({ ...prev, daily_remarks: suggestion.daily_remarks }));
     }
-    
+
     setToast({ message: 'Routine applied! You can still make adjustments.', type: 'success' });
+    setShowPatternReview(false);
+    setPendingSuggestion(null);
   };
 
   const slideVariants = {
@@ -2735,6 +2740,14 @@ export default function App() {
           </Suspense>
         )}
       </AnimatePresence>
+      {pendingSuggestion && (
+        <SiaPatternReview 
+          isOpen={showPatternReview}
+          onClose={() => setShowPatternReview(false)}
+          onConfirm={handleConfirmPattern}
+          suggestion={pendingSuggestion}
+        />
+      )}
     </div>
   );
 }
