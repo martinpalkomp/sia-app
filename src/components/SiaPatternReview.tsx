@@ -50,6 +50,27 @@ export const SiaPatternReview: React.FC<SiaPatternReviewProps> = ({ isOpen, onCl
               </div>
 
               <div>
+                <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-2">Predicted Metrics</p>
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="bg-zinc-800/50 p-3 rounded-xl text-center">
+                    <p className="text-[9px] font-black text-zinc-500 uppercase">Quality</p>
+                    <p className="text-lg font-bold text-white mb-1">{suggestion.suggestion.sleep_quality || 5}/10</p>
+                    <p className="text-[8px] font-black text-indigo-400">{Math.round((suggestion.confidenceMap['sleep_quality'] || 0) * 100)}%</p>
+                  </div>
+                  <div className="bg-zinc-800/50 p-3 rounded-xl text-center">
+                    <p className="text-[9px] font-black text-zinc-500 uppercase">Alertness</p>
+                    <p className="text-lg font-bold text-white mb-1">{suggestion.suggestion.morning_alertness || 5}/10</p>
+                    <p className="text-[8px] font-black text-indigo-400">{Math.round((suggestion.confidenceMap['morning_alertness'] || 0) * 100)}%</p>
+                  </div>
+                  <div className="bg-zinc-800/50 p-3 rounded-xl text-center">
+                    <p className="text-[9px] font-black text-zinc-500 uppercase">Energy</p>
+                    <p className="text-lg font-bold text-white mb-1">{suggestion.suggestion.daytime_energy || 5}/10</p>
+                    <p className="text-[8px] font-black text-indigo-400">{Math.round((suggestion.confidenceMap['daytime_energy'] || 0) * 100)}%</p>
+                  </div>
+                </div>
+              </div>
+
+              <div>
                 <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-2">Tools</p>
                 <div className="flex justify-between items-center bg-zinc-800/50 p-4 rounded-xl">
                   <span className="text-sm text-white">{tools}</span>

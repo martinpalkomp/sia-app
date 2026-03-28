@@ -1,5 +1,5 @@
 import React from 'react';
-import { DailyLog } from '../types';
+import { DailyLog, PersonalizationProfile } from '../types';
 import { 
   calculateBedtimeConsistency,
   calculateFragmentationIndex,
@@ -7,25 +7,29 @@ import {
   calculateSocialJetlag
 } from '../utils/diagnosticEngine';
 import { Card } from './UI';
-import { ClipboardCheck, Share2, Info, Printer } from 'lucide-react';
+import { ClipboardCheck, Share2, Info, Printer, FileText } from 'lucide-react';
 import { formatDuration, getGridFromEvents, generateASCIIRibbon, calculateSleepEfficiency } from '../utils/sleepUtils';
 import { format, parseISO } from 'date-fns';
 import PrintableReport from './PrintableReport';
+import { generateDoctorReport } from '../utils/generateDoctorReport';
+import { User } from 'firebase/auth';
 
 interface SleepPatternCardProps {
-  logs: DailyLog[];
+  logs: Record<string, DailyLog>;
   periodType: '7-DAY' | '30-DAY' | 'CUSTOM';
+  personalizationProfile: PersonalizationProfile | null;
+  user: User | null;
+  activeDates: string[];
+  viewMode: 'weekly' | 'monthly' | 'custom';
 }
 
-const SleepPatternCard: React.FC<SleepPatternCardProps> = ({ logs, periodType }) => {
-  if (!logs || !Array.isArray(logs) || logs.length === 0) return null;
-
-  // We assume logs are sorted by date desc or represent the period.
-  const recentLogs = logs.slice().sort((a, b) => b.date.localeCompare(a.date));
+const SleepPatternCard: React.FC<SleepPatternCardProps> = ({ logs, periodType, personalizationProfile, user, activeDates, viewMode }) => {
+  if (!activeDates || activeDates.length === 0) return null;
+  
+  const recentLogs = activeDates.map(d => logs[d]).filter(Boolean).sort((a, b) => b.date.localeCompare(a.date));
+  const latestLog = recentLogs[0];
   
   if (recentLogs.length === 0) return null;
-
-  const latestLog = recentLogs[0];
   
   // Calculate averages for the provided logs
   const avgDuration = recentLogs.reduce((acc, l) => acc + calculateTotalSleepHours(l), 0) / recentLogs.length;
@@ -61,6 +65,40 @@ const SleepPatternCard: React.FC<SleepPatternCardProps> = ({ logs, periodType })
   ];
 
   const [copied, setCopied] = React.useState(false);
+  
+  const handleExportReport = () => {
+    // Only export logs that are in the active view's date set
+    const activeLogs = activeDates
+      .map(d => logs[d])
+      .filter(Boolean);
+
+    if (activeLogs.length === 0) {
+      alert('No data available for the current view period.');
+      return;
+    }
+
+    const sortedDates = [...activeDates].sort();
+    const from = sortedDates[0];
+    const to = sortedDates[sortedDates.length - 1];
+
+    const reportLabel =
+      viewMode === 'weekly' ? 'Last 7 Days' :
+      viewMode === 'monthly' ? 'Last 30 Days' :
+      `${from} to ${to}`;
+
+    const html = generateDoctorReport(
+      activeLogs,
+      personalizationProfile,
+      user?.displayName || 'Patient',
+      { from, to, label: reportLabel }
+    );
+
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const tab = window.open(url, '_blank');
+    if (!tab) alert('Please allow popups to open the report.');
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  };
   
   const handleExport = async () => {
     const logsToAnalyze = recentLogs.slice(0, 7);
@@ -106,6 +144,13 @@ CIRCADIAN GRID:
     }
   };
 
+  const buttonLabel =
+    viewMode === 'weekly' ? 'Export 7-Day Report (PDF)' :
+    viewMode === 'monthly' ? 'Export 30-Day Report (PDF)' :
+    'Export Custom Range Report (PDF)';
+
+  const isExportDisabled = viewMode === 'custom' && activeDates.length === 0;
+
   return (
     <Card className="bg-zinc-900/50 border-zinc-800 rounded-3xl p-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -118,18 +163,6 @@ CIRCADIAN GRID:
             <div className="absolute top-full left-0 mt-2 w-64 p-4 bg-zinc-900/95 border border-zinc-800 rounded-lg text-[11px] text-zinc-300 z-50 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity">
               This summary provides observations based on your logged data over the selected period.
             </div>
-          </div>
-        </div>
-        <div className="flex gap-2">
-          <button 
-            onClick={() => window.print()}
-            className="w-8 h-8 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white rounded-xl flex items-center justify-center border border-zinc-700 transition-all"
-            title="Print to PDF"
-          >
-            <Printer size={16} />
-          </button>
-          <div className="w-8 h-8 bg-indigo-500/10 rounded-xl flex items-center justify-center text-indigo-400 border border-indigo-500/20">
-            <Share2 size={16} />
           </div>
         </div>
       </div>
@@ -167,22 +200,33 @@ CIRCADIAN GRID:
           </p>
         </div>
 
-        <button 
-          onClick={handleExport}
-          className="w-full py-3 bg-zinc-800 hover:bg-zinc-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 border border-zinc-700"
-        >
-          {copied ? (
-            <>
-              <ClipboardCheck size={14} className="text-emerald-400" />
-              Report Copied
-            </>
-          ) : (
-            <>
-              <Share2 size={14} />
-              Export for Doctor
-            </>
-          )}
-        </button>
+        <div className="flex gap-2">
+          <button 
+            onClick={handleExport}
+            className="flex-1 py-3 bg-zinc-800 hover:bg-zinc-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 border border-zinc-700"
+          >
+            {copied ? (
+              <>
+                <ClipboardCheck size={14} className="text-emerald-400" />
+                Report Copied
+              </>
+            ) : (
+              <>
+                <Share2 size={14} />
+                Export
+              </>
+            )}
+          </button>
+          <button 
+            onClick={handleExportReport}
+            disabled={isExportDisabled}
+            title={isExportDisabled ? 'Select a date range first' : ''}
+            className={`flex-1 py-3 ${isExportDisabled ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-500 text-white'} rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 border ${isExportDisabled ? 'border-zinc-700' : 'border-indigo-500'}`}
+          >
+            <FileText size={14} />
+            {buttonLabel}
+          </button>
+        </div>
       </div>
     </Card>
   );

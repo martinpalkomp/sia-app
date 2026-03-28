@@ -26,8 +26,8 @@ export const shouldTriggerAI = (
 
   switch (featureName) {
     case 'DeepAnalysis':
-      if (userTier !== 'Pro' || maturityLevel < 3) {
-        return { shouldTrigger: false, reason: "Deep Analysis requires Pro tier and 90 days of data." };
+      if ((userTier === 'Basic') || maturityLevel < 3) {
+        return { shouldTrigger: false, reason: "Deep Analysis requires Enhanced or Pro tier and 90 days of data." };
       }
       break;
     case 'DailyBrief':

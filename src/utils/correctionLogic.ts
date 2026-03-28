@@ -9,8 +9,7 @@ export const calculateLogVitality = (log: DailyLog): number => {
   }
 
   // Sleep Window (30 pts)
-  if (typeof log.bedTime === 'string' && log.bedTime.length > 0 && 
-      typeof log.wakeTime === 'string' && log.wakeTime.length > 0) {
+  if (log.sleepEvents && log.sleepEvents.some(e => e.type === 'sleep')) {
     score += 30;
   }
 

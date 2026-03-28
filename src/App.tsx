@@ -380,7 +380,7 @@ export default function App() {
 
   const handleConfirmPattern = () => {
     if (!pendingSuggestion) return;
-    const suggestion = pendingSuggestion.suggestion;
+    const suggestion = pendingSuggestion.suggestion as any;
     console.log("DEBUG: SIA Suggestion Received:", suggestion);
     
     // Bridge any naming gaps between AI and the Log Form
@@ -785,7 +785,7 @@ export default function App() {
                 await addDoc(correctionsRef, {
                   ...corr,
                   date: selectedDate,
-                  timestamp: serverTimestamp()
+                  createdAt: serverTimestamp()
                 });
               }
               console.log(`Logged ${correctionsToLog.length} AI corrections.`);
@@ -1118,7 +1118,7 @@ export default function App() {
       `;
 
       const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
+        model: "gemini-2.0-flash",
         contents: [{ role: "user", parts: [{ text: reportPrompt }] }],
         config: { temperature: 0.2, maxOutputTokens: 2048 }
       });
@@ -2573,8 +2573,12 @@ export default function App() {
 
               {/* Sleep Pattern Summary Card */}
               <SleepPatternCard 
-                logs={activeDates.map(date => logs[date]).filter(Boolean)} 
+                logs={logs} 
                 periodType={view === 'monthly' ? '30-DAY' : view === 'custom' ? 'CUSTOM' : '7-DAY'}
+                personalizationProfile={personalizationProfile}
+                user={user}
+                activeDates={activeDates}
+                viewMode={view as 'weekly' | 'monthly' | 'custom'}
               />
             </motion.div>
           )}

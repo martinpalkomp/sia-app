@@ -125,6 +125,16 @@ export default function Dashboard({
     AIService.getUserDataMaturity(user.uid).then(setMaturity);
   }, [user?.uid]);
 
+  const rephraseGuardrailMessage = (reason: string): string => {
+    if (reason.includes("Already generated today")) {
+      return "Your daily brief is ready and waiting. SIA only analyses once per day to give your data time to breathe.";
+    }
+    if (reason.includes("still calibrating")) {
+      return "SIA is still getting to know you. Log a few more nights to unlock your personalised brief.";
+    }
+    return reason;
+  };
+
   // Fetch/Generate Daily Brief
   const today = new Date().toISOString().split('T')[0];
   useEffect(() => {
@@ -141,7 +151,7 @@ export default function Dashboard({
         if (response.status === 'success') {
           setDailyBrief(response.content);
         } else {
-          setDailyBrief(`SIA Intelligence Status: ${response.reason}`);
+          setDailyBrief(rephraseGuardrailMessage(response.reason));
         }
       } catch (err) {
         console.error("Brief Error:", err);
@@ -304,7 +314,7 @@ export default function Dashboard({
       if (response.status === 'success') {
         setAiInsight(response.content);
       } else {
-        setAiInsight(`SIA Intelligence Status: ${response.reason}`);
+        setAiInsight(rephraseGuardrailMessage(response.reason));
       }
     } catch (e) {
       console.error("Dashboard AI Error:", e);
@@ -341,18 +351,10 @@ export default function Dashboard({
         querySnapshot = await getDocs(query(logsRef, orderBy('date', 'desc'), limit(daysCount)));
       }
       
-      const historicalLogs: any[] = [];
+      const historicalLogs: DailyLog[] = [];
       querySnapshot.forEach(doc => {
         const data = doc.data() as DailyLog;
-        const sleepData = data.sleepEvents || data.timeline || [];
-        
-        historicalLogs.push({
-          d: data.date,
-          dur: calculateSleepDuration(sleepData),
-          q: data.sleep_quality,
-          r: data.morning_alertness,
-          eff: calculateSleepEfficiency(sleepData)
-        });
+        historicalLogs.push(data);
       });
 
       const response = await AIService.generateDeepAnalysis(
@@ -366,7 +368,7 @@ export default function Dashboard({
       if (response.status === 'success') {
         setAiInsight(response.content);
       } else {
-        setAiInsight(`SIA Intelligence Status: ${response.reason}`);
+        setAiInsight(rephraseGuardrailMessage(response.reason));
       }
     } catch (e) {
       console.error("Deep Analysis Error:", e);
@@ -598,6 +600,16 @@ export default function Dashboard({
             </div>
           </div>
         </Card>
+
+        {/* Insights Feed */}
+        {insights.length > 0 && (
+          <div className="space-y-4">
+            <h3 className="text-[10px] font-black text-zinc-300 uppercase tracking-[0.2em]">Clinical Insights</h3>
+            {insights.map(insight => (
+              <InsightCard key={insight.id} insight={insight} />
+            ))}
+          </div>
+        )}
       </section>
 
       {/* Section: Data Maturity Progress */}
