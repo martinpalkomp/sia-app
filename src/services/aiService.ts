@@ -142,31 +142,37 @@ export class AIService {
       Focus on immediate recovery status and one actionable tip for tonight.
     `;
 
-    const response = await ai.models.generateContent({
-      model: modelName,
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-      config: {
-        systemInstruction: "You are SIA, a Sleep Intelligence Agent. Provide a brief, professional daily summary.",
-        temperature: 0.7
+    try {
+      const response = await ai.models.generateContent({
+        model: modelName,
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        config: {
+          systemInstruction: "You are SIA, a Sleep Intelligence Agent. Provide a brief, professional daily summary.",
+          temperature: 0.7
+        }
+      });
+      const content = response.text || "Unable to generate brief.";
+      
+      // Check for partial logs
+      const hasPartialLogs = logs.some(log => calculateLogVitality(log) < 100);
+      const partialTag = hasPartialLogs ? "\n\n*Analysis based on Partial Data*" : "";
+      
+      const finalContent = `${content}${partialTag}\n\n***\n\n${DISCLAIMER}`;
+
+      // Cache it
+      await addDoc(collection(db!, 'users', userId, 'daily_briefs'), {
+        date: today,
+        content: finalContent,
+        createdAt: serverTimestamp()
+      });
+
+      return { content: finalContent, status: 'success' };
+    } catch (error: any) {
+      if (error.status === 503) {
+        return { content: "SIA is currently busy. Please try applying the pattern again in a few seconds.", status: 'success' };
       }
-    });
-
-    const content = response.text || "Unable to generate brief.";
-    
-    // Check for partial logs
-    const hasPartialLogs = logs.some(log => calculateLogVitality(log) < 100);
-    const partialTag = hasPartialLogs ? "\n\n*Analysis based on Partial Data*" : "";
-    
-    const finalContent = `${content}${partialTag}\n\n***\n\n${DISCLAIMER}`;
-
-    // Cache it
-    await addDoc(collection(db!, 'users', userId, 'daily_briefs'), {
-      date: today,
-      content: finalContent,
-      createdAt: serverTimestamp()
-    });
-
-    return { content: finalContent, status: 'success' };
+      throw error;
+    }
   }
 
   static async generateDeepAnalysis(userId: string, logs: DailyLog[], tier: UserTier, maturity: MaturityInfo, lastGeneratedDate: string | null): Promise<AIResponse> {
@@ -186,19 +192,26 @@ export class AIService {
       Format: "📊 SIA Monthly Analysis: [Your analysis here]"
     `;
 
-    const response = await ai.models.generateContent({
-      model: modelName,
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-      config: {
-        systemInstruction: "You are 'SIA', a Sleep Intelligence Agent. Provide deep, structured, data-backed long-term sleep analysis.",
-        temperature: 0.7
+    try {
+      const response = await ai.models.generateContent({
+        model: modelName,
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        config: {
+          systemInstruction: "You are 'SIA', a Sleep Intelligence Agent. Provide deep, structured, data-backed long-term sleep analysis.",
+          temperature: 0.7
+        }
+      });
+
+      const content = response.text || "Unable to generate analysis.";
+      const finalContent = `${content}\n\n***\n\n${DISCLAIMER}`;
+
+      return { content: finalContent, status: 'success' };
+    } catch (error: any) {
+      if (error.status === 503) {
+        return { content: "SIA is currently busy. Please try applying the pattern again in a few seconds.", status: 'success' };
       }
-    });
-
-    const content = response.text || "Unable to generate analysis.";
-    const finalContent = `${content}\n\n***\n\n${DISCLAIMER}`;
-
-    return { content: finalContent, status: 'success' };
+      throw error;
+    }
   }
 
   static async generateQuickInsight(userId: string, logs: DailyLog[], tier: UserTier, maturity: MaturityInfo, lastGeneratedDate: string | null): Promise<AIResponse> {
@@ -216,19 +229,26 @@ export class AIService {
       Provide a concise, actionable insight (max 2 sentences).
     `;
 
-    const response = await ai.models.generateContent({
-      model: modelName,
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-      config: {
-        systemInstruction: "You are SIA, a Sleep Intelligence Agent. Provide a quick, actionable insight.",
-        temperature: 0.7
+    try {
+      const response = await ai.models.generateContent({
+        model: modelName,
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        config: {
+          systemInstruction: "You are SIA, a Sleep Intelligence Agent. Provide a quick, actionable insight.",
+          temperature: 0.7
+        }
+      });
+
+      const content = response.text || "Unable to generate insight.";
+      const finalContent = `${content}\n\n***\n\n${DISCLAIMER}`;
+
+      return { content: finalContent, status: 'success' };
+    } catch (error: any) {
+      if (error.status === 503) {
+        return { content: "SIA is currently busy. Please try applying the pattern again in a few seconds.", status: 'success' };
       }
-    });
-
-    const content = response.text || "Unable to generate insight.";
-    const finalContent = `${content}\n\n***\n\n${DISCLAIMER}`;
-
-    return { content: finalContent, status: 'success' };
+      throw error;
+    }
   }
 
   static async chatWithSIA(
@@ -282,11 +302,15 @@ export class AIService {
       2. Deliver insights in a conversational, supportive, and professional tone.
       3. Use Markdown formatting.
       4. If you identify a significant new Pattern, Risk, or Recommendation, include it in the 'newInsights' array.
+      5. You MUST provide predicted metrics for every routine suggestion: sleep_quality (1-10), morning_alertness (1-10), and daytime_energy (1-10). Do not leave them null or zero.
       
       RESPONSE FORMAT:
       You must return a JSON object:
       {
         "answer": "Your response in Markdown",
+        "sleep_quality": 5,
+        "morning_alertness": 5,
+        "daytime_energy": 5,
         "newInsights": [
           {
             "type": "Pattern" | "Risk" | "Recommendation",
@@ -314,6 +338,9 @@ export class AIService {
             type: Type.OBJECT,
             properties: {
               answer: { type: Type.STRING },
+              sleep_quality: { type: Type.NUMBER },
+              morning_alertness: { type: Type.NUMBER },
+              daytime_energy: { type: Type.NUMBER },
               newInsights: {
                 type: Type.ARRAY,
                 items: {
@@ -329,7 +356,7 @@ export class AIService {
                 }
               }
             },
-            required: ["answer"]
+            required: ["answer", "sleep_quality", "morning_alertness", "daytime_energy"]
           }
         }
       });

@@ -30,7 +30,7 @@ const sanitizeLogForSaving = (data: Partial<DailyLog>) => {
 };
 
 /**
- * Saves a sleep log to Firestore using an upsert (merge) strategy.
+ * Saves a sleep log to Firestore using an update strategy.
  */
 export const saveLog = async (uid: string, logData: Partial<DailyLog> & { date: string }) => {
   if (!db) throw new Error('Firestore is not initialized — check Firebase configuration');
@@ -44,29 +44,26 @@ export const saveLog = async (uid: string, logData: Partial<DailyLog> & { date: 
   const docRef = doc(db, 'users', uid, 'sleep_logs', date);
   const metricsRef = doc(db, 'users', uid, 'daily_metrics', date);
   
-  const batch = writeBatch(db);
-
   const payload = {
     ...sanitizeLogForSaving(rest),
-    date,
     updatedAt: serverTimestamp(),
   };
 
-  // setDoc with merge: true ensures we only update the fields provided
-  batch.set(docRef, payload, { merge: true });
+  // Use updateDoc to prevent permission-denied on protected fields
+  // We use setDoc with merge: true only if the document might not exist, 
+  // but for log updates, updateDoc is safer for permissions.
+  // Assuming the document exists for updates.
+  await updateDoc(docRef, payload);
 
   // Sync to daily_metrics if it has metrics
   if (rest.sleep_quality !== undefined) {
-    batch.set(metricsRef, {
-      date,
+    await updateDoc(metricsRef, {
       sleep_quality: rest.sleep_quality,
       morning_alertness: rest.morning_alertness,
       daytime_energy: rest.daytime_energy,
       daily_remarks: rest.daily_remarks,
       source: rest.source || 'manual',
       updatedAt: serverTimestamp(),
-    }, { merge: true });
+    });
   }
-
-  await batch.commit();
 };

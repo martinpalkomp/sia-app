@@ -157,9 +157,11 @@ export const getSuggestedLog = (
   const calculateWMA = (field: keyof DailyLog) => {
     const last48hVal = last48hLogs.reduce((acc, l) => acc + (Number(l[field]) || 0), 0) / last48hLogs.length;
     const olderVal = olderLogs.reduce((acc, l) => acc + (Number(l[field]) || 0), 0) / olderLogs.length;
-    return Math.round(last48hVal * 0.5 + olderVal * 0.5);
+    const val = Math.round(last48hVal * 0.5 + olderVal * 0.5);
+    return Math.max(1, Math.min(10, val || 5)); // Baseline fallback to 5
   };
   
+  suggestion.sleep_quality = calculateWMA('sleep_quality');
   suggestion.morning_alertness = calculateWMA('morning_alertness');
   suggestion.daytime_energy = calculateWMA('daytime_energy');
   

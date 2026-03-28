@@ -50,17 +50,20 @@ export const Navbar: React.FC<NavbarProps> = ({ user, view, setView, handleLogou
             size="sm"
             className={`w-10 h-10 border-2 bg-indigo-600 ${getTierStyles('avatar')}`}
           />
-          <h1 className="text-xl font-black tracking-tighter text-white flex items-center gap-2">
-            SIA
-            {derivedTier && (
-              <span className={`text-[8px] font-black px-1.5 py-0.5 rounded border uppercase tracking-widest ${
-                derivedTier === 'Pro' ? 'bg-violet-500/20 text-violet-400 border-violet-500/30' :
-                derivedTier === 'Enhanced' ? 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30' :
-                'bg-zinc-500/20 text-zinc-400 border-zinc-500/30'
-              }`}>
-                {derivedTier}
-              </span>
-            )}
+          <h1 className="text-xl font-black tracking-tighter text-white flex flex-col items-start gap-0">
+            <div className="flex items-center gap-2">
+              SIA
+              {derivedTier && (
+                <span className={`text-[8px] font-black px-1.5 py-0.5 rounded border uppercase tracking-widest ${
+                  derivedTier === 'Pro' ? 'bg-violet-500/20 text-violet-400 border-violet-500/30' :
+                  derivedTier === 'Enhanced' ? 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30' :
+                  'bg-zinc-500/20 text-zinc-400 border-zinc-500/30'
+                }`}>
+                  {derivedTier}
+                </span>
+              )}
+            </div>
+            <span className="text-[9px] font-medium text-zinc-400 tracking-[0.1em] uppercase -mt-1">Sleep Intelligence Agent</span>
           </h1>
         </button>
 

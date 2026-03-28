@@ -383,6 +383,15 @@ export default function App() {
     const suggestion = pendingSuggestion.suggestion;
     console.log("DEBUG: SIA Suggestion Received:", suggestion);
     
+    // Bridge any naming gaps between AI and the Log Form
+    const appliedMetrics = {
+      sleep_quality: Number(suggestion.sleep_quality || suggestion.quality || 5),
+      morning_alertness: Number(suggestion.morning_alertness || suggestion.alertness || 5),
+      daytime_energy: Number(suggestion.daytime_energy || suggestion.energy || 5)
+    };
+    
+    console.log("DEBUG: Applied Metrics:", appliedMetrics);
+
     setOriginalSuggestion(suggestion);
     setPrefillUsed(true);
 
@@ -439,12 +448,9 @@ export default function App() {
       sleepEvents: sleepEvents,
       
       // RESTORE THE METRICS
-      sleep_quality: Number(suggestion.sleep_quality ?? currentLog.sleep_quality),
-      morning_alertness: Number(suggestion.morning_alertness ?? currentLog.morning_alertness),
-      daytime_energy: Number(suggestion.daytime_energy ?? currentLog.daytime_energy),
+      ...appliedMetrics
     };
 
-    console.log("DEBUG: Metrics in Suggestion:", suggestion.sleep_quality, suggestion.morning_alertness, suggestion.daytime_energy);
     console.log("DEBUG: Form State After Apply:", newLogData);
 
     // Trigger a single update and save
@@ -586,6 +592,7 @@ export default function App() {
 
     const userRef = doc(db, 'users', user.uid);
     const unsubscribe = onSnapshot(userRef, async (snapshot) => {
+      if (!user.uid) return; // Fix 2: Ensure user.uid exists
       if (snapshot.exists()) {
         const data = snapshot.data();
         // Migration: Ensure tier and quota exist for legacy users
