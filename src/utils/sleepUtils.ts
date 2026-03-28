@@ -2,6 +2,22 @@ import { SleepState, SleepEvent } from '../types';
 import { format } from 'date-fns';
 
 /**
+ * Generates a 96-slot ASCII ribbon from a SleepState array, grouped into 4-hour segments.
+ */
+export const generateASCIIRibbon = (grid: SleepState[]): string => {
+  const segments = [];
+  for (let i = 0; i < 96; i += 16) {
+    const segment = grid.slice(i, i + 16).map(state => {
+      if (state === 'sleep') return '█';
+      if (state === 'awake-in') return '-';
+      return '.';
+    }).join('');
+    segments.push(segment);
+  }
+  return segments.join(' | ');
+};
+
+/**
  * Maps HH:mm time to minutes from 20:00 (the start of our tracking day).
  */
 export const getMinutesFrom2000 = (time: string): number => {

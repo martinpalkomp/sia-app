@@ -22,10 +22,15 @@ export const validateLogMetrics = (metrics: Partial<SummaryLog['summaryMetrics']
 };
 
 /**
+ * Sanitizes log data to prevent unauthorized field updates.
+ */
+const sanitizeLogForSaving = (data: Partial<DailyLog>) => {
+  const { role, tier, quota, email, uid, ...safeData } = data as any;
+  return safeData;
+};
+
+/**
  * Saves a sleep log to Firestore using an upsert (merge) strategy.
- * This ensures that saving a SummaryLog does not overwrite existing FullLog data (like timeline).
- * @param uid - The user's unique ID.
- * @param logData - The log data to save. Must include at least the date.
  */
 export const saveLog = async (uid: string, logData: Partial<DailyLog> & { date: string }) => {
   if (!db) throw new Error('Firestore is not initialized — check Firebase configuration');
@@ -42,7 +47,7 @@ export const saveLog = async (uid: string, logData: Partial<DailyLog> & { date: 
   const batch = writeBatch(db);
 
   const payload = {
-    ...rest,
+    ...sanitizeLogForSaving(rest),
     date,
     updatedAt: serverTimestamp(),
   };

@@ -7,8 +7,10 @@ import {
   calculateSocialJetlag
 } from '../utils/diagnosticEngine';
 import { Card } from './UI';
-import { ClipboardCheck, Share2, Info } from 'lucide-react';
-import { formatDuration } from '../utils/sleepUtils';
+import { ClipboardCheck, Share2, Info, Printer } from 'lucide-react';
+import { formatDuration, getGridFromEvents, generateASCIIRibbon, calculateSleepEfficiency } from '../utils/sleepUtils';
+import { format, parseISO } from 'date-fns';
+import PrintableReport from './PrintableReport';
 
 interface SleepPatternCardProps {
   logs: DailyLog[];
@@ -60,22 +62,48 @@ const SleepPatternCard: React.FC<SleepPatternCardProps> = ({ logs, periodType })
 
   const [copied, setCopied] = React.useState(false);
   
-  const handleExport = () => {
-    const report = `SIA Sleep Pattern Observation Report
-Period: ${periodType} Observation
+  const handleExport = async () => {
+    const logsToAnalyze = recentLogs.slice(0, 7);
+    
+    const avgQuality = Math.round(logsToAnalyze.reduce((acc, l) => acc + (l.sleep_quality || 0), 0) / logsToAnalyze.length);
+    const avgRested = Math.round(logsToAnalyze.reduce((acc, l) => acc + (l.morning_alertness || 0), 0) / logsToAnalyze.length);
+    const avgEnergy = Math.round(logsToAnalyze.reduce((acc, l) => acc + (l.daytime_energy || 0), 0) / logsToAnalyze.length);
+    const avgSleep = formatDuration(logsToAnalyze.reduce((acc, l) => acc + calculateTotalSleepHours(l), 0) / logsToAnalyze.length);
+    const avgEfficiency = Math.round(logsToAnalyze.reduce((acc, l) => acc + Number(calculateSleepEfficiency(l.sleepEvents || [])), 0) / logsToAnalyze.length);
+
+    const header = `SIA SLEEP PATTERN OBSERVATION REPORT
+Period: 7-DAY Observation (20:00 - 20:00)
 Generated: ${new Date().toLocaleDateString()}
 
-Observations:
-- Average Sleep Duration: ${formatDuration(avgDuration)}
-- Fragmentation Index: ${avgFragmentation.toFixed(2)} interruptions/hour
-- Bedtime Consistency: ${formatDuration(bedtimeConsistency)} variance
-- Social Jetlag: ${formatDuration(socialJetlag)} shift
+WEEKLY AVERAGES:
+- Avg Quality: ${avgQuality}/10 | Avg Sleep: ${avgSleep} | Avg Efficiency: ${avgEfficiency}%
 
-Disclaimer: SIA provides observations based on your logged data. This is not medical advice. Consult a professional for clinical concerns.`;
+CIRCADIAN GRID:
+          20:00           00:00           04:00           08:00           12:00           16:00           20:00
+          |-------4h------|-------4h------|-------4h------|-------4h------|-------4h------|-------4h------|
+`;
+    
+    const dailyLines = logsToAnalyze.map(log => {
+      const grid = getGridFromEvents(log.sleepEvents || []);
+      const ribbon = generateASCIIRibbon(grid);
+      const efficiency = Math.round(Number(calculateSleepEfficiency(log.sleepEvents || [])));
+      const duration = formatDuration(calculateTotalSleepHours(log));
+      const dateStr = format(parseISO(log.date), 'MMM dd').padEnd(10);
+      return `${dateStr} | ${ribbon} | ${efficiency}% | ${duration}`;
+    }).join('\n');
 
-    navigator.clipboard.writeText(report);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    const footer = "\n\nDisclaimer: SIA provides observations based on your logged data. This is not medical advice. Consult a professional for clinical concerns.";
+
+    const report = `${header}${dailyLines}${footer}`;
+
+    try {
+      await navigator.clipboard.writeText(report);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy report to clipboard:', err);
+      // Optionally show an error toast or alert here
+    }
   };
 
   return (
@@ -92,10 +120,21 @@ Disclaimer: SIA provides observations based on your logged data. This is not med
             </div>
           </div>
         </div>
-        <div className="w-8 h-8 bg-indigo-500/10 rounded-xl flex items-center justify-center text-indigo-400 border border-indigo-500/20">
-          <Share2 size={16} />
+        <div className="flex gap-2">
+          <button 
+            onClick={() => window.print()}
+            className="w-8 h-8 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white rounded-xl flex items-center justify-center border border-zinc-700 transition-all"
+            title="Print to PDF"
+          >
+            <Printer size={16} />
+          </button>
+          <div className="w-8 h-8 bg-indigo-500/10 rounded-xl flex items-center justify-center text-indigo-400 border border-indigo-500/20">
+            <Share2 size={16} />
+          </div>
         </div>
       </div>
+
+      <PrintableReport logs={recentLogs} />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {metrics.map((m, i) => (

@@ -208,7 +208,7 @@ export default function SleepGuideInteractive({ onClose, onOpenPersonalization }
         ref={scrollRef}
         className="flex-1 overflow-y-auto bg-zinc-950 scroll-smooth"
       >
-        <div className="max-w-3xl mx-auto px-4 py-8 md:px-6 md:py-24 space-y-16 md:space-y-32">
+        <div className="max-w-3xl mx-auto px-4 py-4 md:px-6 md:py-12 space-y-8 md:space-y-16">
           
           {/* Section 1: Intro */}
           <section id="guide-section-intro" className="space-y-8">
@@ -644,8 +644,8 @@ export default function SleepGuideInteractive({ onClose, onOpenPersonalization }
             </div>
           </section>
 
-          <footer className="pt-12 pb-24 border-t border-zinc-900 text-center">
-            <p className="text-[10px] text-zinc-400 uppercase tracking-[0.3em] font-black">End of Guide • SIA Learning Hub</p>
+          <footer className="pt-6 pb-6 border-t border-zinc-900 text-center">
+            <p className="text-xs text-slate-400 uppercase tracking-[0.2em] font-bold">End of Guide • SIA Learning Hub</p>
           </footer>
         </div>
       </main>

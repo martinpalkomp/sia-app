@@ -341,7 +341,7 @@ export default function AIInsightsAgent({ logs, user, userProfile, personalizati
   }
 
   return (
-    <div className="flex flex-col h-[100dvh] md:h-[80vh] w-full bg-zinc-950 border border-zinc-800 rounded-none md:rounded-3xl overflow-hidden animate-scanning relative">
+    <div className="flex flex-col h-[100dvh] md:h-[80vh] max-md:landscape:h-[200vh] w-full bg-zinc-950 border border-zinc-800 rounded-none md:rounded-3xl overflow-hidden animate-scanning relative">
       {/* Header */}
       <div className="p-4 border-b border-zinc-800 bg-zinc-900/80 backdrop-blur-md flex items-center justify-between text-left relative z-10">
         <div className="flex items-center gap-3">

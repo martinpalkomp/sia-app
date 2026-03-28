@@ -437,8 +437,14 @@ export default function App() {
       wakeTime: getFormattedTime((suggestion as any).wakeTime, (suggestion as any).wakeTimeSlot),
       visualTimeline: newTimeline,
       sleepEvents: sleepEvents,
+      
+      // RESTORE THE METRICS
+      sleep_quality: Number(suggestion.sleep_quality ?? currentLog.sleep_quality),
+      morning_alertness: Number(suggestion.morning_alertness ?? currentLog.morning_alertness),
+      daytime_energy: Number(suggestion.daytime_energy ?? currentLog.daytime_energy),
     };
 
+    console.log("DEBUG: Metrics in Suggestion:", suggestion.sleep_quality, suggestion.morning_alertness, suggestion.daytime_energy);
     console.log("DEBUG: Form State After Apply:", newLogData);
 
     // Trigger a single update and save
@@ -1136,7 +1142,7 @@ export default function App() {
             body { font-family: 'Georgia', serif; padding: 40px; line-height: 1.6; color: #1a1a1a; }
             h1, h2, h3 { color: #000; }
             .header { border-bottom: 2px solid #000; padding-bottom: 20px; margin-bottom: 30px; }
-            .footer { margin-top: 50px; border-top: 1px solid #ccc; padding-top: 20px; font-size: 12px; color: #666; font-style: italic; }
+            .footer { margin-top: 25px; border-top: 1px solid #ccc; padding-top: 10px; font-size: 10px; color: #666; font-style: italic; }
             pre { white-space: pre-wrap; word-wrap: break-word; }
             @media print {
               body { padding: 0; }
@@ -2757,7 +2763,7 @@ export default function App() {
       </AnimatePresence>
 
       {/* Floating Action Button for Today (Mobile) */}
-      {view !== 'log' && (
+      {view === 'dashboard' && (
         <button 
           onClick={() => {
             setSelectedDate(getTodayDate());

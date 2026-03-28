@@ -68,8 +68,7 @@ service cloud.firestore {
         (!('role' in request.resource.data) || request.resource.data.role == 'user');
       // Prevent users from changing their own role, tier, subscription, levelOverride, and resetting quota
       allow update: if isOwner(userId) && 
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'preferences', 'quota', 'photoURL']) &&
-        (!('quota' in request.resource.data) || request.resource.data.quota.chatMessagesUsed >= resource.data.quota.chatMessagesUsed) &&
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'tier', 'subscription', 'quota']) &&
         (!('displayName' in request.resource.data) || (request.resource.data.displayName is string && request.resource.data.displayName.size() < 100)) &&
         (!('photoURL' in request.resource.data) || (request.resource.data.photoURL is string && request.resource.data.photoURL.size() < 500));
       // Admin can do anything
@@ -77,6 +76,11 @@ service cloud.firestore {
     }
 
     // User subcollections (logs, data)
+    match /users/{userId}/daily_logs/{logId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow write: if isOwner(userId);
+    }
+
     match /users/{userId}/premium_exports/{docId} {
       allow read, write: if isOwner(userId) && isPremium(userId);
     }
@@ -90,7 +94,7 @@ service cloud.firestore {
     }
 
     match /users/{userId}/{collection}/{document=**} {
-      allow read, write: if (isOwner(userId) || isAdmin()) && collection != 'premium_exports' && collection != 'daily_briefs' && collection != 'ai_corrections';
+      allow read, write: if (isOwner(userId) || isAdmin()) && collection != 'premium_exports' && collection != 'daily_briefs' && collection != 'ai_corrections' && collection != 'daily_logs';
     }
 
     // Feedback collection
