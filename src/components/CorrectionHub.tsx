@@ -14,6 +14,7 @@ import {
   Zap,
   Loader2
 } from 'lucide-react';
+import { calculateLogVitality } from '../utils/correctionLogic';
 import { DailyLog } from '../types';
 import { saveLog } from '../services/sleepService';
 import { formatDuration, snapTo15Min } from '../utils/sleepUtils';
@@ -41,17 +42,9 @@ const CorrectionHub: React.FC<CorrectionHubProps> = ({ user, logs, onUpdate, onG
         const isAfterStart = isAfter(logDate, start) || log.date === trackingStartDate;
         const isNotIgnored = !log.isIgnored;
         
-        // Criteria: Missing sleepEvents/timeline OR missing summaryMetrics
-        const hasEvents = log.sleepEvents && log.sleepEvents.length > 0;
-        const hasTimeline = log.timeline && log.timeline.length > 0 && !log.timeline.every(s => s === 'awake-out');
-        const hasData = hasEvents || hasTimeline;
+        const vitalityScore = calculateLogVitality(log);
         
-        const hasSummaryMetrics = !!log.summaryMetrics && 
-                                  typeof log.summaryMetrics.sleep_quality === 'number' &&
-                                  typeof log.summaryMetrics.morning_alertness === 'number' &&
-                                  typeof log.summaryMetrics.daytime_energy === 'number';
-        
-        return isAfterStart && isNotIgnored && (!hasData || !hasSummaryMetrics);
+        return isAfterStart && isNotIgnored && vitalityScore < 70;
       })
       .sort((a, b) => b.date.localeCompare(a.date));
   }, [logs, trackingStartDate]);

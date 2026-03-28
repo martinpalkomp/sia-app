@@ -16,6 +16,8 @@ import {
 } from "../lib/firebase";
 import { DailyLog, UserTier, UserQuota, DailyBrief, UserProfile } from "../types";
 import { format, startOfDay } from "date-fns";
+import { shouldTriggerAI } from "../utils/aiGuardrails";
+import { calculateLogVitality } from "../utils/correctionLogic";
 
 const DISCLAIMER = "SIA provides lifestyle recommendations based on patterns. This is not a medical diagnosis. Consult a professional for clinical concerns.";
 
@@ -24,6 +26,12 @@ export interface MaturityInfo {
   count: number;
   label: string;
   nextThreshold: number;
+}
+
+export interface AIResponse {
+  content: string | null;
+  status: 'success' | 'skipped';
+  reason?: string;
 }
 
 export class AIService {
@@ -116,11 +124,14 @@ export class AIService {
     return null;
   }
 
-  static async generateDailyBrief(userId: string, logs: DailyLog[], tier: UserTier): Promise<string> {
+  static async generateDailyBrief(userId: string, logs: DailyLog[], tier: UserTier, maturity: MaturityInfo): Promise<AIResponse> {
     const today = format(new Date(), 'yyyy-MM-dd');
     const cached = await this.getCachedDailyBrief(userId, today);
     
-    if (cached) return cached.content;
+    const guardrail = shouldTriggerAI(tier, maturity.level, logs.length, 'DailyBrief', cached ? today : null);
+    if (!guardrail.shouldTrigger) {
+      return { content: null, status: 'skipped', reason: guardrail.reason };
+    }
 
     const modelName = this.getModelForTier(tier);
     const ai = new GoogleGenAI({ apiKey: this.apiKey });
@@ -141,7 +152,12 @@ export class AIService {
     });
 
     const content = response.text || "Unable to generate brief.";
-    const finalContent = `${content}\n\n***\n\n${DISCLAIMER}`;
+    
+    // Check for partial logs
+    const hasPartialLogs = logs.some(log => calculateLogVitality(log) < 100);
+    const partialTag = hasPartialLogs ? "\n\n*Analysis based on Partial Data*" : "";
+    
+    const finalContent = `${content}${partialTag}\n\n***\n\n${DISCLAIMER}`;
 
     // Cache it
     await addDoc(collection(db!, 'users', userId, 'daily_briefs'), {
@@ -150,7 +166,69 @@ export class AIService {
       createdAt: serverTimestamp()
     });
 
-    return finalContent;
+    return { content: finalContent, status: 'success' };
+  }
+
+  static async generateDeepAnalysis(userId: string, logs: DailyLog[], tier: UserTier, maturity: MaturityInfo, lastGeneratedDate: string | null): Promise<AIResponse> {
+    const today = format(new Date(), 'yyyy-MM-dd');
+    const guardrail = shouldTriggerAI(tier, maturity.level, logs.length, 'DeepAnalysis', lastGeneratedDate);
+    if (!guardrail.shouldTrigger) {
+      return { content: null, status: 'skipped', reason: guardrail.reason };
+    }
+
+    const modelName = this.getModelForTier(tier);
+    const ai = new GoogleGenAI({ apiKey: this.apiKey });
+    
+    const prompt = `
+      Analyze ${logs.length} days of sleep history: ${JSON.stringify(logs.slice(0, 90))}
+      Provide a structured "SIA Monthly Analysis" (max 3 sentences).
+      Identify the single most significant trend and offer a specific, actionable clinical recommendation.
+      Format: "📊 SIA Monthly Analysis: [Your analysis here]"
+    `;
+
+    const response = await ai.models.generateContent({
+      model: modelName,
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      config: {
+        systemInstruction: "You are 'SIA', a Sleep Intelligence Agent. Provide deep, structured, data-backed long-term sleep analysis.",
+        temperature: 0.7
+      }
+    });
+
+    const content = response.text || "Unable to generate analysis.";
+    const finalContent = `${content}\n\n***\n\n${DISCLAIMER}`;
+
+    return { content: finalContent, status: 'success' };
+  }
+
+  static async generateQuickInsight(userId: string, logs: DailyLog[], tier: UserTier, maturity: MaturityInfo, lastGeneratedDate: string | null): Promise<AIResponse> {
+    const today = format(new Date(), 'yyyy-MM-dd');
+    const guardrail = shouldTriggerAI(tier, maturity.level, logs.length, 'QuickInsight', lastGeneratedDate);
+    if (!guardrail.shouldTrigger) {
+      return { content: null, status: 'skipped', reason: guardrail.reason };
+    }
+
+    const modelName = this.getModelForTier(tier);
+    const ai = new GoogleGenAI({ apiKey: this.apiKey });
+    
+    const prompt = `
+      Analyze recent sleep logs: ${JSON.stringify(logs.slice(0, 14))}
+      Provide a concise, actionable insight (max 2 sentences).
+    `;
+
+    const response = await ai.models.generateContent({
+      model: modelName,
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      config: {
+        systemInstruction: "You are SIA, a Sleep Intelligence Agent. Provide a quick, actionable insight.",
+        temperature: 0.7
+      }
+    });
+
+    const content = response.text || "Unable to generate insight.";
+    const finalContent = `${content}\n\n***\n\n${DISCLAIMER}`;
+
+    return { content: finalContent, status: 'success' };
   }
 
   static async chatWithSIA(
@@ -273,3 +351,4 @@ export class AIService {
     }
   }
 }
+

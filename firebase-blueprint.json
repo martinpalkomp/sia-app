@@ -140,6 +140,17 @@
         "updatedAt": { "type": "string", "format": "date-time" }
       }
     },
+    "DailyBrief": {
+      "title": "Daily Brief",
+      "description": "An AI-generated daily sleep brief.",
+      "type": "object",
+      "properties": {
+        "date": { "type": "string", "format": "date" },
+        "content": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["date", "content", "createdAt"]
+    },
     "AICorrection": {
       "title": "AI Correction",
       "description": "Corrections made by the user to AI-suggested sleep logs.",
@@ -196,6 +207,10 @@
     "/users/{userId}/ai_corrections/{correctionId}": {
       "schema": "AICorrection",
       "description": "AI-suggested corrections and user feedback."
+    },
+    "/users/{userId}/daily_briefs/{briefId}": {
+      "schema": "DailyBrief",
+      "description": "AI-generated daily sleep briefs."
     },
     "/users/{userId}/daily_metrics/{date}": {
       "description": "Computed daily metrics synced from sleep_logs. date, sleep_quality, morning_alertness, daytime_energy, daily_remarks, source, updatedAt."

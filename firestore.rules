@@ -34,6 +34,27 @@ service cloud.firestore {
              data.version is string;
     }
 
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function isValidDailyBrief(data) {
+      return hasOnlyAllowedFields(['date', 'content', 'createdAt']) &&
+             data.date is string && data.date.matches("^\\d{4}-\\d{2}-\\d{2}$") &&
+             data.content is string && data.content.size() < 5000 &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidAICorrection(data) {
+      return hasOnlyAllowedFields(['date', 'originalTimeline', 'suggestedTimeline', 'reason', 'applied', 'createdAt']) &&
+             data.date is string && data.date.matches("^\\d{4}-\\d{2}-\\d{2}$") &&
+             data.originalTimeline is list && data.originalTimeline.size() < 100 &&
+             data.suggestedTimeline is list && data.suggestedTimeline.size() < 100 &&
+             data.reason is string && data.reason.size() < 1000 &&
+             data.applied is bool &&
+             data.createdAt is timestamp;
+    }
+
     // Default deny
     match /{document=**} {
       allow read, write: if false;
@@ -45,9 +66,12 @@ service cloud.firestore {
       // Only allow creation of basic user profile, role must be 'user' or omitted (defaulting to user)
       allow create: if isOwner(userId) && 
         (!('role' in request.resource.data) || request.resource.data.role == 'user');
-      // Prevent users from changing their own role
+      // Prevent users from changing their own role, tier, subscription, levelOverride, and resetting quota
       allow update: if isOwner(userId) && 
-        (!('role' in request.resource.data) || request.resource.data.role == resource.data.role);
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'preferences', 'quota', 'photoURL']) &&
+        (!('quota' in request.resource.data) || request.resource.data.quota.chatMessagesUsed >= resource.data.quota.chatMessagesUsed) &&
+        (!('displayName' in request.resource.data) || (request.resource.data.displayName is string && request.resource.data.displayName.size() < 100)) &&
+        (!('photoURL' in request.resource.data) || (request.resource.data.photoURL is string && request.resource.data.photoURL.size() < 500));
       // Admin can do anything
       allow write: if isAdmin();
     }
@@ -57,8 +81,16 @@ service cloud.firestore {
       allow read, write: if isOwner(userId) && isPremium(userId);
     }
 
+    match /users/{userId}/daily_briefs/{briefId} {
+      allow read, write: if (isOwner(userId) || isAdmin()) && isValidDailyBrief(request.resource.data);
+    }
+
+    match /users/{userId}/ai_corrections/{correctionId} {
+      allow read, write: if (isOwner(userId) || isAdmin()) && isValidAICorrection(request.resource.data);
+    }
+
     match /users/{userId}/{collection}/{document=**} {
-      allow read, write: if (isOwner(userId) || isAdmin()) && collection != 'premium_exports';
+      allow read, write: if (isOwner(userId) || isAdmin()) && collection != 'premium_exports' && collection != 'daily_briefs' && collection != 'ai_corrections';
     }
 
     // Feedback collection

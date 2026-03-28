@@ -52,7 +52,7 @@ export default function AccountPage({ user, personalizationProfile, onModifyAsse
     return () => unsubscribe();
   }, [user]);
 
-  const isAdmin = userData?.role === 'admin' || user.email === 'martinpalko.mp@gmail.com';
+  const isAdmin = userData?.role === 'admin';
 
   const handleLogout = async () => {
     try {
@@ -425,7 +425,7 @@ export default function AccountPage({ user, personalizationProfile, onModifyAsse
       </div>
 
       {/* Developer Tools */}
-      {(import.meta.env.DEV || user.email === 'martinpalko.mp@gmail.com') && (
+      {import.meta.env.DEV && (
         <div className="pt-8 border-t border-zinc-800">
           <div className="mb-4">
             <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 ml-1">Developer Tools</h3>

@@ -71,6 +71,29 @@ interface DashboardProps {
   isRefreshing: boolean;
 }
 
+const StaticFallbackUI = ({ tier, onLogClick }: { tier: string, onLogClick: () => void }) => {
+  const message = tier === 'Pro' 
+    ? "Consistency is key. Log now to maintain your high-precision forecasting."
+    : tier === 'Enhanced'
+    ? "Log 7 nights to unlock your weekly trend analysis."
+    : "Log 3 nights to see your first patterns.";
+
+  return (
+    <div className="space-y-4">
+      <p className="text-zinc-200 leading-relaxed text-sm font-medium">
+        Awaiting Initial Data. Log your first sleep session to activate your Intelligence Agent.
+      </p>
+      <p className="text-zinc-400 text-xs italic">{message}</p>
+      <button 
+        onClick={onLogClick}
+        className="px-6 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-2xl text-xs font-bold transition-all border border-zinc-700"
+      >
+        Log Last Night
+      </button>
+    </div>
+  );
+};
+
 export default function Dashboard({ 
   logs, 
   user,
@@ -105,16 +128,21 @@ export default function Dashboard({
   // Fetch/Generate Daily Brief
   const today = new Date().toISOString().split('T')[0];
   useEffect(() => {
-    if (!user || !userProfile || !logs || Object.keys(logs).length === 0) return;
+    if (!user || !userProfile || !logs || Object.keys(logs).length === 0 || !maturity) return;
     const fetchBrief = async () => {
       setIsBriefLoading(true);
       try {
-        const brief = await AIService.generateDailyBrief(
+        const response = await AIService.generateDailyBrief(
           user.uid, 
           Object.values(logs), 
-          userProfile.tier
+          userProfile.tier,
+          maturity
         );
-        setDailyBrief(brief);
+        if (response.status === 'success') {
+          setDailyBrief(response.content);
+        } else {
+          setDailyBrief(`SIA Intelligence Status: ${response.reason}`);
+        }
       } catch (err) {
         console.error("Brief Error:", err);
       } finally {
@@ -123,30 +151,7 @@ export default function Dashboard({
     };
 
     fetchBrief();
-  }, [user?.uid, userProfile?.tier, today]);
-
-  const StaticFallbackUI = ({ tier, onLogClick }: { tier: string, onLogClick: () => void }) => {
-    const message = tier === 'Pro' 
-      ? "Consistency is key. Log now to maintain your high-precision forecasting."
-      : tier === 'Enhanced'
-      ? "Log 7 nights to unlock your weekly trend analysis."
-      : "Log 3 nights to see your first patterns.";
-
-    return (
-      <div className="space-y-4">
-        <p className="text-zinc-200 leading-relaxed text-sm font-medium">
-          Awaiting Initial Data. Log your first sleep session to activate your Intelligence Agent.
-        </p>
-        <p className="text-zinc-400 text-xs italic">{message}</p>
-        <button 
-          onClick={onLogClick}
-          className="px-6 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-2xl text-xs font-bold transition-all border border-zinc-700"
-        >
-          Log Last Night
-        </button>
-      </div>
-    );
-  };
+  }, [user?.uid, userProfile?.tier, today, maturity]);
 
   const getTierColors = (tier: string) => {
     switch (tier) {
@@ -229,11 +234,11 @@ export default function Dashboard({
     if (periodLogs.length === 0) return null;
 
     return {
-      avgSq: calculateSafeAverage(periodLogs, 'sleep_quality').average.toFixed(1),
-      avgR: calculateSafeAverage(periodLogs, 'morning_alertness').average.toFixed(1),
-      avgL: calculateSafeAverage(periodLogs, 'daytime_energy').average.toFixed(1),
-      avgDuration: formatDuration(calculateSafeAverage(periodLogs, 'sleepDuration').average),
-      avgEfficiency: calculateSafeAverage(periodLogs, 'efficiency').average.toFixed(1)
+      avgSq: calculateSafeAverage(periodLogs, 'sleep_quality').average,
+      avgR: calculateSafeAverage(periodLogs, 'morning_alertness').average,
+      avgL: calculateSafeAverage(periodLogs, 'daytime_energy').average,
+      avgDuration: calculateSafeAverage(periodLogs, 'sleepDuration').average,
+      avgEfficiency: calculateSafeAverage(periodLogs, 'efficiency').average
     };
   }, [logs, periodDates]);
 
@@ -284,46 +289,23 @@ export default function Dashboard({
   const lastInsightKeyRef = useRef<string>('');
 
   const generateQuickInsight = async () => {
-    if (!logs || Object.keys(logs).length < 1 || !process.env.GEMINI_API_KEY || aiInsight) return;
-    const logsCount = Object.keys(logs).length;
+    if (!logs || Object.keys(logs).length < 1 || !user || !userProfile || !maturity || aiInsight) return;
     
     setIsAiLoading(true);
     try {
-      const apiKey = process.env.GEMINI_API_KEY;
-      if (!apiKey) { console.error('GEMINI_API_KEY not set'); setIsAiLoading(false); return; }
-      const ai = new GoogleGenAI({ apiKey });
-      // Get last 7 days of logs for analysis
-      const sortedLogs = Object.values(logs).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 7);
-      const historyContext = sortedLogs.map(log => {
-        const sleepData = log.sleepEvents || log.timeline || [];
-        const efficiency = calculateSleepEfficiency(sleepData);
-        
-        return {
-          date: log.date,
-          sq: log.sleep_quality,
-          r: log.morning_alertness,
-          l: log.daytime_energy,
-          efficiency: efficiency + "%",
-        };
-      });
-
-      const prompt = `
-        Analyze these recent sleep logs (last 7 days): ${JSON.stringify(historyContext)}
-        Provide a concise, data-backed "SIA Weekly Insight" (max 25 words). 
-        Focus on consistency, timing, and immediate recovery improvements.
-        Format: "💡 SIA Weekly Insight: [Your insight here]"
-      `;
-
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        config: {
-          systemInstruction: "You are 'SIA', a Sleep Intelligence Agent. Provide punchy, clinical, data-backed weekly sleep insights.",
-          temperature: 0.7
-        }
-      });
-
-      setAiInsight(response.text || null);
+      const response = await AIService.generateQuickInsight(
+        user.uid,
+        Object.values(logs),
+        userProfile.tier,
+        maturity,
+        null // Need to fetch lastGeneratedDate if needed
+      );
+      
+      if (response.status === 'success') {
+        setAiInsight(response.content);
+      } else {
+        setAiInsight(`SIA Intelligence Status: ${response.reason}`);
+      }
     } catch (e) {
       console.error("Dashboard AI Error:", e);
     } finally {
@@ -341,17 +323,11 @@ export default function Dashboard({
       await generateQuickInsight();
     }, 2000);
     return () => { if (insightDebounceRef.current) clearTimeout(insightDebounceRef.current); };
-  }, [logs]);
+  }, [logs, user, userProfile, maturity]);
 
   const handleDeepAnalysis = async () => {
-    if (!user || !userProfile || isAiLoading) return;
+    if (!user || !userProfile || isAiLoading || !maturity) return;
     
-    // Check Maturity
-    if (maturity && maturity.level < 3) {
-      // Already handled by UI gating, but good to have here too
-      return;
-    }
-
     setIsAiLoading(true);
     setIsDeepAnalysis(true);
     try {
@@ -379,30 +355,23 @@ export default function Dashboard({
         });
       });
 
-      const apiKey = process.env.GEMINI_API_KEY;
-      if (!apiKey) { console.error('GEMINI_API_KEY not set'); setIsAiLoading(false); return; }
-      const ai = new GoogleGenAI({ apiKey });
-      const prompt = `
-        Analyze ${daysCount} days of sleep history: ${JSON.stringify(historicalLogs)}
-        Provide a structured "SIA Monthly Analysis" (max 3 sentences).
-        Identify the single most significant trend and offer a specific, actionable clinical recommendation.
-        Format: "📊 SIA Monthly Analysis: [Your analysis here]"
-      `;
+      const response = await AIService.generateDeepAnalysis(
+        user.uid,
+        historicalLogs,
+        userProfile.tier,
+        maturity,
+        null // Need to fetch lastGeneratedDate if needed
+      );
 
-      const response = await ai.models.generateContent({
-        model: AIService.getModelForTier(userProfile.tier),
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        config: {
-          systemInstruction: "You are 'SIA', a Sleep Intelligence Agent. Provide deep, structured, data-backed long-term sleep analysis.",
-          temperature: 0.7
-        }
-      });
-
-      const answer = response.text || null;
-      setAiInsight(answer ? `${answer}\n\n***\n\n${DISCLAIMER}` : null);
+      if (response.status === 'success') {
+        setAiInsight(response.content);
+      } else {
+        setAiInsight(`SIA Intelligence Status: ${response.reason}`);
+      }
     } catch (e) {
       console.error("Deep Analysis Error:", e);
     } finally {
+      setIsDeepAnalysis(false);
       setIsAiLoading(false);
     }
   };
@@ -478,7 +447,7 @@ export default function Dashboard({
               <Sparkles className="text-indigo-400" size={20} />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-white">SIA DAILY BRIEF</h2>
+              <h2 className="text-lg font-black uppercase tracking-widest text-white">SIA DAILY BRIEF</h2>
               <p className="text-xs text-indigo-300/70 font-medium uppercase tracking-widest">Personalized Recovery Summary</p>
             </div>
           </div>
@@ -523,75 +492,75 @@ export default function Dashboard({
             </p>
           </Card>
 
-          <Card className={`flex flex-col justify-between hover:border-indigo-500/50 group hover:-translate-y-1 hover:shadow-indigo-500/10 transition-all duration-300 min-h-[140px] md:min-h-[160px] animate-sia-pulse ${isEnhanced ? 'bg-gradient-to-br from-zinc-900 to-indigo-950/30 border-indigo-500/10' : ''}`}>
+          <Card className={`flex flex-col justify-between hover:border-indigo-400 group hover:-translate-y-1 hover:shadow-indigo-500/20 transition-all duration-300 min-h-[140px] md:min-h-[160px] animate-sia-pulse ${isEnhanced ? 'bg-gradient-to-br from-zinc-900 to-indigo-900/20 border-indigo-500/30' : 'border-zinc-800'}`}>
             <div className="flex justify-between items-start">
-              <div className="w-8 h-8 md:w-10 md:h-10 bg-indigo-500/10 rounded-lg md:rounded-xl flex items-center justify-center text-indigo-400 border border-indigo-500/20">
+              <div className="w-8 h-8 md:w-10 md:h-10 bg-indigo-500/20 rounded-lg md:rounded-xl flex items-center justify-center text-indigo-300 border border-indigo-500/30">
                 <Activity size={18} className="md:w-5 md:h-5" />
               </div>
-              <TrendingUp size={14} className="text-zinc-700 group-hover:text-indigo-400 transition-colors md:w-4 md:h-4" />
+              <TrendingUp size={14} className="text-zinc-600 group-hover:text-indigo-400 transition-colors md:w-4 md:h-4" />
             </div>
             <MetricDisplay 
               title={`Avg Quality`} 
-              value={stats?.avgSq || '--'} 
+              value={stats?.avgSq !== undefined ? Math.round(stats.avgSq) : '--'} 
               unit="/10" 
               className="mt-4 md:mt-8 text-left"
             />
           </Card>
 
-          <Card className={`flex flex-col justify-between hover:border-amber-500/50 group hover:-translate-y-1 hover:shadow-amber-500/10 transition-all duration-300 min-h-[140px] md:min-h-[160px] animate-sia-pulse ${isEnhanced ? 'bg-gradient-to-br from-zinc-900 to-amber-950/20 border-amber-500/10' : ''}`}>
+          <Card className={`flex flex-col justify-between hover:border-amber-400 group hover:-translate-y-1 hover:shadow-amber-500/20 transition-all duration-300 min-h-[140px] md:min-h-[160px] animate-sia-pulse ${isEnhanced ? 'bg-gradient-to-br from-zinc-900 to-amber-900/20 border-amber-500/30' : 'border-zinc-800'}`}>
             <div className="flex justify-between items-start">
-              <div className="w-8 h-8 md:w-10 md:h-10 bg-amber-500/10 rounded-lg md:rounded-xl flex items-center justify-center text-amber-400 border border-amber-500/20">
+              <div className="w-8 h-8 md:w-10 md:h-10 bg-amber-500/20 rounded-lg md:rounded-xl flex items-center justify-center text-amber-300 border border-amber-500/30">
                 <Moon size={18} className="md:w-5 md:h-5" />
               </div>
-              <TrendingUp size={14} className="text-zinc-700 group-hover:text-amber-400 transition-colors md:w-4 md:h-4" />
+              <TrendingUp size={14} className="text-zinc-600 group-hover:text-amber-400 transition-colors md:w-4 md:h-4" />
             </div>
             <MetricDisplay 
               title={`Restedness`} 
-              value={stats?.avgR || '--'} 
+              value={stats?.avgR !== undefined ? Math.round(stats.avgR) : '--'} 
               unit="/10" 
               className="mt-4 md:mt-8 text-left"
             />
           </Card>
 
-          <Card className={`flex flex-col justify-between hover:border-emerald-500/50 group hover:-translate-y-1 hover:shadow-emerald-500/10 transition-all duration-300 min-h-[140px] md:min-h-[160px] animate-sia-pulse ${isEnhanced ? 'bg-gradient-to-br from-zinc-900 to-emerald-950/20 border-emerald-500/10' : ''}`}>
+          <Card className={`flex flex-col justify-between hover:border-emerald-400 group hover:-translate-y-1 hover:shadow-emerald-500/20 transition-all duration-300 min-h-[140px] md:min-h-[160px] animate-sia-pulse ${isEnhanced ? 'bg-gradient-to-br from-zinc-900 to-emerald-900/20 border-emerald-500/30' : 'border-zinc-800'}`}>
             <div className="flex justify-between items-start">
-              <div className="w-8 h-8 md:w-10 md:h-10 bg-emerald-500/10 rounded-lg md:rounded-xl flex items-center justify-center text-emerald-400 border border-emerald-500/20">
+              <div className="w-8 h-8 md:w-10 md:h-10 bg-emerald-500/20 rounded-lg md:rounded-xl flex items-center justify-center text-emerald-300 border border-emerald-500/30">
                 <Zap size={18} className="md:w-5 md:h-5" />
               </div>
-              <TrendingUp size={14} className="text-zinc-700 group-hover:text-emerald-400 transition-colors md:w-4 md:h-4" />
+              <TrendingUp size={14} className="text-zinc-600 group-hover:text-emerald-400 transition-colors md:w-4 md:h-4" />
             </div>
             <MetricDisplay 
               title={`Energy Level`} 
-              value={stats?.avgL || '--'} 
+              value={stats?.avgL !== undefined ? Math.round(stats.avgL) : '--'} 
               unit="/10" 
               className="mt-4 md:mt-8 text-left"
             />
           </Card>
 
-          <Card className={`flex flex-col justify-between hover:border-indigo-500/50 group hover:-translate-y-1 hover:shadow-indigo-500/10 transition-all duration-300 min-h-[140px] md:min-h-[160px] animate-sia-pulse ${isEnhanced ? 'bg-gradient-to-br from-zinc-900 to-indigo-950/30 border-indigo-500/10' : ''}`}>
+          <Card className={`flex flex-col justify-between hover:border-indigo-400 group hover:-translate-y-1 hover:shadow-indigo-500/20 transition-all duration-300 min-h-[140px] md:min-h-[160px] animate-sia-pulse ${isEnhanced ? 'bg-gradient-to-br from-zinc-900 to-indigo-900/20 border-indigo-500/30' : 'border-zinc-800'}`}>
             <div className="flex justify-between items-start">
-              <div className="w-8 h-8 md:w-10 md:h-10 bg-indigo-500/10 rounded-lg md:rounded-xl flex items-center justify-center text-indigo-400 border border-indigo-500/20">
+              <div className="w-8 h-8 md:w-10 md:h-10 bg-indigo-500/20 rounded-lg md:rounded-xl flex items-center justify-center text-indigo-300 border border-indigo-500/30">
                 <Clock size={18} className="md:w-5 md:h-5" />
               </div>
-              <TrendingUp size={14} className="text-zinc-700 group-hover:text-indigo-400 transition-colors md:w-4 md:h-4" />
+              <TrendingUp size={14} className="text-zinc-600 group-hover:text-indigo-400 transition-colors md:w-4 md:h-4" />
             </div>
             <MetricDisplay 
               title="Avg Sleep Duration" 
-              value={stats?.avgDuration || '--'} 
+              value={stats?.avgDuration !== undefined ? formatDuration(stats.avgDuration) : '--'} 
               className="mt-4 md:mt-8 text-left"
             />
           </Card>
 
-          <Card className={`flex flex-col justify-between hover:border-violet-500/50 group hover:-translate-y-1 hover:shadow-violet-500/10 transition-all duration-300 min-h-[140px] md:min-h-[160px] animate-sia-pulse ${isEnhanced ? 'bg-gradient-to-br from-zinc-900 to-violet-950/20 border-violet-500/10' : ''}`}>
+          <Card className={`flex flex-col justify-between hover:border-violet-400 group hover:-translate-y-1 hover:shadow-violet-500/20 transition-all duration-300 min-h-[140px] md:min-h-[160px] animate-sia-pulse ${isEnhanced ? 'bg-gradient-to-br from-zinc-900 to-violet-900/20 border-violet-500/30' : 'border-zinc-800'}`}>
             <div className="flex justify-between items-start">
-              <div className="w-8 h-8 md:w-10 md:h-10 bg-violet-500/10 rounded-lg md:rounded-xl flex items-center justify-center text-violet-400 border border-violet-500/20">
+              <div className="w-8 h-8 md:w-10 md:h-10 bg-violet-500/20 rounded-lg md:rounded-xl flex items-center justify-center text-violet-300 border border-violet-500/30">
                 <BarChart3 size={18} className="md:w-5 md:h-5" />
               </div>
-              <TrendingUp size={14} className="text-zinc-700 group-hover:text-violet-400 transition-colors md:w-4 md:h-4" />
+              <TrendingUp size={14} className="text-zinc-600 group-hover:text-violet-400 transition-colors md:w-4 md:h-4" />
             </div>
             <MetricDisplay 
               title="Avg Efficiency" 
-              value={stats?.avgEfficiency || '--'} 
+              value={stats?.avgEfficiency !== undefined ? Math.round(stats.avgEfficiency) : '--'} 
               unit="%" 
               className="mt-4 md:mt-8 text-left"
             />
@@ -619,46 +588,16 @@ export default function Dashboard({
               </div>
             </div>
             
-            <p className="text-zinc-200 leading-relaxed text-sm font-medium">
-              {isAiLoading ? (isDeepAnalysis ? "Analyzing long-term trends..." : "Scanning recent logs...") : (aiInsight ? `${aiInsight} ${DISCLAIMER}` : "Log more nights to unlock my personalized insights.")}
-            </p>
+            <div className="space-y-4">
+              <p className="text-zinc-200 leading-relaxed text-sm font-medium">
+                {isAiLoading ? (isDeepAnalysis ? "Analyzing long-term trends..." : "Scanning recent logs...") : (aiInsight ? aiInsight : "Log more nights to unlock my personalized insights.")}
+              </p>
+              {!isAiLoading && aiInsight && (
+                <p className="text-[10px] text-zinc-500 italic leading-tight">{DISCLAIMER}</p>
+              )}
+            </div>
           </div>
         </Card>
-      </section>
-
-      {/* Section: Advanced Insights Feed */}
-      <section className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h3 className="text-[10px] font-black text-zinc-300 uppercase tracking-[0.2em]">Advanced Insights Feed</h3>
-        </div>
-        {!isEnhanced && (
-          <Card className="bg-gradient-to-r from-indigo-900/20 to-violet-900/20 border-indigo-500/30 p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h4 className="text-sm font-bold text-white">Unlock Enhanced Insights</h4>
-                <p className="text-xs text-zinc-400 mt-1">Get weekly trends and advanced analysis.</p>
-              </div>
-              <button 
-                onClick={() => onViewChange('account')}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition-all"
-              >
-                Upgrade Your Sleep Intelligence
-              </button>
-            </div>
-          </Card>
-        )}
-        <div className="space-y-3">
-          {insights.map((insight, index) => (
-            <motion.div
-              key={insight.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1 }}
-            >
-              <InsightCard insight={insight} tier={userProfile?.tier} />
-            </motion.div>
-          ))}
-        </div>
       </section>
 
       {/* Section: Data Maturity Progress */}

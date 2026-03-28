@@ -235,8 +235,10 @@ export default function App() {
 
   const derivedTier = useMemo(() => {
     // Temporary override for testing
-    const override = localStorage.getItem('sia_tier_override');
-    if (override) return override;
+    if (import.meta.env.DEV) {
+      const override = localStorage.getItem('sia_tier_override');
+      if (override) return override;
+    }
 
     if (userProfile?.tier === 'Pro') return 'Pro';
     if (personalizationProfile) return 'Enhanced';
@@ -379,7 +381,7 @@ export default function App() {
   const handleConfirmPattern = () => {
     if (!pendingSuggestion) return;
     const suggestion = pendingSuggestion.suggestion;
-    console.log("SIA Suggestion Applied:", suggestion);
+    console.log("DEBUG: SIA Suggestion Received:", suggestion);
     
     setOriginalSuggestion(suggestion);
     setPrefillUsed(true);
@@ -394,29 +396,50 @@ export default function App() {
       exercise: { ...currentLog.factors.exercise, ...(suggestion.factors?.exercise || {}) },
     };
 
-    const newLogData: Partial<DailyLog> = {
-      factors: mergedFactors,
-      daily_remarks: suggestion.daily_remarks || currentLog.daily_remarks,
-      bedTime: (suggestion as any).bedTime || ((suggestion as any).bedTimeSlot !== undefined ? slotToTimeString((suggestion as any).bedTimeSlot) : null),
-      wakeTime: (suggestion as any).wakeTime || ((suggestion as any).wakeTimeSlot !== undefined ? slotToTimeString((suggestion as any).wakeTimeSlot) : null),
-    };
-
     // Apply predicted sleep range if available
-    if ((suggestion as any).predictedSleepRange) {
-      const { start, end } = (suggestion as any).predictedSleepRange;
-      const newTimeline = [...currentLog.visualTimeline];
+    let newTimeline = [...currentLog.visualTimeline];
+    let sleepEvents = currentLog.sleepEvents;
+    if (suggestion.sleepEvents && suggestion.sleepEvents.length > 0) {
+      const { start, end } = suggestion.sleepEvents[0];
+      
+      // Update bedTime/wakeTime
+      currentLog.bedTime = start;
+      currentLog.wakeTime = end;
       
       // Clear existing sleep to avoid overlapping or messy timeline
       for (let i = 0; i < TOTAL_SLOTS; i++) {
         if (newTimeline[i] === 'sleep') newTimeline[i] = 'awake-out';
       }
       
-      for (let i = start; i <= end; i++) {
+      const startIdx = timeToIndex(start);
+      const endIdx = timeToIndex(end);
+      
+      for (let i = startIdx; i < endIdx; i++) {
         newTimeline[i] = 'sleep';
       }
       
-      newLogData.sleepEvents = convertGridToEvents(newTimeline);
+      sleepEvents = convertGridToEvents(newTimeline);
     }
+
+    // Canonical String Fix: Ensure HH:mm format
+    const getFormattedTime = (time: any, slot: any) => {
+      if (typeof time === 'string' && time.includes(':')) return time;
+      if (typeof time === 'number') return slotToTimeString(time);
+      if (slot !== undefined) return slotToTimeString(slot);
+      return null;
+    };
+
+    const newLogData: Partial<DailyLog> = {
+      ...currentLog, // Keep existing values
+      factors: mergedFactors,
+      daily_remarks: suggestion.daily_remarks || currentLog.daily_remarks,
+      bedTime: getFormattedTime((suggestion as any).bedTime, (suggestion as any).bedTimeSlot),
+      wakeTime: getFormattedTime((suggestion as any).wakeTime, (suggestion as any).wakeTimeSlot),
+      visualTimeline: newTimeline,
+      sleepEvents: sleepEvents,
+    };
+
+    console.log("DEBUG: Form State After Apply:", newLogData);
 
     // Trigger a single update and save
     updateLog(newLogData);
@@ -690,11 +713,13 @@ export default function App() {
           if (prefillUsed && originalSuggestion) {
             const correctionsToLog: any[] = [];
             
+            const sanitizeValue = (val: any) => (val === undefined ? null : val);
+
             // Check caffeine amount
             if (log.factors.caffeine.amount !== originalSuggestion.factors?.caffeine?.amount) {
               correctionsToLog.push({
                 field: 'factors.caffeine.amount',
-                suggestedValue: originalSuggestion.factors?.caffeine?.amount,
+                suggestedValue: sanitizeValue(originalSuggestion.factors?.caffeine?.amount),
                 actualValue: log.factors.caffeine.amount
               });
             }
@@ -703,7 +728,7 @@ export default function App() {
             if (log.factors.caffeine.lastIntake !== originalSuggestion.factors?.caffeine?.lastIntake) {
               correctionsToLog.push({
                 field: 'factors.caffeine.lastIntake',
-                suggestedValue: originalSuggestion.factors?.caffeine?.lastIntake,
+                suggestedValue: sanitizeValue(originalSuggestion.factors?.caffeine?.lastIntake),
                 actualValue: log.factors.caffeine.lastIntake
               });
             }
@@ -712,34 +737,34 @@ export default function App() {
             if (log.factors.exercise.completed !== originalSuggestion.factors?.exercise?.completed) {
               correctionsToLog.push({
                 field: 'factors.exercise.completed',
-                suggestedValue: originalSuggestion.factors?.exercise?.completed,
+                suggestedValue: sanitizeValue(originalSuggestion.factors?.exercise?.completed),
                 actualValue: log.factors.exercise.completed
               });
             }
 
             if (log.factors.alcohol.consumed !== originalSuggestion.factors?.alcohol?.consumed)
-              correctionsToLog.push({ field: 'factors.alcohol.consumed', suggestedValue: originalSuggestion.factors?.alcohol?.consumed, actualValue: log.factors.alcohol.consumed });
+              correctionsToLog.push({ field: 'factors.alcohol.consumed', suggestedValue: sanitizeValue(originalSuggestion.factors?.alcohol?.consumed), actualValue: log.factors.alcohol.consumed });
 
             if (log.factors.screensInBed !== originalSuggestion.factors?.screensInBed)
-              correctionsToLog.push({ field: 'factors.screensInBed', suggestedValue: originalSuggestion.factors?.screensInBed, actualValue: log.factors.screensInBed });
+              correctionsToLog.push({ field: 'factors.screensInBed', suggestedValue: sanitizeValue(originalSuggestion.factors?.screensInBed), actualValue: log.factors.screensInBed });
 
             if (log.factors.stressLevel !== originalSuggestion.factors?.stressLevel)
-              correctionsToLog.push({ field: 'factors.stressLevel', suggestedValue: originalSuggestion.factors?.stressLevel, actualValue: log.factors.stressLevel });
+              correctionsToLog.push({ field: 'factors.stressLevel', suggestedValue: sanitizeValue(originalSuggestion.factors?.stressLevel), actualValue: log.factors.stressLevel });
 
             if (log.factors.lastMealTime !== originalSuggestion.factors?.lastMealTime)
-              correctionsToLog.push({ field: 'factors.lastMealTime', suggestedValue: originalSuggestion.factors?.lastMealTime, actualValue: log.factors.lastMealTime });
+              correctionsToLog.push({ field: 'factors.lastMealTime', suggestedValue: sanitizeValue(originalSuggestion.factors?.lastMealTime), actualValue: log.factors.lastMealTime });
 
             if (log.factors.naturalWake !== originalSuggestion.factors?.naturalWake)
-              correctionsToLog.push({ field: 'factors.naturalWake', suggestedValue: originalSuggestion.factors?.naturalWake, actualValue: log.factors.naturalWake });
+              correctionsToLog.push({ field: 'factors.naturalWake', suggestedValue: sanitizeValue(originalSuggestion.factors?.naturalWake), actualValue: log.factors.naturalWake });
 
             if (log.factors.moodScore !== originalSuggestion.factors?.moodScore)
-              correctionsToLog.push({ field: 'factors.moodScore', suggestedValue: originalSuggestion.factors?.moodScore, actualValue: log.factors.moodScore });
+              correctionsToLog.push({ field: 'factors.moodScore', suggestedValue: sanitizeValue(originalSuggestion.factors?.moodScore), actualValue: log.factors.moodScore });
 
             if (log.morning_alertness !== originalSuggestion.morning_alertness)
-              correctionsToLog.push({ field: 'morning_alertness', suggestedValue: originalSuggestion.morning_alertness, actualValue: log.morning_alertness });
+              correctionsToLog.push({ field: 'morning_alertness', suggestedValue: sanitizeValue(originalSuggestion.morning_alertness), actualValue: log.morning_alertness });
 
             if (log.daytime_energy !== originalSuggestion.daytime_energy)
-              correctionsToLog.push({ field: 'daytime_energy', suggestedValue: originalSuggestion.daytime_energy, actualValue: log.daytime_energy });
+              correctionsToLog.push({ field: 'daytime_energy', suggestedValue: sanitizeValue(originalSuggestion.daytime_energy), actualValue: log.daytime_energy });
 
             if (correctionsToLog.length > 0) {
               const correctionsRef = collection(db, 'users', user.uid, 'ai_corrections');
@@ -1033,11 +1058,11 @@ export default function App() {
     if (periodLogs.length === 0) return null;
 
     return {
-      sq: calculateSafeAverage(periodLogs, 'sleep_quality').average.toFixed(1),
-      r: calculateSafeAverage(periodLogs, 'morning_alertness').average.toFixed(1),
-      l: calculateSafeAverage(periodLogs, 'daytime_energy').average.toFixed(1),
-      duration: formatDuration(calculateSafeAverage(periodLogs, 'sleepDuration').average),
-      efficiency: calculateSafeAverage(periodLogs, 'efficiency').average.toFixed(1)
+      sq: calculateSafeAverage(periodLogs, 'sleep_quality').average,
+      r: calculateSafeAverage(periodLogs, 'morning_alertness').average,
+      l: calculateSafeAverage(periodLogs, 'daytime_energy').average,
+      duration: calculateSafeAverage(periodLogs, 'sleepDuration').average,
+      efficiency: calculateSafeAverage(periodLogs, 'efficiency').average
     };
   }, [logs, activeDates]);
 
@@ -2435,30 +2460,30 @@ export default function App() {
                 <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
                   <MetricDisplay 
                     title="Avg Quality" 
-                    value={averageStats.sq} 
+                    value={Math.round(averageStats.sq)} 
                     unit="/10" 
                     className="bg-zinc-900/50 border border-zinc-800 p-5 rounded-3xl" 
                   />
                   <MetricDisplay 
                     title="Avg Rested" 
-                    value={averageStats.r} 
+                    value={Math.round(averageStats.r)} 
                     unit="/10" 
                     className="bg-zinc-900/50 border border-zinc-800 p-5 rounded-3xl" 
                   />
                   <MetricDisplay 
                     title="Avg Energy" 
-                    value={averageStats.l} 
+                    value={Math.round(averageStats.l)} 
                     unit="/10" 
                     className="bg-zinc-900/50 border border-zinc-800 p-5 rounded-3xl" 
                   />
                   <MetricDisplay 
                     title="Avg Sleep" 
-                    value={averageStats.duration} 
+                    value={formatDuration(averageStats.duration)} 
                     className="bg-zinc-900/50 border border-zinc-800 p-5 rounded-3xl" 
                   />
                   <MetricDisplay 
                     title="Avg Efficiency" 
-                    value={averageStats.efficiency} 
+                    value={Math.round(averageStats.efficiency)} 
                     unit="%" 
                     className="bg-zinc-900/50 border border-zinc-800 p-5 rounded-3xl" 
                   />

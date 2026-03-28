@@ -25,7 +25,7 @@ export const Header: React.FC<HeaderProps> = ({ user, greeting }) => {
         />
       </motion.div>
 
-      <div className="flex flex-col items-start space-y-0.5 min-w-0">
+      <div className="flex flex-col items-start space-y-0.5 min-w-0 flex-1">
         <span className="bg-clinical-primary text-[8px] px-2 py-0.5 rounded-full uppercase tracking-widest font-bold text-white shrink-0">Sleep Intelligence Agent</span>
         <motion.h1 
           initial={{ opacity: 0, x: -20 }}

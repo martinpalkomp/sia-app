@@ -46,54 +46,33 @@ export {
 } from "firebase/storage";
 export { initializeApp, type FirebaseApp } from "firebase/app";
 
-// Safely attempt to load the fallback config
-// We use import.meta.glob to avoid build errors if the file is missing
-const AI_STUDIO_CONFIG = {
-  apiKey: "AIzaSyCf1-9pJopZE3pL1gA-pprYsr0fmP9N_eg",
-  authDomain: "gen-lang-client-0504718838.firebaseapp.com",
-  projectId: "gen-lang-client-0504718838",
-  storageBucket: "gen-lang-client-0504718838.firebasestorage.app",
-  messagingSenderId: "75829467332",
-  appId: "1:75829467332:web:2b56ce61496412bd451191",
-  firestoreDatabaseId: "(default)",
-  measurementId: ""
-};
-
+// Safely attempt to load the config from firebase-applet-config.json
 const configs = import.meta.glob('/firebase-applet-config.json', { eager: true });
 const jsonConfig = (configs['/firebase-applet-config.json'] as any)?.default ?? {};
-const fallbackConfig = Object.keys(jsonConfig).length > 0 ? jsonConfig : AI_STUDIO_CONFIG;
 
-const isValidValue = (val: string | undefined): boolean => {
-  if (!val || val.trim() === '') return false;
-  if (val.startsWith('"') || val.endsWith('"')) return false; // reject quoted values
-  if (val.startsWith("'") || val.endsWith("'")) return false; // reject single-quoted values
-  return true;
+const getRequiredEnv = (key: string): string => {
+  const value = import.meta.env[key];
+  if (!value || value.trim() === '') {
+    throw new Error(`Missing required environment variable: ${key}`);
+  }
+  return value.trim();
 };
 
-const resolveField = (envVal: string | undefined, fallbackVal: string | undefined): string => {
-  if (isValidValue(envVal)) return envVal!.trim();
-  if (isValidValue(fallbackVal)) return fallbackVal!.trim();
-  return '';
+const getOptionalEnv = (key: string): string => {
+  return import.meta.env[key]?.trim() || '';
 };
 
 const firebaseConfig = {
-  apiKey:            resolveField(import.meta.env.VITE_FIREBASE_API_KEY,             fallbackConfig.apiKey),
-  authDomain:        resolveField(import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,         fallbackConfig.authDomain),
-  projectId:         resolveField(import.meta.env.VITE_FIREBASE_PROJECT_ID,          fallbackConfig.projectId),
-  storageBucket:     resolveField(import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,      fallbackConfig.storageBucket),
-  messagingSenderId: resolveField(import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID, fallbackConfig.messagingSenderId),
-  appId:             resolveField(import.meta.env.VITE_FIREBASE_APP_ID,              fallbackConfig.appId),
-  measurementId:     resolveField(import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,      fallbackConfig.measurementId),
+  apiKey:            getRequiredEnv('VITE_FIREBASE_API_KEY'),
+  authDomain:        getRequiredEnv('VITE_FIREBASE_AUTH_DOMAIN'),
+  projectId:         getRequiredEnv('VITE_FIREBASE_PROJECT_ID'),
+  storageBucket:     getRequiredEnv('VITE_FIREBASE_STORAGE_BUCKET'),
+  messagingSenderId: getRequiredEnv('VITE_FIREBASE_MESSAGING_SENDER_ID'),
+  appId:             getRequiredEnv('VITE_FIREBASE_APP_ID'),
+  measurementId:     getOptionalEnv('VITE_FIREBASE_MEASUREMENT_ID'),
 };
 
-const envDbId = import.meta.env.VITE_FIREBASE_FIRESTORE_DATABASE_ID;
-const jsonDbId = fallbackConfig.firestoreDatabaseId;
-
-const firestoreDatabaseId = (
-  envDbId && !envDbId.includes('"') && envDbId.trim() !== '' ? envDbId.trim() :
-  jsonDbId && !jsonDbId.includes('"') && jsonDbId.trim() !== '' ? jsonDbId.trim() :
-  '(default)'
-);
+const firestoreDatabaseId = getOptionalEnv('VITE_FIREBASE_FIRESTORE_DATABASE_ID') || jsonConfig.firestoreDatabaseId || '(default)';
 
 // Startup guard
 const requiredFields = [
