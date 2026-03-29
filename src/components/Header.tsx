@@ -1,12 +1,13 @@
 import React from 'react';
 import { motion } from 'motion/react';
+import { Plus } from 'lucide-react';
 import { AvatarFrame } from './UI';
 import { User } from '../lib/firebase';
 import { UserTier } from '../types';
 
 interface HeaderProps {
   user: User | null;
-  greeting: { prefix: string; suffix: string };
+  greeting: { prefix: string; suffix: string; showLogLink?: boolean; onLogClick?: () => void };
 }
 
 export const Header: React.FC<HeaderProps> = ({ user, greeting }) => {
@@ -34,9 +35,17 @@ export const Header: React.FC<HeaderProps> = ({ user, greeting }) => {
         >
           {greeting.prefix}{user?.displayName ? `, ${user.displayName.split(' ')[0]}` : ''}
         </motion.h1>
-        <p className="text-xs text-zinc-400 leading-relaxed">
+        <div className="text-xs text-zinc-400 leading-relaxed flex items-center gap-2">
           {greeting.suffix}
-        </p>
+          {greeting.showLogLink && (
+            <button 
+              onClick={greeting.onLogClick}
+              className="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center text-white hover:bg-blue-600 transition-colors"
+            >
+              <Plus size={12} />
+            </button>
+          )}
+        </div>
       </div>
     </section>
   );

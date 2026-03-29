@@ -200,7 +200,11 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(true);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [logs, setLogs] = useState<Record<string, DailyLog>>({});
-  const [selectedDate, setSelectedDate] = useState(getTodayDate());
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    return d.toISOString().split('T')[0];
+  });
   const [direction, setDirection] = useState(0);
   const [view, setView] = useState<'dashboard' | 'log' | 'weekly' | 'monthly' | 'custom' | 'ai' | 'corrections' | 'legal' | 'account' | 'import'>('dashboard');
   const [customRange, setCustomRange] = useState({ start: getTodayDate(), end: getTodayDate() });
@@ -353,10 +357,23 @@ export default function App() {
 
   const changeDate = (val: number | string) => {
     if (typeof val === 'number') {
-      setDirection(val);
-      const d = new Date(selectedDate);
+      const d = new Date(selectedDate + 'T00:00:00');
       d.setDate(d.getDate() + val);
-      setSelectedDate(d.toISOString().split('T')[0]);
+      
+      // Check if more than 30 days in the future
+      const today = new Date(getTodayDate() + 'T00:00:00');
+      const maxFutureDate = new Date(today);
+      maxFutureDate.setDate(today.getDate() + 30);
+      
+      if (d > maxFutureDate) {
+        return; // Prevent navigation
+      }
+
+      setDirection(val);
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      setSelectedDate(`${year}-${month}-${day}`);
     } else {
       setSelectedDate(val);
     }
@@ -896,8 +913,8 @@ export default function App() {
   const handleTouchStart = (e: React.TouchEvent) => {
     if (!isEditing) return;
     e.preventDefault();
-    const touch = e.touches[0];
-    const element = document.elementFromPoint(touch.clientX, touch.clientY);
+    const target = e.target as HTMLElement;
+    const element = target.closest('[data-slot-index]') as HTMLElement;
     if (element) {
       const indexAttr = element.getAttribute('data-slot-index');
       if (indexAttr !== null) {
@@ -911,7 +928,8 @@ export default function App() {
     if (!isDragging || !isEditing) return;
     e.preventDefault();
     const touch = e.touches[0];
-    const element = document.elementFromPoint(touch.clientX, touch.clientY);
+    const target = document.elementFromPoint(touch.clientX, touch.clientY) as HTMLElement;
+    const element = target?.closest('[data-slot-index]') as HTMLElement;
     if (element) {
       const indexAttr = element.getAttribute('data-slot-index');
       if (indexAttr !== null) {
@@ -921,8 +939,22 @@ export default function App() {
     }
   };
 
-  const handleTouchEnd = () => {
+  const handleTouchEnd = (e: React.TouchEvent) => {
     setIsDragging(false);
+  };
+
+  const handleCancel = () => {
+    if (initialTimeline) {
+      updateLog({ visualTimeline: initialTimeline });
+    }
+    setIsEditing(false);
+    setInitialTimeline(null);
+  };
+
+  const handleSave = () => {
+    setIsEditing(false);
+    setInitialTimeline(null);
+    setToast({ message: 'Changes saved', type: 'success' });
   };
 
   const handleMouseUp = () => {
@@ -1373,7 +1405,9 @@ export default function App() {
                       correctionsCount={correctionsCount}
                       personalizationProfile={personalizationProfile}
                       onLogClick={() => {
-                        setSelectedDate(getTodayDate());
+                        const yesterday = new Date();
+                        yesterday.setDate(yesterday.getDate() - 1);
+                        setSelectedDate(yesterday.toISOString().split('T')[0]);
                         setView('log');
                       }}
                       onViewChange={setView}
@@ -1441,37 +1475,54 @@ export default function App() {
               )}
 
               {/* Date Selector - Now outside sliding area to stay visible */}
-              <div className="flex items-center justify-between bg-zinc-900/50 p-4 rounded-2xl border border-zinc-800">
-                <button 
-                  onClick={() => changeDate(-1)}
-                  className="p-2 hover:bg-zinc-800 rounded-full transition-colors text-zinc-400"
-                >
-                  <ChevronLeft size={20} />
-                </button>
-                
-                <div className="text-center relative group">
-                  <input 
-                    type="date" 
-                    className="absolute inset-0 opacity-0 cursor-pointer z-10" 
-                    value={selectedDate}
-                    onChange={(e) => changeDate(e.target.value)}
-                  />
-                  <h2 className="text-lg font-bold text-white tracking-tight group-hover:text-indigo-400 transition-colors">
-                    {formatDisplayDate(selectedDate)}
-                  </h2>
-                  <p className="text-[10px] font-black text-zinc-300 uppercase tracking-widest">
-                    {selectedDate === getTodayDate() ? 'TODAY' : 'HISTORICAL LOG'}
-                  </p>
-                </div>
+              <div className="flex flex-col items-center gap-2">
+                <span className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">Logging sleep for:</span>
+                <div className="flex items-center justify-between bg-zinc-900/50 p-4 rounded-2xl border border-zinc-800 w-full">
+                  <button 
+                    onClick={() => changeDate(-1)}
+                    className="p-2 hover:bg-zinc-800 rounded-full transition-colors text-zinc-400"
+                  >
+                    <ChevronLeft size={20} />
+                  </button>
+                  
+                  <div className="text-center relative group">
+                    <input 
+                      type="date" 
+                      className="absolute inset-0 opacity-0 cursor-pointer z-10" 
+                      value={selectedDate}
+                      onChange={(e) => changeDate(e.target.value)}
+                    />
+                    <h2 className="text-lg font-bold text-white tracking-tight group-hover:text-indigo-400 transition-colors">
+                      {formatDisplayDate(selectedDate)}
+                    </h2>
+                    <p className="text-[10px] font-black text-zinc-300 uppercase tracking-widest">
+                      {(() => {
+                        const today = getTodayDate();
+                        const yesterday = new Date();
+                        yesterday.setDate(yesterday.getDate() - 1);
+                        const yesterdayStr = yesterday.toISOString().split('T')[0];
+                        
+                        if (selectedDate === today) return 'TODAY';
+                        if (selectedDate === yesterdayStr) return 'YESTERDAY NIGHT';
+                        return 'HISTORICAL LOG';
+                      })()}
+                    </p>
+                  </div>
 
-                <button 
-                  onClick={() => changeDate(1)}
-                  className="p-2 hover:bg-zinc-800 rounded-full transition-colors text-zinc-400"
-                >
-                  <ChevronRight size={20} />
-                </button>
+                  <button 
+                    onClick={() => changeDate(1)}
+                    className="p-2 hover:bg-zinc-800 rounded-full transition-colors text-zinc-400"
+                  >
+                    <ChevronRight size={20} />
+                  </button>
+                </div>
               </div>
 
+              {new Date(selectedDate + 'T00:00:00') > new Date(getTodayDate() + 'T00:00:00') && (
+                <div className="bg-amber-900/20 border border-amber-800/50 text-amber-500 text-xs p-3 rounded-xl mt-4">
+                  Future planning: You can pre-fill your routine for this upcoming night. SIA will finalize this analysis once the data is logged.
+                </div>
+              )}
 
               <AnimatePresence initial={false} custom={direction}>
                 <motion.div
@@ -1494,23 +1545,6 @@ export default function App() {
                   <div>
                     <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-300">Sleep Window</h2>
                     <p className="text-[10px] text-zinc-400 mt-1">{sleepWindowText}</p>
-                  </div>
-                  <div className="flex gap-2">
-                    {SLEEP_STATES.filter(s => s.value !== 'awake-out').map((state) => (
-                      <button
-                        key={state.value}
-                        onClick={() => setActiveState(state.value)}
-                        className={`px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-wider border transition-all ${
-                          activeState === state.value 
-                            ? state.value === 'sleep' 
-                              ? 'border-emerald-500 bg-emerald-600 text-white shadow-[0_0_15px_rgba(16,185,129,0.4)]' 
-                              : 'border-indigo-500 bg-indigo-500/10 text-indigo-400' 
-                            : 'border-zinc-800 text-zinc-400'
-                        }`}
-                      >
-                        {state.value === 'awake-in' ? 'Awake In Bed' : state.label}
-                      </button>
-                    ))}
                   </div>
                 </div>
 
@@ -1597,10 +1631,10 @@ export default function App() {
                                   <Rocket className="text-zinc-600 shrink-0" size={14} />
                                   <div className="text-left">
                                     <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest leading-tight">
-                                      {historyCount === 0 ? "SIA Learning: Start Your Journey" : `SIA Learning: Log ${3 - historyCount} more days to unlock`}
+                                      {historyCount === 0 ? "SIA Learning: Log nights to enable prefill" : `SIA Learning: Log ${3 - historyCount} more nights for prefill`}
                                     </p>
                                     <p className="text-[8px] text-zinc-500 uppercase tracking-wider leading-tight">
-                                      {historyCount === 0 ? "Log your first night to begin pattern recognition" : "Pattern recognition requires more data"}
+                                      {historyCount === 0 ? "Log your first night to enable pattern prefill" : "Log more nights to enable pattern prefill"}
                                     </p>
                                   </div>
                                 </button>
@@ -1678,9 +1712,15 @@ export default function App() {
                 )}
 
                 <div 
-                  className={`relative bg-zinc-900 border rounded-2xl overflow-hidden select-none flex flex-col divide-y divide-zinc-800/50 transition-all ${
+                  className={`relative bg-zinc-900 border rounded-2xl overflow-hidden select-none flex flex-col divide-y divide-zinc-800/50 transition-all cursor-pointer ${
                     isEditing ? 'border-indigo-500 ring-2 ring-indigo-500/20 touch-none' : 'border-zinc-800 touch-pan-y'
                   }`}
+                  onClick={() => {
+                    if (!isEditing) {
+                      setInitialTimeline([...currentLog.visualTimeline]);
+                      setIsEditing(true);
+                    }
+                  }}
                 >
                   <AnimatePresence>
                     {!isEditing && (
@@ -1688,11 +1728,7 @@ export default function App() {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        onClick={() => {
-                          setInitialTimeline([...currentLog.visualTimeline]);
-                          setIsEditing(true);
-                        }}
-                        className={`absolute inset-0 z-20 flex flex-col items-center justify-center cursor-pointer group touch-pan-y ${
+                        className={`absolute inset-0 z-20 flex flex-col items-center justify-center group touch-pan-y pointer-events-none ${
                           historyCount === 0 ? '' : 'bg-black/20 backdrop-blur-[2px]'
                         }`}
                       >
@@ -1727,6 +1763,33 @@ export default function App() {
                       </motion.div>
                     )}
                   </AnimatePresence>
+                </div>
+
+                <div className="flex gap-2 justify-center mt-4">
+                  {isEditing ? (
+                    <>
+                      <button onClick={handleCancel} className="px-4 py-2 bg-zinc-800 text-white rounded-xl text-xs font-bold uppercase tracking-wider">Cancel</button>
+                      <button onClick={handleSave} className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold uppercase tracking-wider">Save Changes</button>
+                    </>
+                  ) : (
+                    SLEEP_STATES.filter(s => s.value !== 'awake-out').map((state) => (
+                      <button
+                        key={state.value}
+                        onClick={() => setActiveState(state.value)}
+                        className={`px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-wider border transition-all ${
+                          activeState === state.value 
+                            ? state.value === 'sleep' 
+                              ? 'border-emerald-500 bg-emerald-600 text-white shadow-[0_0_15px_rgba(16,185,129,0.4)]' 
+                              : 'border-indigo-500 bg-indigo-500/10 text-indigo-400' 
+                            : 'border-zinc-800 text-zinc-400'
+                        }`}
+                      >
+                        {state.value === 'awake-in' ? 'Awake In Bed' : state.label}
+                      </button>
+                    ))
+                  )}
+                </div>
+
                   <SleepWindow
                     timeline={currentLog.visualTimeline}
                     isEditing={isEditing}
@@ -1737,12 +1800,36 @@ export default function App() {
                     onTouchMove={handleTouchMove}
                     onTouchEnd={handleTouchEnd}
                   />
-                </div>
                 
                 <div className="flex justify-between text-[10px] text-zinc-300 px-1 italic">
                   <span>Start: 20:00</span>
                   <span>Duration: {formatDuration(calculateSleepDuration(currentLog.visualTimeline))}</span>
                   <span>End: {getSlotLabel(TOTAL_SLOTS)}</span>
+                </div>
+              </section>
+
+              {/* Metrics Section */}
+              <section className="bg-zinc-900/30 p-6 rounded-3xl border border-zinc-800/50 space-y-6">
+                <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-300 mb-4">Daily Metrics</h2>
+                <div className="grid gap-8">
+                  <SliderInput 
+                    label="Sleep Quality (SQ)" 
+                    value={currentLog.sleep_quality} 
+                    onChange={(val) => updateLog({ sleep_quality: val })}
+                    icon={Moon}
+                  />
+                  <SliderInput 
+                    label="Restedness after Awakening (R)" 
+                    value={currentLog.morning_alertness} 
+                    onChange={(val) => updateLog({ morning_alertness: val })}
+                    icon={Sun}
+                  />
+                  <SliderInput 
+                    label="Energy Level in the Morning (L)" 
+                    value={currentLog.daytime_energy} 
+                    onChange={(val) => updateLog({ daytime_energy: val })}
+                    icon={BarChart3}
+                  />
                 </div>
               </section>
 
@@ -2245,31 +2332,6 @@ export default function App() {
                     </motion.div>
                   )}
                 </AnimatePresence>
-              </section>
-
-              {/* Metrics Section */}
-              <section className="bg-zinc-900/30 p-6 rounded-3xl border border-zinc-800/50 space-y-6">
-                <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-300 mb-4">Daily Metrics</h2>
-                <div className="grid gap-8">
-                  <SliderInput 
-                    label="Sleep Quality (SQ)" 
-                    value={currentLog.sleep_quality} 
-                    onChange={(val) => updateLog({ sleep_quality: val })}
-                    icon={Moon}
-                  />
-                  <SliderInput 
-                    label="Restedness after Awakening (R)" 
-                    value={currentLog.morning_alertness} 
-                    onChange={(val) => updateLog({ morning_alertness: val })}
-                    icon={Sun}
-                  />
-                  <SliderInput 
-                    label="Energy Level in the Morning (L)" 
-                    value={currentLog.daytime_energy} 
-                    onChange={(val) => updateLog({ daytime_energy: val })}
-                    icon={BarChart3}
-                  />
-                </div>
               </section>
 
               {/* Remarks Section */}

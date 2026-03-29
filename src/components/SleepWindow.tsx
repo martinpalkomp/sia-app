@@ -33,7 +33,7 @@ export const SleepWindow: React.FC<SleepWindowProps> = ({
                 {getSlotLabel(rowIdx * 16).split(':')[0]}h
               </span>
             </div>
-            <div 
+            <div
               className="grid grid-cols-16 flex-1"
               style={{ touchAction: 'none' }}
               onTouchStart={onTouchStart}
@@ -42,15 +42,13 @@ export const SleepWindow: React.FC<SleepWindowProps> = ({
             >
               {timeline.slice(rowIdx * 16, (rowIdx + 1) * 16).map((state, localIdx) => {
                 const idx = rowIdx * 16 + localIdx;
-                
-                // UI Render Check: Exact mapping as requested
-                // value === 1 ? 'bg-emerald-500' : value === 2 ? 'bg-indigo-500' : 'bg-zinc-900'
+
                 let colorClass = 'bg-zinc-900';
                 if (state === 'sleep') colorClass = 'bg-emerald-500';
                 else if (state === 'awake-in') colorClass = 'bg-indigo-500';
-                
+
                 const isHourStart = idx % 4 === 0;
-                
+
                 return (
                   <div
                     key={idx}

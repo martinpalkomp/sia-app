@@ -71,19 +71,12 @@ interface DashboardProps {
   isRefreshing: boolean;
 }
 
-const StaticFallbackUI = ({ tier, onLogClick }: { tier: string, onLogClick: () => void }) => {
-  const message = tier === 'Pro' 
-    ? "Consistency is key. Log now to maintain your high-precision forecasting."
-    : tier === 'Enhanced'
-    ? "Log 7 nights to unlock your weekly trend analysis."
-    : "Log 3 nights to see your first patterns.";
-
+const StaticFallbackUI = ({ onLogClick }: { onLogClick: () => void }) => {
   return (
     <div className="space-y-4">
       <p className="text-zinc-200 leading-relaxed text-sm font-medium">
         Awaiting Initial Data. Log your first sleep session to activate your Intelligence Agent.
       </p>
-      <p className="text-zinc-400 text-xs italic">{message}</p>
       <button 
         onClick={onLogClick}
         className="px-6 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-2xl text-xs font-bold transition-all border border-zinc-700"
@@ -269,7 +262,7 @@ export default function Dashboard({
     return logs[sortedDates[0]] || null;
   }, [logs]);
 
-  const greeting = useMemo(() => {
+    const greeting = useMemo(() => {
     if (isFirstVisit) {
       return {
         prefix: "Hello! I am SIA, your Sleep Intelligence Assistant.",
@@ -280,10 +273,22 @@ export default function Dashboard({
     const hour = new Date().getHours();
     let prefix = "";
     let suffix = "";
+    let showLogLink = false;
+
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().split('T')[0];
+    const hasYesterdayLog = !!logs[yesterdayStr];
 
     if (hour >= 5 && hour < 12) {
       prefix = "Good morning! SIA is here";
-      suffix = "Did you have a nice night? Log it in.";
+      if (hasYesterdayLog) {
+        suffix = "You've logged your sleep! Ready to see your analysis?";
+        showLogLink = false;
+      } else {
+        suffix = "Did you have a nice night? Log it in.";
+        showLogLink = true;
+      }
     } else if (hour >= 12 && hour < 18) {
       prefix = "Good afternoon! SIA is here";
       suffix = "Ready to evaluate your sleep patterns and adjust in accordance with the analysis?";
@@ -292,8 +297,8 @@ export default function Dashboard({
       suffix = `Based on your schedule, you usually head to bed around ${averageBedtime}. Ready to wind down?`;
     }
 
-    return { prefix, suffix };
-  }, [isFirstVisit, averageBedtime]);
+    return { prefix, suffix, showLogLink, onLogClick };
+  }, [isFirstVisit, averageBedtime, logs, onLogClick]);
 
   const insightDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastInsightKeyRef = useRef<string>('');
@@ -460,7 +465,7 @@ export default function Dashboard({
               <p className="text-zinc-400 text-sm italic">SIA is analyzing your recent patterns...</p>
             </div>
           ) : (!logs || Object.keys(logs).length === 0) ? (
-            <StaticFallbackUI tier={userProfile?.tier || 'Basic'} onLogClick={onLogClick} />
+            <StaticFallbackUI onLogClick={onLogClick} />
           ) : dailyBrief ? (
             <div className="space-y-4">
               <p className="text-zinc-200 leading-relaxed text-sm font-medium">
@@ -490,7 +495,13 @@ export default function Dashboard({
               <span className="text-[8px] md:text-[10px] text-zinc-300 uppercase tracking-widest font-bold">Status Report</span>
             </div>
             <p className="text-zinc-400 text-[10px] md:text-sm font-medium leading-relaxed">
-              I've analyzed your sleep intelligence for the last 7 days.
+              {Object.keys(logs).length > 0
+                ? "I've analyzed your sleep intelligence for the last 7 days."
+                : userProfile?.tier === 'Pro'
+                ? "Consistency is key. Log now to maintain your high-precision forecasting."
+                : userProfile?.tier === 'Enhanced'
+                ? "Log 7 nights to unlock your weekly trend analysis."
+                : "Log 3 nights to see your first patterns."}
             </p>
           </Card>
 
@@ -512,7 +523,7 @@ export default function Dashboard({
           <Card className={`flex flex-col justify-between hover:border-amber-400 group hover:-translate-y-1 hover:shadow-amber-500/20 transition-all duration-300 min-h-[140px] md:min-h-[160px] animate-sia-pulse ${isEnhanced ? 'bg-gradient-to-br from-zinc-900 to-amber-900/20 border-amber-500/30' : 'border-zinc-800'}`}>
             <div className="flex justify-between items-start">
               <div className="w-8 h-8 md:w-10 md:h-10 bg-amber-500/20 rounded-lg md:rounded-xl flex items-center justify-center text-amber-300 border border-amber-500/30">
-                <Moon size={18} className="md:w-5 md:h-5" />
+                <Sun size={18} className="md:w-5 md:h-5" />
               </div>
               <TrendingUp size={14} className="text-zinc-600 group-hover:text-amber-400 transition-colors md:w-4 md:h-4" />
             </div>

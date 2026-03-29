@@ -160,7 +160,9 @@ function buildCircadianSection(logs: DailyLog[]): string {
           .header-bg { background: #1e1b4b; color: white; }
           h2 { font-size: 14px; font-weight: bold; border-bottom: 2px solid #1e1b4b; margin-top: 32px; }
           pre { font-family: monospace; font-size: 11px; line-height: 1.4; background: #f8f8f8; padding: 12px; border: 1px solid #ddd; }
+          .no-print { display: block; }
           @media print {
+            .no-print { display: none; }
             span[style*="background:#f4f4f5"] { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             span[style*="background:#18181b"] { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             span[style*="background:#6366f1"] { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -168,8 +170,14 @@ function buildCircadianSection(logs: DailyLog[]): string {
         </style>
       </head>
       <body>
-        <div style="margin-bottom: 20px;">
+        <button class="no-print" onclick="window.print()" style="position:fixed; bottom:20px; right:20px; padding:12px 24px; background:#1e1b4b; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold; box-shadow:0 4px 6px rgba(0,0,0,0.1);">
+          SAVE AS PDF
+        </button>
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#1e1b4b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
           <h1 style="margin:0;">SIA Sleep Intelligence Report — ${dateRange.label}</h1>
+        </div>
+        <div style="margin-bottom: 20px;">
           <p style="margin:0; font-style:italic;">Generated for clinical review — not a medical diagnosis</p>
         </div>
         <div style="display:flex; justify-content:space-between;">
@@ -186,7 +194,7 @@ function buildCircadianSection(logs: DailyLog[]): string {
 
         <h2>Executive Summary</h2>
         <table>
-          <tr class="header-bg"><th>Metric</th><th>7-Day Average</th><th>Reference</th></tr>
+          <tr class="header-bg"><th>Metric</th><th>${logs.length}-Day Average</th><th>Reference</th></tr>
           <tr><td>Sleep Quality</td><td style="color:${getStatusColor(avg('sleep_quality'), 7)}">${Math.round(avg('sleep_quality'))}/10</td><td>≥7/10</td></tr>
           <tr><td>Morning Alertness</td><td style="color:${getStatusColor(avg('morning_alertness'), 7)}">${Math.round(avg('morning_alertness'))}/10</td><td>≥7/10</td></tr>
           <tr><td>Daytime Energy</td><td style="color:${getStatusColor(avg('daytime_energy'), 7)}">${Math.round(avg('daytime_energy'))}/10</td><td>≥7/10</td></tr>

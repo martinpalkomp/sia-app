@@ -38,15 +38,12 @@ export class AIService {
   private static apiKey = process.env.GEMINI_API_KEY || "";
 
   static getModelForTier(tier: UserTier): string {
-    let modelName: string;
     switch (tier) {
-      case 'Pro': modelName = "gemini-2.0-flash"; break;
-      case 'Enhanced': modelName = "gemini-2.0-flash-lite"; break;
+      case 'Pro': return "gemini-2.0-flash";
+      case 'Enhanced': return "gemini-2.0-flash";
       case 'Basic':
-      default: modelName = "gemini-2.0-flash-lite"; break;
+      default: return "gemini-2.0-flash";
     }
-    console.log("SIA Engine Initialized with:", modelName);
-    return modelName;
   }
 
   static async getUserDataMaturity(userId: string): Promise<MaturityInfo> {

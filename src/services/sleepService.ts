@@ -1,4 +1,4 @@
-import { db, doc, serverTimestamp, updateDoc } from '../lib/firebase';
+import { db, doc, serverTimestamp, updateDoc, setDoc } from '../lib/firebase';
 import { DailyLog, SummaryLog } from '../types';
 
 /**
@@ -53,7 +53,7 @@ export const saveLog = async (uid: string, logData: Partial<DailyLog> & { date: 
   // We use setDoc with merge: true only if the document might not exist, 
   // but for log updates, updateDoc is safer for permissions.
   // Assuming the document exists for updates.
-  await updateDoc(docRef, payload);
+  await setDoc(docRef, payload, { merge: true });
 
   // Sync to daily_metrics if it has metrics
   if (rest.sleep_quality !== undefined) {
