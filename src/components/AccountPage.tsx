@@ -1,4 +1,5 @@
 import React from 'react';
+import { DevModal } from './DevModal';
 import { User, signOut, auth, db, doc, setDoc, onSnapshot, updateDoc } from '../lib/firebase';
 import { motion } from 'motion/react';
 import { 
@@ -40,6 +41,11 @@ interface AccountPageProps {
 export default function AccountPage({ user, personalizationProfile, onModifyAssessment, onRefresh, logs, maturity }: AccountPageProps) {
   const [view, setView] = React.useState<'main' | 'data-ledger' | 'feedback' | 'admin-feedback'>('main');
   const [userData, setUserData] = React.useState<any>(null);
+  const [modal, setModal] = React.useState<{ isOpen: boolean; message: string; onConfirm: () => void; onCancel?: () => void }>({
+    isOpen: false,
+    message: '',
+    onConfirm: () => {},
+  });
 
   React.useEffect(() => {
     if (!user) return;
@@ -84,40 +90,80 @@ export default function AccountPage({ user, personalizationProfile, onModifyAsse
   };
 
   const handleSeed = async (days: number) => {
-    if (window.confirm(`This will populate ${days} days of logs. Continue?`)) {
-      try {
-        await seedTestData(days, user.uid, async () => {
-          await AIService.getUserDataMaturity(user.uid);
-          onRefresh();
-        });
-      } catch (error) {
-        console.error("Seeding error:", error);
-        alert("Failed to seed data.");
-      }
-    }
+    setModal({
+      isOpen: true,
+      message: `This will populate ${days} days of logs. Continue?`,
+      onConfirm: async () => {
+        setModal({ ...modal, isOpen: false });
+        try {
+          await seedTestData(days, user.uid, async () => {
+            await AIService.getUserDataMaturity(user.uid);
+            onRefresh();
+          });
+        } catch (error) {
+          console.error("Seeding error:", error);
+          setModal({
+            isOpen: true,
+            message: "Failed to seed data.",
+            onConfirm: () => setModal({ ...modal, isOpen: false }),
+          });
+        }
+      },
+      onCancel: () => setModal({ ...modal, isOpen: false }),
+    });
   };
 
   const handlePurgeData = async () => {
-    if (window.confirm("WARNING: This will permanently delete ALL your sleep history and raw data. This cannot be undone. Proceed?")) {
-      try {
-        await purgeUserData(user.uid, onRefresh);
-        alert("Database Cleared. You are starting with a clean slate.");
-      } catch (error) {
-        console.error("Purge error:", error);
-        alert("Failed to purge data.");
-      }
-    }
+    setModal({
+      isOpen: true,
+      message: "WARNING: This will permanently delete ALL your sleep history and raw data. This cannot be undone. Proceed?",
+      onConfirm: async () => {
+        setModal({ ...modal, isOpen: false });
+        try {
+          await purgeUserData(user.uid, onRefresh);
+          setModal({
+            isOpen: true,
+            message: "Database Cleared. You are starting with a clean slate.",
+            onConfirm: () => setModal({ ...modal, isOpen: false }),
+          });
+        } catch (error) {
+          console.error("Purge error:", error);
+          setModal({
+            isOpen: true,
+            message: "Failed to purge data.",
+            onConfirm: () => setModal({ ...modal, isOpen: false }),
+          });
+        }
+      },
+      onCancel: () => setModal({ ...modal, isOpen: false }),
+    });
   };
 
   const handleTierChange = async (newTier: string) => {
     try {
+      // Protect role and tier: Only allow tier update if not changing role, and ensure role is not modified here.
       const levelOverride = newTier === 'Pro' ? 3 : newTier === 'Enhanced' ? 2 : 1;
-      await updateDoc(doc(db, 'users', user.uid), { tier: newTier, levelOverride });
-      alert(`Tier changed to ${newTier} (Level ${levelOverride}). Please refresh.`);
-      onRefresh();
+      const updateData: any = { tier: newTier, levelOverride };
+      
+      // Explicitly ensure role is not in updateData
+      delete updateData.role; 
+
+      await updateDoc(doc(db, 'users', user.uid), updateData);
+      setModal({
+        isOpen: true,
+        message: `Tier changed to ${newTier} (Level ${levelOverride}). Please refresh.`,
+        onConfirm: () => {
+          setModal({ ...modal, isOpen: false });
+          onRefresh();
+        },
+      });
     } catch (error) {
       console.error("Tier change error:", error);
-      alert("Failed to change tier.");
+      setModal({
+        isOpen: true,
+        message: "Failed to change tier.",
+        onConfirm: () => setModal({ ...modal, isOpen: false }),
+      });
     }
   };
 
@@ -425,7 +471,7 @@ export default function AccountPage({ user, personalizationProfile, onModifyAsse
       </div>
 
       {/* Developer Tools */}
-      {import.meta.env.DEV && (
+      {isAdmin && (
         <div className="pt-8 border-t border-zinc-800">
           <div className="mb-4">
             <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 ml-1">Developer Tools</h3>
@@ -472,6 +518,12 @@ export default function AccountPage({ user, personalizationProfile, onModifyAsse
           </div>
         </div>
       )}
+      <DevModal 
+        isOpen={modal.isOpen} 
+        message={modal.message} 
+        onConfirm={modal.onConfirm} 
+        onCancel={modal.onCancel} 
+      />
     </motion.div>
   );
 }

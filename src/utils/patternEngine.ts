@@ -154,18 +154,30 @@ export const getSuggestedLog = (
   const last48hLogs = sortedLogs.slice(0, 2);
   const olderLogs = sortedLogs.slice(2, 7);
   
-  const calculateWMA = (field: keyof DailyLog) => {
-    const last48hVal = last48hLogs.reduce((acc, l) => acc + (Number(l[field]) || 0), 0) / last48hLogs.length;
-    const olderVal = olderLogs.reduce((acc, l) => acc + (Number(l[field]) || 0), 0) / olderLogs.length;
+  const calculateWMA = (path: string) => {
+    const last48hVal = last48hLogs.reduce((acc, l) => acc + (Number(getNestedValue(l, path)) || 0), 0) / last48hLogs.length;
+    const olderVal = olderLogs.reduce((acc, l) => acc + (Number(getNestedValue(l, path)) || 0), 0) / olderLogs.length;
     const val = Math.round(last48hVal * 0.5 + olderVal * 0.5);
     return Math.max(1, Math.min(10, val || 5)); // Baseline fallback to 5
   };
   
-  suggestion.sleep_quality = calculateWMA('sleep_quality');
-  suggestion.morning_alertness = calculateWMA('morning_alertness');
-  suggestion.daytime_energy = calculateWMA('daytime_energy');
+  const calculateConfidence = (path: string) => {
+    const hasData = sortedLogs.slice(0, 7).filter(l => getNestedValue(l, path) !== undefined && getNestedValue(l, path) !== null).length;
+    return Math.min(1, hasData / 7);
+  };
   
-  // 4. Schedule Detection
+  suggestion.sleep_quality = calculateWMA('sleep_quality');
+  confidenceMap['sleep_quality'] = calculateConfidence('sleep_quality');
+  
+  suggestion.morning_alertness = calculateWMA('morning_alertness');
+  confidenceMap['morning_alertness'] = calculateConfidence('morning_alertness');
+  
+  suggestion.daytime_energy = calculateWMA('daytime_energy');
+  confidenceMap['daytime_energy'] = calculateConfidence('daytime_energy');
+  
+  // Stress Level
+  suggestion.factors!.stressLevel = calculateWMA('factors.stressLevel');
+  confidenceMap['factors.stressLevel'] = calculateConfidence('factors.stressLevel');
   const sleepWindow = generateSleepWindowSuggestion(sortedLogs, targetDate);
   if (sleepWindow.sleepEvents.length > 0) {
     suggestion.sleepEvents = sleepWindow.sleepEvents;

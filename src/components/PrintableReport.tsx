@@ -55,8 +55,14 @@ const PrintableReport: React.FC<PrintableReportProps> = ({ logs, userName }) => 
           <h2 className="text-lg font-black uppercase tracking-widest mb-4">Circadian Rhythm Stack</h2>
           
           {/* Time Ruler */}
-          <div className="flex justify-between text-[8px] font-bold text-zinc-400 uppercase tracking-widest px-1 mb-1">
-            <span>20:00</span><span>00:00</span><span>04:00</span><span>08:00</span><span>12:00</span><span>16:00</span><span>20:00</span>
+          <div className="relative text-[8px] font-bold text-zinc-400 uppercase tracking-widest px-1 mb-1 font-mono">
+            <span className="absolute left-[0%]">20:00</span>
+            <span className="absolute left-[16.66%]">00:00</span>
+            <span className="absolute left-[33.33%]">04:00</span>
+            <span className="absolute left-[50%]">08:00</span>
+            <span className="absolute left-[66.66%]">12:00</span>
+            <span className="absolute left-[83.33%]">16:00</span>
+            <span className="absolute right-0 whitespace-nowrap">20:00</span>
           </div>
 
           <div className="relative border-l border-r border-zinc-200">

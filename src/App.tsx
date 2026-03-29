@@ -162,7 +162,8 @@ const SliderInput = ({
   onChange, 
   min = 0, 
   max = 10, 
-  icon: Icon 
+  icon: Icon,
+  info
 }: { 
   label: string; 
   value: number; 
@@ -170,12 +171,21 @@ const SliderInput = ({
   min?: number; 
   max?: number;
   icon?: any;
+  info?: string;
 }) => (
   <div className="space-y-2">
     <div className="flex justify-between items-center">
       <label className="text-sm font-medium text-zinc-400 flex items-center gap-2">
         {Icon && <Icon size={16} className="text-indigo-400" />}
         {label}
+        {info && (
+          <div className="group relative">
+            <Info size={14} className="text-zinc-500 cursor-help" />
+            <div className="absolute left-full ml-2 top-0 w-48 p-2 bg-zinc-800 text-zinc-300 text-[10px] rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity z-50 pointer-events-none">
+              {info}
+            </div>
+          </div>
+        )}
       </label>
       <span className="text-lg font-bold text-white">{value}</span>
     </div>
@@ -1150,7 +1160,7 @@ export default function App() {
       `;
 
       const response = await ai.models.generateContent({
-        model: "gemini-2.0-flash",
+        model: "gemini-3.1-pro-preview",
         contents: [{ role: "user", parts: [{ text: reportPrompt }] }],
         config: { temperature: 0.2, maxOutputTokens: 2048 }
       });
@@ -1695,25 +1705,33 @@ export default function App() {
                               </p>
                             </div>
                           </div>
-                          <button 
-                            onClick={() => {
-                              setInitialTimeline([...currentLog.visualTimeline]);
-                              setIsEditing(true);
-                            }}
-                            className="px-4 py-1.5 bg-zinc-800/50 hover:bg-zinc-800 border border-zinc-700/50 rounded-lg text-[9px] font-bold text-zinc-400 hover:text-zinc-200 uppercase tracking-[0.2em] transition-all flex items-center gap-2"
-                          >
-                            <Plus size={12} />
-                            Edit Sleep Window
-                          </button>
                         </motion.div>
                       )}
                     </AnimatePresence>
                   </div>
                 )}
 
+                <div className="flex gap-2 justify-center mb-4 z-30 relative">
+                  {SLEEP_STATES.filter(s => s.value !== 'awake-out').map((state) => (
+                    <button
+                      key={state.value}
+                      onClick={() => setActiveState(state.value)}
+                      className={`px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-wider border transition-all ${
+                        activeState === state.value 
+                          ? state.value === 'sleep' 
+                            ? 'border-emerald-500 bg-emerald-600 text-white shadow-[0_0_15px_rgba(16,185,129,0.4)]' 
+                            : 'border-indigo-500 bg-indigo-500/10 text-indigo-400' 
+                          : 'border-zinc-800 text-zinc-400'
+                      }`}
+                    >
+                      {state.value === 'awake-in' ? 'Awake In Bed' : state.label}
+                    </button>
+                  ))}
+                </div>
+
                 <div 
                   className={`relative bg-zinc-900 border rounded-2xl overflow-hidden select-none flex flex-col divide-y divide-zinc-800/50 transition-all cursor-pointer ${
-                    isEditing ? 'border-indigo-500 ring-2 ring-indigo-500/20 touch-none' : 'border-zinc-800 touch-pan-y'
+                    isEditing ? 'border-indigo-500 ring-2 ring-indigo-500/20 touch-none' : 'border-zinc-800 touch-manipulation'
                   }`}
                   onClick={() => {
                     if (!isEditing) {
@@ -1728,7 +1746,7 @@ export default function App() {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className={`absolute inset-0 z-20 flex flex-col items-center justify-center group touch-pan-y pointer-events-none ${
+                        className={`absolute inset-0 z-20 flex flex-col items-center justify-center group touch-manipulation pointer-events-none ${
                           historyCount === 0 ? '' : 'bg-black/20 backdrop-blur-[2px]'
                         }`}
                       >
@@ -1738,8 +1756,18 @@ export default function App() {
                               No data for this night
                             </p>
                             <p className="text-[10px] text-zinc-500 tracking-wide">
-                              Tap the grid or use the buttons above to log sleep
+                              Tap and drag to select multiple slots
                             </p>
+                            <button 
+                              onClick={() => {
+                                setInitialTimeline([...currentLog.visualTimeline]);
+                                setIsEditing(true);
+                              }}
+                              className="px-4 py-1.5 bg-zinc-800/50 hover:bg-zinc-800 border border-zinc-700/50 rounded-lg text-[9px] font-bold text-zinc-400 hover:text-zinc-200 uppercase tracking-[0.2em] transition-all flex items-center gap-2 pointer-events-auto"
+                            >
+                              <Plus size={12} />
+                              Edit Sleep Window
+                            </button>
                           </div>
                         ) : (
                           <>
@@ -1763,33 +1791,6 @@ export default function App() {
                       </motion.div>
                     )}
                   </AnimatePresence>
-                </div>
-
-                <div className="flex gap-2 justify-center mt-4">
-                  {isEditing ? (
-                    <>
-                      <button onClick={handleCancel} className="px-4 py-2 bg-zinc-800 text-white rounded-xl text-xs font-bold uppercase tracking-wider">Cancel</button>
-                      <button onClick={handleSave} className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold uppercase tracking-wider">Save Changes</button>
-                    </>
-                  ) : (
-                    SLEEP_STATES.filter(s => s.value !== 'awake-out').map((state) => (
-                      <button
-                        key={state.value}
-                        onClick={() => setActiveState(state.value)}
-                        className={`px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-wider border transition-all ${
-                          activeState === state.value 
-                            ? state.value === 'sleep' 
-                              ? 'border-emerald-500 bg-emerald-600 text-white shadow-[0_0_15px_rgba(16,185,129,0.4)]' 
-                              : 'border-indigo-500 bg-indigo-500/10 text-indigo-400' 
-                            : 'border-zinc-800 text-zinc-400'
-                        }`}
-                      >
-                        {state.value === 'awake-in' ? 'Awake In Bed' : state.label}
-                      </button>
-                    ))
-                  )}
-                </div>
-
                   <SleepWindow
                     timeline={currentLog.visualTimeline}
                     isEditing={isEditing}
@@ -1800,7 +1801,9 @@ export default function App() {
                     onTouchMove={handleTouchMove}
                     onTouchEnd={handleTouchEnd}
                   />
+                </div>
                 
+
                 <div className="flex justify-between text-[10px] text-zinc-300 px-1 italic">
                   <span>Start: 20:00</span>
                   <span>Duration: {formatDuration(calculateSleepDuration(currentLog.visualTimeline))}</span>
@@ -1817,18 +1820,21 @@ export default function App() {
                     value={currentLog.sleep_quality} 
                     onChange={(val) => updateLog({ sleep_quality: val })}
                     icon={Moon}
+                    info="Measures how restorative and uninterrupted your sleep felt throughout the night."
                   />
                   <SliderInput 
                     label="Restedness after Awakening (R)" 
                     value={currentLog.morning_alertness} 
                     onChange={(val) => updateLog({ morning_alertness: val })}
                     icon={Sun}
+                    info="Reflects how refreshed and ready for the day you felt immediately upon waking."
                   />
                   <SliderInput 
                     label="Energy Level in the Morning (L)" 
                     value={currentLog.daytime_energy} 
                     onChange={(val) => updateLog({ daytime_energy: val })}
                     icon={BarChart3}
+                    info="Indicates your overall vitality and alertness levels during the early part of your day."
                   />
                 </div>
               </section>
@@ -2839,7 +2845,12 @@ export default function App() {
       {view === 'dashboard' && (
         <button 
           onClick={() => {
-            setSelectedDate(getTodayDate());
+            const yesterday = new Date();
+            yesterday.setDate(yesterday.getDate() - 1);
+            const year = yesterday.getFullYear();
+            const month = String(yesterday.getMonth() + 1).padStart(2, '0');
+            const day = String(yesterday.getDate()).padStart(2, '0');
+            setSelectedDate(`${year}-${month}-${day}`);
             setView('log');
           }}
           className="fixed bottom-8 right-8 w-14 h-14 bg-indigo-600 rounded-full shadow-2xl shadow-indigo-500/40 flex items-center justify-center text-white hover:scale-110 active:scale-95 transition-transform z-50"
