@@ -57,20 +57,56 @@ interface AIInsightsAgentProps {
   isProfileLoading?: boolean;
 }
 
-const QUICK_PROMPTS = [
-  { label: '⏰ Optimal Bedtime',     category: 'action',    prompt: 'Based on my full sleep history, what is my optimal bedtime for the best next-day energy and alertness?' },
-  { label: '💪 Recovery Wins',       category: 'celebrate', prompt: 'Show me my most improved weeks and what I did differently during those periods.' },
-  { label: '📉 Sleep Debt',          category: 'trend',     prompt: 'Calculate my accumulated sleep debt over the past 2 weeks and tell me how significant it is.' },
-  { label: '☕ Caffeine & Alcohol',  category: 'diagnose',  prompt: 'Analyze whether my caffeine or alcohol consumption correlates with worse sleep quality or more nighttime interruptions.' },
-  { label: '📊 Clinical Summary',    category: 'action',    prompt: 'Generate a structured clinical sleep summary I could share with my doctor, covering the past 30 days.' },
-  { label: '😰 Night Disturbances',  category: 'diagnose',  prompt: 'Analyze my nighttime wake events and disturbances. Are there patterns in timing, frequency, or associated factors?' },
-  { label: '📆 Weekly Pattern',      category: 'trend',     prompt: 'Which days of the week do I consistently sleep best and worst, and what might explain the pattern?' },
-  { label: '🔄 Consistency Score',   category: 'trend',     prompt: 'How consistent are my bedtime and wake time? Give me a consistency score and explain its impact on my sleep quality.' },
-  { label: '😓 Stress Impact',       category: 'diagnose',  prompt: 'How does my logged stress level correlate with sleep quality and next-day energy? Show me the strongest relationships.' },
-  { label: '🎯 Best Streak',         category: 'celebrate', prompt: 'What is my longest streak of nights with sleep quality above 7, and what habits defined that period?' },
-  { label: '⚡ Fragmentation',       category: 'diagnose',  prompt: 'Analyze my sleep fragmentation — how often do I wake mid-sleep and how does it affect my morning alertness?' },
-  { label: '💊 Med Impact',          category: 'diagnose',  prompt: 'Analyze whether nights I took medication correlate with better or worse sleep quality and morning alertness.' },
-];
+const getQuickPrompts = (tier: string, maturityLevel: number) => {
+
+  // LEVEL 1 — Baseline (0–14 logs): No correlations yet, only reflective
+  const level1 = [
+    { label: 'Last Night',    prompt: 'How did my last logged night look? Any notable patterns from the first logs?' },
+    { label: 'Sleep Timing',  prompt: 'What time do I typically go to bed based on my logs so far?' },
+    { label: 'Energy Link',   prompt: 'Is there any early sign of a link between my sleep quality and next-day energy?' },
+    { label: 'Log Quality',   prompt: 'How complete is my data so far and what should I prioritise logging next?' },
+  ];
+
+  // LEVEL 2 BASIC — Emerging Patterns, conserve the 3-message quota
+  const level2Basic = [
+    { label: 'Best Night',    prompt: 'What factors were present on my best-quality sleep nights?' },
+    { label: 'Worst Night',   prompt: 'What do my lowest-quality nights have in common?' },
+    { label: 'Weekly Rhythm', prompt: 'Which days of the week do I sleep best and worst?' },
+    { label: 'Consistency',   prompt: 'How consistent is my bedtime and how does that affect quality?' },
+  ];
+
+  // LEVEL 2 ENHANCED/PRO — Emerging Patterns, deeper factor access
+  const level2Enhanced = [
+    { label: 'Best Night',      prompt: 'What factors were present on my best-quality sleep nights?' },
+    { label: 'Caffeine Effect', prompt: 'Correlate my caffeine intake timing with sleep quality scores.' },
+    { label: 'Stress Link',     prompt: 'How does logged stress level affect next-morning alertness?' },
+    { label: 'Exercise Timing', prompt: 'Does the time I exercise correlate with better or worse sleep?' },
+    { label: 'Weekly Rhythm',   prompt: 'Which days of the week do I sleep best and worst?' },
+    { label: 'Gadget Report',   prompt: 'Which sleep tools correlate with better efficiency in my logs?' },
+  ];
+
+  // LEVEL 3 BASIC — Full Insight, but quota-constrained
+  const level3Basic = [
+    { label: '90-Day Trend',   prompt: 'What is my overall sleep quality trend across the full history?' },
+    { label: 'Best Period',    prompt: 'What was my best sustained sleep period and what habits defined it?' },
+    { label: 'Consistency',    prompt: 'Score my long-term bedtime consistency and its effect on quality.' },
+    { label: 'Top Disruptor',  prompt: 'What is my single most confirmed sleep disruptor across all logs?' },
+  ];
+
+  // LEVEL 3 ENHANCED/PRO — Full clinical depth
+  const level3Enhanced = [
+    { label: 'Chronotype',      prompt: 'Define my chronotype from my sleep timing history.' },
+    { label: 'Trigger Map',     prompt: 'What are my top 3 confirmed sleep disruptors across all data?' },
+    { label: 'Recovery Index',  prompt: 'Build a 4-week rolling recovery index from quality and efficiency.' },
+    { label: 'Optimise Tonight',prompt: 'Based on all patterns, what one change would most improve tonight?' },
+    { label: 'Doctor Brief',    prompt: 'Summarise my sleep health concisely for a clinical consultation.' },
+    { label: 'Seasonal Shift',  prompt: 'Has my sleep quality or timing shifted across different months?' },
+  ];
+
+  if (maturityLevel === 1) return level1;
+  if (maturityLevel === 2) return (tier === 'Basic') ? level2Basic : level2Enhanced;
+  return (tier === 'Basic') ? level3Basic : level3Enhanced;
+};
 
 const buildLogDigest = (logs: DailyLog[], days: number) => {
   const cutoff = subDays(new Date(), days);
@@ -436,17 +472,18 @@ export default function AIInsightsAgent({ logs, user, userProfile, personalizati
         </button>
         {isExpanded && (
           <div className="flex flex-wrap gap-2 pb-2">
-            {QUICK_PROMPTS.map((qp, i) => (
+            <p className="text-[9px] text-zinc-600 uppercase tracking-widest font-bold mb-2 px-1">
+              {dataMaturity.level === 1 ? 'Starter questions — log 14 nights to unlock patterns' :
+               dataMaturity.level === 2 ? 'Pattern questions — 90 nights unlocks deep analysis' :
+               userProfile.tier === 'Basic' ? 'Deep questions — upgrade for full clinical set' :
+               'Full clinical set'}
+            </p>
+            {getQuickPrompts(userProfile.tier, dataMaturity.level).map((qp, i) => (
               <button
                 key={i}
                 onClick={() => handleSend(qp.prompt)}
                 disabled={isLoading || isAnalyzing}
-                className={`flex items-center gap-2 px-3 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-2xl text-xs font-medium transition-colors disabled:opacity-50 ${
-                  qp.category === 'diagnose' ? 'hover:border-red-500/30' :
-                  qp.category === 'trend' ? 'hover:border-blue-500/30' :
-                  qp.category === 'action' ? 'hover:border-indigo-500/30' :
-                  'hover:border-emerald-500/30'
-                }`}
+                className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-indigo-500/40 rounded-2xl text-[10px] font-bold uppercase tracking-widest text-zinc-300 hover:text-white transition-all disabled:opacity-50"
               >
                 {qp.label}
               </button>

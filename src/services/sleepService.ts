@@ -57,13 +57,13 @@ export const saveLog = async (uid: string, logData: Partial<DailyLog> & { date: 
 
   // Sync to daily_metrics if it has metrics
   if (rest.sleep_quality !== undefined) {
-    await updateDoc(metricsRef, {
+    await setDoc(metricsRef, {
       sleep_quality: rest.sleep_quality,
       morning_alertness: rest.morning_alertness,
       daytime_energy: rest.daytime_energy,
       daily_remarks: rest.daily_remarks,
       source: rest.source || 'manual',
       updatedAt: serverTimestamp(),
-    });
+    }, { merge: true });
   }
 };

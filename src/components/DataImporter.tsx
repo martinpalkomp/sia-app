@@ -99,7 +99,7 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
       if (apiKey) {
         const ai = new GoogleGenAI({ apiKey });
         const aiPromise = ai.models.generateContent({
-          model: "gemini-3-flash-preview",
+          model: "gemini-2.0-flash",
           config: {
             systemInstruction: "Extract sleep insights from this text. Return only valid JSON: { summary, estimatedDateRange, extractedInsights (string array), rawDataType }.",
             temperature: 0.4
@@ -423,7 +423,7 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
       `;
 
       const aiPromise = ai.models.generateContent({
-        model: "gemini-3-flash-preview",
+        model: "gemini-2.0-flash",
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
         config: { temperature: 0.4 }
       });
@@ -746,8 +746,8 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
         cleaned: cleanedCount,
         metrics: Array.from(metricsCaptured)
       });
+      setErrorMessage('');
       setUploadStatus('success');
-      setErrorMessage(skippedRows.length > 0 ? `Data Cleaned: Skipped ${skippedRows.length} invalid rows.` : '');
       
       setSelectedFile(null);
       if (fileInputRef.current) fileInputRef.current.value = '';

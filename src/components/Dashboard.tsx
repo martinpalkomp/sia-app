@@ -125,11 +125,14 @@ export default function Dashboard({
     if (reason.includes("still calibrating")) {
       return "SIA is still getting to know you. Log a few more nights to unlock your personalised brief.";
     }
+    if (reason.includes("Pro tier") || reason.includes("90 days")) {
+      return "Deep Analysis unlocks at 90 days of data and Pro tier. SIA is building towards it.";
+    }
     return reason;
   };
 
   // Fetch/Generate Daily Brief
-  const today = new Date().toISOString().split('T')[0];
+  const today = getTodayDate();
   useEffect(() => {
     if (!user || !userProfile || !logs || Object.keys(logs).length === 0 || !maturity) return;
     const fetchBrief = async () => {

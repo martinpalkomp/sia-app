@@ -21,15 +21,15 @@ export const calculateLogVitality = (log: DailyLog): number => {
   // Factors (10 pts)
   if (log.factors) {
     let factorsLogged = 0;
-    if (log.factors.caffeine?.consumed !== null) factorsLogged++;
-    if (log.factors.alcohol?.consumed !== null) factorsLogged++;
-    if (log.factors.medication?.taken !== null) factorsLogged++;
-    if (log.factors.exercise?.completed !== null) factorsLogged++;
-    if (log.factors.screensInBed !== null) factorsLogged++;
-    if (log.factors.stressLevel !== null) factorsLogged++;
+    if (log.factors.caffeine?.consumed != null) factorsLogged++;
+    if (log.factors.alcohol?.consumed != null) factorsLogged++;
+    if (log.factors.medication?.taken != null) factorsLogged++;
+    if (log.factors.exercise?.completed != null) factorsLogged++;
+    if (log.factors.screensInBed != null) factorsLogged++;
+    if (log.factors.stressLevel != null) factorsLogged++;
     if (log.factors.lastMealTime) factorsLogged++;
-    if (log.factors.naturalWake !== null) factorsLogged++;
-    if (log.factors.moodScore !== null) factorsLogged++;
+    if (log.factors.naturalWake != null) factorsLogged++;
+    if (log.factors.moodScore != null) factorsLogged++;
     if (log.factors.sleepGadgets && log.factors.sleepGadgets.length > 0) factorsLogged++;
 
     if (factorsLogged >= 3) {

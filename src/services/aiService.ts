@@ -39,10 +39,10 @@ export class AIService {
 
   static getModelForTier(tier: UserTier): string {
     switch (tier) {
-      case 'Pro': return "gemini-3.1-pro-preview";
-      case 'Enhanced': return "gemini-3-flash-preview";
+      case 'Pro': return "gemini-2.0-flash";
+      case 'Enhanced': return "gemini-2.0-flash";
       case 'Basic':
-      default: return "gemini-3-flash-preview";
+      default: return "gemini-2.0-flash";
     }
   }
 
@@ -130,6 +130,9 @@ export class AIService {
     
     const guardrail = shouldTriggerAI(tier, maturity.level, logs.length, 'DailyBrief', cached ? today : null);
     if (!guardrail.shouldTrigger) {
+      if (cached && guardrail.reason === "Already generated today.") {
+        return { content: cached.content, status: 'success' };
+      }
       return { content: null, status: 'skipped', reason: guardrail.reason };
     }
 
