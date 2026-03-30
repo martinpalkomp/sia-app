@@ -18,6 +18,7 @@ export const Navbar: React.FC<NavbarProps> = ({ user, view, setView, handleLogou
   const navLinks = [
     { id: 'dashboard', label: 'DASHBOARD' },
     { id: 'log', label: 'LOG' },
+    { id: 'insights', label: 'INSIGHT' },
     { id: 'ai', label: 'AI ANALYSIS' }
   ];
 
