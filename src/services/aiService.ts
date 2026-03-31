@@ -39,10 +39,10 @@ export class AIService {
 
   static getModelForTier(tier: UserTier): string {
     switch (tier) {
-      case 'Pro': return "gemini-2.0-flash";
-      case 'Enhanced': return "gemini-2.0-flash";
+      case 'Pro': return "gemini-3-flash";
+      case 'Enhanced': return "gemini-3-flash";
       case 'Basic':
-      default: return "gemini-2.0-flash";
+      default: return "gemini-3-flash";
     }
   }
 

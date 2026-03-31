@@ -8,7 +8,7 @@ import {
 } from '../utils/diagnosticEngine';
 import { Card } from './UI';
 import { ClipboardCheck, Share2, Info, Printer, FileText } from 'lucide-react';
-import { formatDuration, getGridFromEvents, generateASCIIRibbon, calculateSleepEfficiency } from '../utils/sleepUtils';
+import { formatDuration, getGridFromEvents, generateASCIIRibbon, generateASCIIRibbonHeader, calculateSleepEfficiency } from '../utils/sleepUtils';
 import { format, parseISO } from 'date-fns';
 import PrintableReport from './PrintableReport';
 import { generateDoctorReport } from '../utils/generateDoctorReport';
@@ -117,8 +117,7 @@ WEEKLY AVERAGES:
 - Avg Quality: ${avgQuality}/10 | Avg Sleep: ${avgSleep} | Avg Efficiency: ${avgEfficiency}%
 
 CIRCADIAN GRID:
-          20:00           00:00           04:00           08:00           12:00           16:00           20:00
-          |-------4h------|-------4h------|-------4h------|-------4h------|-------4h------|-------4h------|
+${generateASCIIRibbonHeader()}
 `;
     
     const dailyLines = logsToAnalyze.map(log => {
@@ -126,8 +125,8 @@ CIRCADIAN GRID:
       const ribbon = generateASCIIRibbon(grid);
       const efficiency = Math.round(Number(calculateSleepEfficiency(log.sleepEvents || [])));
       const duration = formatDuration(calculateTotalSleepHours(log));
-      const dateStr = format(parseISO(log.date), 'MMM dd').padEnd(10);
-      return `${dateStr} | ${ribbon} | ${efficiency}% | ${duration}`;
+      const dateStr = format(parseISO(log.date), 'MMM dd').padEnd(8);
+      return `${dateStr}|${ribbon}| ${efficiency}% | ${duration}`;
     }).join('\n');
 
     const footer = "\n\nDisclaimer: SIA provides observations based on your logged data. This is not medical advice. Consult a professional for clinical concerns.";
@@ -213,7 +212,7 @@ CIRCADIAN GRID:
             ) : (
               <>
                 <Share2 size={14} />
-                Export
+                Copy text data to clipboard
               </>
             )}
           </button>

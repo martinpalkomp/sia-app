@@ -75,9 +75,9 @@ const getDefaultLog = (date: string): DailyLog => ({
   },
   sleepEvents: [],
   daily_remarks: '',
-  sleep_quality: 3,
-  morning_alertness: 3,
-  daytime_energy: 3,
+  sleep_quality: 5,
+  morning_alertness: 5,
+  daytime_energy: 5,
   source: 'manual',
   isIgnored: false
 });
@@ -228,6 +228,7 @@ export default function App() {
   const [isDragging, setIsDragging] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [initialTimeline, setInitialTimeline] = useState<SleepState[] | null>(null);
+  const [initialMetrics, setInitialMetrics] = useState<{ sleep_quality: number; morning_alertness: number; daytime_energy: number } | null>(null);
   const [dragAction, setDragAction] = useState<'paint' | 'erase'>('paint');
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
@@ -952,16 +953,21 @@ export default function App() {
   };
 
   const handleCancel = () => {
-    if (initialTimeline) {
-      updateLog({ visualTimeline: initialTimeline });
+    if (initialTimeline && initialMetrics) {
+      updateLog({ 
+        visualTimeline: initialTimeline,
+        ...initialMetrics
+      });
     }
     setIsEditing(false);
     setInitialTimeline(null);
+    setInitialMetrics(null);
   };
 
   const handleSave = () => {
     setIsEditing(false);
     setInitialTimeline(null);
+    setInitialMetrics(null);
     setToast({ message: 'Changes saved', type: 'success' });
   };
 
@@ -1422,6 +1428,11 @@ export default function App() {
                   <button 
                     onClick={() => {
                       setInitialTimeline([...currentLog.visualTimeline]);
+                      setInitialMetrics({
+                        sleep_quality: currentLog.sleep_quality,
+                        morning_alertness: currentLog.morning_alertness,
+                        daytime_energy: currentLog.daytime_energy
+                      });
                       setIsEditing(true);
                     }}
                     className="text-[10px] font-black text-amber-500 uppercase tracking-widest hover:text-amber-400 transition-colors whitespace-nowrap"
@@ -1543,9 +1554,12 @@ export default function App() {
                             <div className="flex gap-2">
                               <button 
                                 onClick={() => {
-                                  if (initialTimeline) {
+                                  if (initialTimeline && initialMetrics) {
                                     const newEvents = convertGridToEvents(initialTimeline);
-                                    updateLog({ sleepEvents: newEvents });
+                                    updateLog({ 
+                                      sleepEvents: newEvents,
+                                      ...initialMetrics
+                                    });
                                   }
                                   setIsEditing(false);
                                 }}
@@ -1683,6 +1697,11 @@ export default function App() {
                   onClick={() => {
                     if (!isEditing) {
                       setInitialTimeline([...currentLog.visualTimeline]);
+                      setInitialMetrics({
+                        sleep_quality: currentLog.sleep_quality,
+                        morning_alertness: currentLog.morning_alertness,
+                        daytime_energy: currentLog.daytime_energy
+                      });
                       setIsEditing(true);
                     }
                   }}
@@ -1708,6 +1727,11 @@ export default function App() {
                             <button 
                               onClick={() => {
                                 setInitialTimeline([...currentLog.visualTimeline]);
+                                setInitialMetrics({
+                                  sleep_quality: currentLog.sleep_quality,
+                                  morning_alertness: currentLog.morning_alertness,
+                                  daytime_energy: currentLog.daytime_energy
+                                });
                                 setIsEditing(true);
                               }}
                               className="px-4 py-1.5 bg-zinc-800/50 hover:bg-zinc-800 border border-zinc-700/50 rounded-lg text-[9px] font-bold text-zinc-400 hover:text-zinc-200 uppercase tracking-[0.2em] transition-all flex items-center gap-2 pointer-events-auto"
@@ -1747,6 +1771,14 @@ export default function App() {
                     onTouchStart={handleTouchStart}
                     onTouchMove={handleTouchMove}
                     onTouchEnd={handleTouchEnd}
+                    onRowApply={(rowIdx) => {
+                      const newTimeline = [...currentLog.visualTimeline];
+                      for (let i = rowIdx * 16; i < (rowIdx + 1) * 16; i++) {
+                        newTimeline[i] = activeState;
+                      }
+                      const sleepEvents = convertGridToEvents(newTimeline, selectedDate);
+                      updateLog({ visualTimeline: newTimeline, sleepEvents });
+                    }}
                   />
                 </div>
                 

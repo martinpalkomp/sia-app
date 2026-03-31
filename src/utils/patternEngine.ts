@@ -125,6 +125,8 @@ export const getSuggestedLog = (
   const reasons: string[] = [];
   const confidenceMap: Record<string, number> = {};
   
+  const last14dLogs = sortedLogs.slice(0, 14);
+  
   // 1. Substances (Caffeine/Alcohol) - Forgiveness Logic
   const last3Logs = sortedLogs.slice(0, 3);
   
@@ -146,38 +148,60 @@ export const getSuggestedLog = (
     }
   }
 
-  // 2. Sleep Support Tools (Recency Bias)
-  const gadgetRecency = calculateRecencyScore(sortedLogs, 'factors.sleepGadgets', 5);
-  // This needs a bit more work as it's a list, but for now let's skip it or implement a simple version.
+  // 2. Sleep Support Tools (Dynamic Prediction)
+  const allGadgetTypes = new Set<string>();
+  last14dLogs.forEach(l => l.factors?.sleepGadgets?.forEach(g => allGadgetTypes.add(g.type)));
+  
+  suggestion.factors!.sleepGadgets = Array.from(allGadgetTypes).filter(type => {
+    const usageCount = last14dLogs.filter(l => l.factors?.sleepGadgets?.some(g => g.type === type)).length;
+    return (usageCount / last14dLogs.length) > 0.5;
+  }).map(type => ({ type: type as any }));
+  
+  confidenceMap['factors.sleepGadgets'] = Array.from(allGadgetTypes).length > 0 
+    ? last14dLogs.filter(l => l.factors?.sleepGadgets && l.factors.sleepGadgets.length > 0).length / last14dLogs.length
+    : 1;
   
   // 3. Daily Metrics (Weighted Moving Average)
-  const last48hLogs = sortedLogs.slice(0, 2);
-  const olderLogs = sortedLogs.slice(2, 7);
   
   const calculateWMA = (path: string) => {
-    const last48hVal = last48hLogs.reduce((acc, l) => acc + (Number(getNestedValue(l, path)) || 0), 0) / last48hLogs.length;
-    const olderVal = olderLogs.reduce((acc, l) => acc + (Number(getNestedValue(l, path)) || 0), 0) / olderLogs.length;
-    const val = Math.round(last48hVal * 0.5 + olderVal * 0.5);
-    return Math.max(1, Math.min(10, val || 5)); // Baseline fallback to 5
+    const values = last14dLogs.map(l => Number(getNestedValue(l, path))).filter(v => !isNaN(v));
+    if (values.length === 0) return 5; // Baseline fallback
+    return Math.round(values.reduce((acc, val) => acc + val, 0) / values.length);
   };
   
   const calculateConfidence = (path: string) => {
-    const hasData = sortedLogs.slice(0, 7).filter(l => getNestedValue(l, path) !== undefined && getNestedValue(l, path) !== null).length;
-    return Math.min(1, hasData / 7);
+    const hasData = last14dLogs.filter(l => getNestedValue(l, path) !== undefined && getNestedValue(l, path) !== null).length;
+    return Math.min(1, hasData / 14);
   };
   
-  suggestion.sleep_quality = calculateWMA('sleep_quality');
-  confidenceMap['sleep_quality'] = calculateConfidence('sleep_quality');
+  // Dynamically process all factors
+  const baseFactorPaths = [
+    'sleep_quality',
+    'morning_alertness',
+    'daytime_energy'
+  ];
   
-  suggestion.morning_alertness = calculateWMA('morning_alertness');
-  confidenceMap['morning_alertness'] = calculateConfidence('morning_alertness');
+  const factorKeys = Object.keys(suggestion.factors!).filter(key => 
+    !['caffeine', 'alcohol', 'medication', 'exercise', 'sleepGadgets', 'lastMealTime', 'isStreak'].includes(key)
+  );
   
-  suggestion.daytime_energy = calculateWMA('daytime_energy');
-  confidenceMap['daytime_energy'] = calculateConfidence('daytime_energy');
-  
-  // Stress Level
-  suggestion.factors!.stressLevel = calculateWMA('factors.stressLevel');
-  confidenceMap['factors.stressLevel'] = calculateConfidence('factors.stressLevel');
+  const factorPaths = [
+    ...baseFactorPaths,
+    ...factorKeys.map(key => `factors.${key}`)
+  ];
+
+  factorPaths.forEach(path => {
+    const val = calculateWMA(path);
+    const confidence = calculateConfidence(path);
+    
+    if (path.startsWith('factors.')) {
+      const factorName = path.split('.')[1] as keyof typeof suggestion.factors;
+      (suggestion.factors as any)[factorName] = val;
+    } else {
+      (suggestion as any)[path] = val;
+    }
+    confidenceMap[path] = confidence;
+  });
   const sleepWindow = generateSleepWindowSuggestion(sortedLogs, targetDate);
   if (sleepWindow.sleepEvents.length > 0) {
     suggestion.sleepEvents = sleepWindow.sleepEvents;

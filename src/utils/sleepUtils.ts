@@ -8,13 +8,22 @@ export const generateASCIIRibbon = (grid: SleepState[]): string => {
   const segments = [];
   for (let i = 0; i < 96; i += 16) {
     const segment = grid.slice(i, i + 16).map(state => {
-      if (state === 'sleep') return '█';
-      if (state === 'awake-in') return '-';
+      if (state === 'sleep') return '#';
+      if (state === 'awake-in') return '=';
       return '.';
     }).join('');
     segments.push(segment);
   }
-  return segments.join(' | ');
+  return segments.join('|');
+};
+
+/**
+ * Generates the ASCII ribbon header.
+ */
+export const generateASCIIRibbonHeader = (): string => {
+  const row1 = '           20:00           00:00           04:00           08:00           12:00           16:00     20:00';
+  const row2 = '           |-------4h------|-------4h------|-------4h------|-------4h------|-------4h------|-------4h------|';
+  return `${row1}\n${row2}`;
 };
 
 /**

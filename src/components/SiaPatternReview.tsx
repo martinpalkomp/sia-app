@@ -71,18 +71,18 @@ export const SiaPatternReview: React.FC<SiaPatternReviewProps> = ({ isOpen, onCl
               </div>
 
               <div>
-                <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-2">Tools</p>
-                <div className="flex justify-between items-center bg-zinc-800/50 p-4 rounded-xl">
-                  <span className="text-sm text-white">{tools}</span>
-                  <span className="text-[10px] font-black text-emerald-400">{Math.round((suggestion.confidenceMap['factors.sleepGadgets'] || 0) * 100)}% Confidence</span>
-                </div>
-              </div>
-
-              <div>
                 <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-2">Daily Factors</p>
                 <div className="flex justify-between items-center bg-zinc-800/50 p-4 rounded-xl">
                   <span className="text-sm text-white">{dailyFactors}</span>
                   <span className="text-[10px] font-black text-amber-400">{Math.round((suggestion.confidenceMap['factors.stressLevel'] || 0) * 100)}% Confidence</span>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-2">Tools</p>
+                <div className="flex justify-between items-center bg-zinc-800/50 p-4 rounded-xl">
+                  <span className="text-sm text-white">{tools}</span>
+                  <span className="text-[10px] font-black text-emerald-400">{Math.round((suggestion.confidenceMap['factors.sleepGadgets'] || 0) * 100)}% Confidence</span>
                 </div>
               </div>
             </div>

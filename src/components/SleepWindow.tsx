@@ -11,6 +11,7 @@ interface SleepWindowProps {
   onTouchStart: (e: React.TouchEvent) => void;
   onTouchMove: (e: React.TouchEvent) => void;
   onTouchEnd: (e: React.TouchEvent) => void;
+  onRowApply: (rowIdx: number) => void;
 }
 
 export const SleepWindow: React.FC<SleepWindowProps> = ({
@@ -21,14 +22,18 @@ export const SleepWindow: React.FC<SleepWindowProps> = ({
   onMouseEnter,
   onTouchStart,
   onTouchMove,
-  onTouchEnd
+  onTouchEnd,
+  onRowApply
 }) => {
   return (
     <div className="bg-zinc-900/50 rounded-xl border border-zinc-800/50 overflow-hidden">
       <div className="grid grid-rows-6">
         {Array.from({ length: 6 }).map((_, rowIdx) => (
           <div key={rowIdx} className="flex border-b border-zinc-800/30 last:border-b-0">
-            <div className="w-12 flex-shrink-0 flex items-center justify-center border-r border-zinc-800/50 bg-zinc-900/80">
+            <div 
+              className="w-12 flex-shrink-0 flex items-center justify-center border-r border-zinc-800/50 bg-zinc-900/80 cursor-pointer hover:bg-zinc-800 transition-colors"
+              onClick={() => onRowApply(rowIdx)}
+            >
               <span className="text-[9px] font-bold text-zinc-300 uppercase tracking-tighter">
                 {getSlotLabel(rowIdx * 16).split(':')[0]}h
               </span>
