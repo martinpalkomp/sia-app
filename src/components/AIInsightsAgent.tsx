@@ -201,6 +201,9 @@ export default function AIInsightsAgent({ logs, user, userProfile, personalizati
       } else {
         setMessages(fetchedMessages);
       }
+    }, (error) => {
+      console.error("Chat history load error:", error);
+      setErrorMsg("Failed to load chat history. Please try again later.");
     });
 
     return () => unsubscribe();

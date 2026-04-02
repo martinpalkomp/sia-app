@@ -146,6 +146,74 @@ export const getSuggestedLog = (
       confidenceMap['factors.caffeine'] = 0.9;
       reasons.push(`+ Steady caffeine intake detected`);
     }
+
+    // Alcohol
+    const alcoholLogs = last3Logs.filter(l => l.factors?.alcohol?.consumed);
+    if (alcoholLogs.length >= 2) {
+      const avgDrinks = Math.round(alcoholLogs.reduce((acc, l) => acc + (l.factors?.alcohol?.drinks || 0), 0) / alcoholLogs.length);
+      const times = alcoholLogs.map(l => l.factors?.alcohol?.lastIntake || '20:00');
+      suggestion.factors!.alcohol = {
+        consumed: true,
+        drinks: avgDrinks,
+        lastIntake: times[0],
+        isStreak: alcoholLogs.length >= 2
+      };
+      confidenceMap['factors.alcohol'] = alcoholLogs.length / 3;
+      reasons.push(`+ Alcohol pattern detected`);
+    } else {
+      confidenceMap['factors.alcohol'] = 0.3;
+    }
+
+    // Exercise
+    const exerciseLogs = last14dLogs.filter(l => l.factors?.exercise?.completed);
+    const exerciseRate = exerciseLogs.length / last14dLogs.length;
+    if (exerciseRate >= 0.5) {
+      const times = exerciseLogs.map(l => l.factors?.exercise?.time).filter(Boolean);
+      const types = exerciseLogs.map(l => l.factors?.exercise?.type).filter(Boolean);
+      const mostCommonType = types.sort((a, b) =>
+        types.filter(v => v === b).length - types.filter(v => v === a).length
+      )[0] || '';
+      suggestion.factors!.exercise = {
+        completed: true,
+        type: mostCommonType,
+        time: times[0] || '17:00'
+      };
+      confidenceMap['factors.exercise'] = exerciseRate;
+      reasons.push(`+ Exercise pattern detected`);
+    } else {
+      suggestion.factors!.exercise = { completed: false, type: '', time: '17:00' };
+      confidenceMap['factors.exercise'] = 1 - exerciseRate;
+    }
+
+    // Last Meal Time
+    const mealTimeLogs = last14dLogs.filter(l => l.factors?.lastMealTime);
+    if (mealTimeLogs.length >= 5) {
+      const avgMins = mealTimeLogs.reduce((acc, l) => {
+        const [h, m] = (l.factors!.lastMealTime!).split(':').map(Number);
+        return acc + h * 60 + m;
+      }, 0) / mealTimeLogs.length;
+      const h = Math.floor(avgMins / 60) % 24;
+      const m = Math.round(avgMins % 60 / 15) * 15;
+      suggestion.factors!.lastMealTime = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+      confidenceMap['factors.lastMealTime'] = mealTimeLogs.length / 14;
+      reasons.push(`+ Meal timing pattern detected`);
+    } else {
+      confidenceMap['factors.lastMealTime'] = 0;
+    }
+
+    // Natural Wake
+    const naturalWakeLogs = last14dLogs.filter(l => l.factors?.naturalWake === true);
+    const naturalWakeRate = naturalWakeLogs.length / last14dLogs.length;
+    if (naturalWakeRate >= 0.6) {
+      suggestion.factors!.naturalWake = true;
+      confidenceMap['factors.naturalWake'] = naturalWakeRate;
+      reasons.push(`+ Natural wake pattern detected`);
+    } else if (naturalWakeRate <= 0.3 && last14dLogs.some(l => l.factors?.naturalWake !== undefined)) {
+      suggestion.factors!.naturalWake = false;
+      confidenceMap['factors.naturalWake'] = 1 - naturalWakeRate;
+    } else {
+      confidenceMap['factors.naturalWake'] = 0;
+    }
   }
 
   // 2. Sleep Support Tools (Dynamic Prediction)
@@ -181,9 +249,16 @@ export const getSuggestedLog = (
     'daytime_energy'
   ];
   
-  const factorKeys = Object.keys(suggestion.factors!).filter(key => 
-    !['caffeine', 'alcohol', 'medication', 'exercise', 'sleepGadgets', 'lastMealTime', 'isStreak'].includes(key)
+  const factorKeys = Object.keys(suggestion.factors!).filter(key =>
+    !['caffeine', 'alcohol', 'medication', 'exercise', 'sleepGadgets',
+      'lastMealTime', 'naturalWake', 'screensInBed', 'isStreak'].includes(key)
   );
+
+  // Screens in Bed — boolean frequency
+  const screensLogs = last14dLogs.filter(l => l.factors?.screensInBed === true);
+  const screensRate = screensLogs.length / last14dLogs.length;
+  suggestion.factors!.screensInBed = screensRate >= 0.5;
+  confidenceMap['factors.screensInBed'] = Math.max(screensRate, 1 - screensRate);
   
   const factorPaths = [
     ...baseFactorPaths,

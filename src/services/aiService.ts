@@ -39,10 +39,10 @@ export class AIService {
 
   static getModelForTier(tier: UserTier): string {
     switch (tier) {
-      case 'Pro': return "gemini-3.0-flash";
-      case 'Enhanced': return "gemini-3.0-flash";
-      case 'Basic': return "gemini-3.0-flash-lite";
-      default: return "gemini-3.0-flash-lite";
+      case 'Pro': return "gemini-1.5-flash";
+      case 'Enhanced': return "gemini-1.5-flash";
+      case 'Basic': return "gemini-1.5-flash";
+      default: return "gemini-1.5-flash";
     }
   }
 
@@ -145,15 +145,29 @@ export class AIService {
       Focus on immediate recovery status and one actionable tip for tonight.
     `;
 
-    try {
-      const response = await ai.models.generateContent({
-        model: modelName,
+    const callModel = async (model: string) => {
+      return await ai.models.generateContent({
+        model: model,
         contents: [{ role: "user", parts: [{ text: prompt }] }],
         config: {
           systemInstruction: "You are SIA, a Sleep Intelligence Agent. Provide a brief, professional daily summary.",
           temperature: 0.7
         }
       });
+    };
+
+    try {
+      let response;
+      try {
+        response = await callModel(modelName);
+      } catch (error: any) {
+        if (error.status === 404) {
+          console.warn(`Model ${modelName} not found, falling back to gemini-1.5-flash`);
+          response = await callModel("gemini-1.5-flash");
+        } else {
+          throw error;
+        }
+      }
       const content = response.text || "Unable to generate brief.";
       
       // Check for partial logs
@@ -195,15 +209,29 @@ export class AIService {
       Format: "📊 SIA Monthly Analysis: [Your analysis here]"
     `;
 
-    try {
-      const response = await ai.models.generateContent({
-        model: modelName,
+    const callModel = async (model: string) => {
+      return await ai.models.generateContent({
+        model: model,
         contents: [{ role: "user", parts: [{ text: prompt }] }],
         config: {
           systemInstruction: "You are 'SIA', a Sleep Intelligence Agent. Provide deep, structured, data-backed long-term sleep analysis.",
           temperature: 0.7
         }
       });
+    };
+
+    try {
+      let response;
+      try {
+        response = await callModel(modelName);
+      } catch (error: any) {
+        if (error.status === 404) {
+          console.warn(`Model ${modelName} not found, falling back to gemini-1.5-flash`);
+          response = await callModel("gemini-1.5-flash");
+        } else {
+          throw error;
+        }
+      }
 
       const content = response.text || "Unable to generate analysis.";
       const finalContent = `${content}\n\n***\n\n${DISCLAIMER}`;
@@ -232,15 +260,29 @@ export class AIService {
       Provide a concise, actionable insight (max 2 sentences).
     `;
 
-    try {
-      const response = await ai.models.generateContent({
-        model: modelName,
+    const callModel = async (model: string) => {
+      return await ai.models.generateContent({
+        model: model,
         contents: [{ role: "user", parts: [{ text: prompt }] }],
         config: {
           systemInstruction: "You are SIA, a Sleep Intelligence Agent. Provide a quick, actionable insight.",
           temperature: 0.7
         }
       });
+    };
+
+    try {
+      let response;
+      try {
+        response = await callModel(modelName);
+      } catch (error: any) {
+        if (error.status === 404) {
+          console.warn(`Model ${modelName} not found, falling back to gemini-1.5-flash`);
+          response = await callModel("gemini-1.5-flash");
+        } else {
+          throw error;
+        }
+      }
 
       const content = response.text || "Unable to generate insight.";
       const finalContent = `${content}\n\n***\n\n${DISCLAIMER}`;

@@ -64,10 +64,14 @@ service cloud.firestore {
       allow create: if isOwner(userId) && 
         (!('role' in request.resource.data) || request.resource.data.role == 'user');
       // Prevent users from changing their own role, tier, subscription, levelOverride, and resetting quota
-      allow update: if isOwner(userId) && 
-        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'tier', 'subscription', 'quota']) &&
-        (!('displayName' in request.resource.data) || (request.resource.data.displayName is string && request.resource.data.displayName.size() < 100)) &&
-        (!('photoURL' in request.resource.data) || (request.resource.data.photoURL is string && request.resource.data.photoURL.size() < 500));
+      allow update: if isOwner(userId) && (
+        // Allow quota.chatMessagesUsed to increment (not decrease)
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'tier', 'subscription']) &&
+        (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['quota']) ||
+         (request.resource.data.quota.chatMessagesUsed >= resource.data.quota.chatMessagesUsed))
+      ) &&
+      (!('displayName' in request.resource.data) || (request.resource.data.displayName is string && request.resource.data.displayName.size() < 100)) &&
+      (!('photoURL' in request.resource.data) || (request.resource.data.photoURL is string && request.resource.data.photoURL.size() < 500));
       // Admin can do anything
       allow write: if isAdmin();
     }
