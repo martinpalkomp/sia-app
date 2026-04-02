@@ -57,6 +57,7 @@ export interface PersonalizationProfile {
     sex: 'Male' | 'Female' | 'Other';
     workSchedule: 'Regular Hours' | 'Shift Work';
     environmentType: 'Noisy/Urban' | 'Quiet/Controlled';
+    healthConditions?: string[];  // e.g. ['Insomnia', 'Anxiety disorders']
   };
   goals: string[];
   psqi: {
