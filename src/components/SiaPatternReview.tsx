@@ -10,7 +10,7 @@ interface SiaPatternReviewProps {
   suggestion: SuggestionResult;
 }
 
-const ConfBadge = ({ value, color = 'indigo' }: { value: number; color?: string }) => {
+const ConfBadge = ({ value }: { value: number }) => {
   const pct = Math.round(value * 100);
   if (pct === 0) return <span className="text-[9px] font-black text-zinc-600 uppercase tracking-widest">No data</span>;
   const cls = pct >= 75 ? 'text-emerald-400' : pct >= 50 ? 'text-indigo-400' : 'text-amber-400';
@@ -20,9 +20,9 @@ const ConfBadge = ({ value, color = 'indigo' }: { value: number; color?: string 
 const FactorRow = ({ label, value, confidence }: { label: string; value: string | null; confidence: number }) => {
   if (!value) return null;
   return (
-    <div className="flex justify-between items-center py-2 border-b border-zinc-800/60 last:border-0">
+    <div className="flex justify-between items-center py-2.5 border-b border-zinc-800/60 last:border-0">
       <div>
-        <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest block">{label}</span>
+        <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest block mb-0.5">{label}</span>
         <span className="text-xs font-bold text-white">{value}</span>
       </div>
       <ConfBadge value={confidence} />
@@ -39,32 +39,36 @@ export const SiaPatternReview: React.FC<SiaPatternReviewProps> = ({ isOpen, onCl
     ? `${s.sleepEvents[0].start} → ${s.sleepEvents[0].end}`
     : null;
 
-  const gadgets = f?.sleepGadgets?.map(g => g.type.replace(/_/g, ' ')).join(', ') || null;
+  const gadgets = f?.sleepGadgets?.length
+    ? f.sleepGadgets.map(g => g.type.replace(/_/g, ' ')).join(', ')
+    : null;
 
   const caffeineVal = f?.caffeine?.consumed
-    ? `Yes — ${f.caffeine.amount || 0} cups, last at ${f.caffeine.lastIntake}`
-    : cm['factors.caffeine'] > 0.3 ? 'No pattern detected' : null;
+    ? `Yes — ${f.caffeine.amount || 0} cup${(f.caffeine.amount || 0) !== 1 ? 's' : ''}, last at ${f.caffeine.lastIntake}`
+    : (cm['factors.caffeine'] || 0) > 0.3 ? 'No — rest day pattern' : null;
 
   const alcoholVal = f?.alcohol?.consumed
-    ? `Yes — ${f.alcohol.drinks || 0} drinks, last at ${f.alcohol.lastIntake}`
-    : cm['factors.alcohol'] > 0.3 ? 'No pattern detected' : null;
+    ? `Yes — ${f.alcohol.drinks || 0} drink${(f.alcohol.drinks || 0) !== 1 ? 's' : ''}, last at ${f.alcohol.lastIntake}`
+    : (cm['factors.alcohol'] || 0) > 0.3 ? 'No — rest day pattern' : null;
 
   const exerciseVal = f?.exercise?.completed
     ? `Yes${f.exercise.type ? ` — ${f.exercise.type}` : ''}${f.exercise.time ? ` at ${f.exercise.time}` : ''}`
-    : cm['factors.exercise'] > 0.5 ? 'Typically rest day' : null;
+    : (cm['factors.exercise'] || 0) > 0.5 ? 'Typically rest day' : null;
 
-  const screensVal = f?.screensInBed !== null && f?.screensInBed !== undefined
-    ? (f.screensInBed ? 'Yes — screens used in bed' : 'No screens in bed')
+  const screensVal = (f?.screensInBed !== null && f?.screensInBed !== undefined && (cm['factors.screensInBed'] || 0) > 0)
+    ? (f.screensInBed ? 'Yes — screens in bed' : 'No screens in bed')
     : null;
 
-  const stressVal = f?.stressLevel != null
+  const stressVal = (f?.stressLevel != null)
     ? `${f.stressLevel}/5`
     : null;
 
-  const mealVal = f?.lastMealTime || null;
+  const mealVal = f?.lastMealTime && (cm['factors.lastMealTime'] || 0) > 0
+    ? f.lastMealTime
+    : null;
 
-  const naturalWakeVal = f?.naturalWake !== null && f?.naturalWake !== undefined
-    ? (f.naturalWake ? 'Yes — natural wake' : 'Alarm wake')
+  const naturalWakeVal = (f?.naturalWake !== null && f?.naturalWake !== undefined && (cm['factors.naturalWake'] || 0) > 0)
+    ? (f.naturalWake ? 'Natural wake (no alarm)' : 'Alarm wake')
     : null;
 
   const moodVal = (s as any).moodScore != null
@@ -92,8 +96,6 @@ export const SiaPatternReview: React.FC<SiaPatternReviewProps> = ({ isOpen, onCl
             </div>
 
             <div className="space-y-5">
-
-              {/* Sleep Window */}
               {sleepWindow && (
                 <div>
                   <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-2">Sleep Window</p>
@@ -104,15 +106,14 @@ export const SiaPatternReview: React.FC<SiaPatternReviewProps> = ({ isOpen, onCl
                 </div>
               )}
 
-              {/* Predicted Metrics */}
               <div>
                 <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-2">Predicted Metrics</p>
                 <div className="grid grid-cols-3 gap-2">
-                  {[
+                  {([
                     { label: 'Quality', key: 'sleep_quality', val: s.sleep_quality },
                     { label: 'Alertness', key: 'morning_alertness', val: s.morning_alertness },
                     { label: 'Energy', key: 'daytime_energy', val: s.daytime_energy },
-                  ].map(({ label, key, val }) => (
+                  ] as const).map(({ label, key, val }) => (
                     <div key={key} className="bg-zinc-800/50 p-3 rounded-xl text-center">
                       <p className="text-[9px] font-black text-zinc-500 uppercase mb-1">{label}</p>
                       <p className="text-base font-bold text-white mb-1">{val ?? 5}/10</p>
@@ -122,7 +123,6 @@ export const SiaPatternReview: React.FC<SiaPatternReviewProps> = ({ isOpen, onCl
                 </div>
               </div>
 
-              {/* Daily Factors */}
               <div>
                 <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-2">Daily Factors</p>
                 <div className="bg-zinc-800/50 px-4 py-1 rounded-xl">
@@ -137,7 +137,6 @@ export const SiaPatternReview: React.FC<SiaPatternReviewProps> = ({ isOpen, onCl
                 </div>
               </div>
 
-              {/* Sleep Tools */}
               {gadgets && (
                 <div>
                   <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-2">Sleep Support Tools</p>
@@ -147,7 +146,6 @@ export const SiaPatternReview: React.FC<SiaPatternReviewProps> = ({ isOpen, onCl
                   </div>
                 </div>
               )}
-
             </div>
 
             <div className="flex gap-3 mt-6">

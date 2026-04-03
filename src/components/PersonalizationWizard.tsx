@@ -63,6 +63,7 @@ export default function PersonalizationWizard({ user, onComplete, onClose }: Per
       sex: 'Male',
       workSchedule: 'Regular Hours',
       environmentType: 'Quiet/Controlled',
+      healthConditions: [] as string[],
     },
     goals: [],
     psqi: {
@@ -90,7 +91,7 @@ export default function PersonalizationWizard({ user, onComplete, onClose }: Per
   });
   const [isSaving, setIsSaving] = useState(false);
 
-  const totalSteps = 6;
+  const totalSteps = 7;
 
   const handleGoalToggle = (goalId: string) => {
     setData(prev => ({
@@ -352,6 +353,58 @@ export default function PersonalizationWizard({ user, onComplete, onClose }: Per
               )}
 
               {step === 1 && (
+                <motion.div key="step-health" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
+                  <h2 className="text-2xl font-black text-white mb-2">Health Context</h2>
+                  <p className="text-sm text-zinc-400 mb-6">
+                    Select any conditions that may affect your sleep. This helps SIA interpret your patterns more accurately. Your selections are private and never shared.
+                  </p>
+                  {[
+                    { group: 'Sleep Disorders', items: ['Insomnia', 'Obstructive Sleep Apnea (OSA)', 'Restless Legs Syndrome (RLS)', 'Narcolepsy', 'Parasomnias'] },
+                    { group: 'Mental Health', items: ['Anxiety disorders', 'Depression', 'PTSD', 'Bipolar disorder'] },
+                    { group: 'Pain & Musculoskeletal', items: ['Arthritis', 'Fibromyalgia', 'Chronic back pain'] },
+                    { group: 'Breathing & Respiratory', items: ['Asthma', 'COPD', 'Allergic rhinitis'] },
+                    { group: 'Circadian & Rhythm', items: ['Shift Work Sleep Disorder', 'Delayed Sleep Phase Syndrome', 'Jet Lag (chronic)'] },
+                    { group: 'Other Medical', items: ['GERD', 'Hyperthyroidism', 'Diabetes'] },
+                  ].map(({ group, items }) => (
+                    <div key={group} className="mb-5">
+                      <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-2">{group}</p>
+                      <div className="flex flex-wrap gap-2">
+                        {items.map(item => {
+                          const selected = data.demographics.healthConditions?.includes(item);
+                          return (
+                            <button
+                              key={item}
+                              type="button"
+                              onClick={() => setData(prev => {
+                                const current = prev.demographics.healthConditions || [];
+                                return {
+                                  ...prev,
+                                  demographics: {
+                                    ...prev.demographics,
+                                    healthConditions: selected ? current.filter(c => c !== item) : [...current, item]
+                                  }
+                                };
+                              })}
+                              className={`px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-wider border transition-all ${ selected ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-zinc-900 border-zinc-700 text-zinc-400 hover:border-zinc-500' }`}
+                            >
+                              {item}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setData(prev => ({ ...prev, demographics: { ...prev.demographics, healthConditions: [] } }))}
+                    className="mt-2 text-[9px] text-zinc-600 hover:text-zinc-400 uppercase tracking-widest font-bold transition-colors"
+                  >
+                    Clear all / Prefer not to say
+                  </button>
+                </motion.div>
+              )}
+
+              {step === 2 && (
                 <motion.div
                   key="step-goals"
                   initial={{ opacity: 0, x: 20 }}
@@ -392,7 +445,7 @@ export default function PersonalizationWizard({ user, onComplete, onClose }: Per
                 </motion.div>
               )}
 
-              {step === 2 && (
+              {step === 3 && (
                 <motion.div
                   key="step-psqi"
                   initial={{ opacity: 0, x: 20 }}
@@ -454,7 +507,7 @@ export default function PersonalizationWizard({ user, onComplete, onClose }: Per
                 </motion.div>
               )}
 
-              {step === 3 && (
+              {step === 4 && (
                 <motion.div
                   key="step-clinical"
                   initial={{ opacity: 0, x: 20 }}
@@ -569,7 +622,7 @@ export default function PersonalizationWizard({ user, onComplete, onClose }: Per
                 </motion.div>
               )}
 
-              {step === 4 && (
+              {step === 5 && (
                 <motion.div
                   key="step-pledge"
                   initial={{ opacity: 0, x: 20 }}
@@ -595,7 +648,7 @@ export default function PersonalizationWizard({ user, onComplete, onClose }: Per
                 </motion.div>
               )}
 
-              {step === 5 && (
+              {step === 6 && (
                 <motion.div
                   key="step-environment"
                   initial={{ opacity: 0, x: 20 }}

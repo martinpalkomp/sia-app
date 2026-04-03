@@ -38,12 +38,7 @@ export class AIService {
   private static apiKey = process.env.GEMINI_API_KEY || "";
 
   static getModelForTier(tier: UserTier): string {
-    switch (tier) {
-      case 'Pro': return "gemini-1.5-flash";
-      case 'Enhanced': return "gemini-1.5-flash";
-      case 'Basic': return "gemini-1.5-flash";
-      default: return "gemini-1.5-flash";
-    }
+    return "gemini-3-flash-preview";
   }
 
   static async getUserDataMaturity(userId: string): Promise<MaturityInfo> {
@@ -226,8 +221,8 @@ export class AIService {
         response = await callModel(modelName);
       } catch (error: any) {
         if (error.status === 404) {
-          console.warn(`Model ${modelName} not found, falling back to gemini-1.5-flash`);
-          response = await callModel("gemini-1.5-flash");
+          console.warn(`Model ${modelName} not found, falling back to gemini-3-flash-preview`);
+          response = await callModel("gemini-3-flash-preview");
         } else {
           throw error;
         }
@@ -277,8 +272,8 @@ export class AIService {
         response = await callModel(modelName);
       } catch (error: any) {
         if (error.status === 404) {
-          console.warn(`Model ${modelName} not found, falling back to gemini-1.5-flash`);
-          response = await callModel("gemini-1.5-flash");
+          console.warn(`Model ${modelName} not found, falling back to gemini-3-flash-preview`);
+          response = await callModel("gemini-3-flash-preview");
         } else {
           throw error;
         }
@@ -446,9 +441,9 @@ export class AIService {
       }
     `;
 
-    try {
-      const response = await ai.models.generateContent({
-        model: modelName,
+    const callModel = async (model: string) => {
+      return await ai.models.generateContent({
+        model: model,
         contents: [
           ...context.history,
           { role: "user", parts: [{ text: userMessage }] }
@@ -483,6 +478,20 @@ export class AIService {
           }
         }
       });
+    };
+
+    try {
+      let response;
+      try {
+        response = await callModel(modelName);
+      } catch (error: any) {
+        if (error.status === 404) {
+          console.warn(`Model ${modelName} not found, falling back to gemini-3-flash-preview`);
+          response = await callModel("gemini-3-flash-preview");
+        } else {
+          throw error;
+        }
+      }
 
       const result = JSON.parse(response.text || '{}');
       const answer = result.answer || "I'm sorry, I couldn't process that.";
