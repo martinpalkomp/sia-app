@@ -36,6 +36,20 @@ export interface FullLog extends BaseLog {
       durationMinutes?: number;
       timeOfUse?: 'morning' | 'afternoon' | 'evening' | 'before_bed_15' | 'before_bed_30' | 'before_bed_60' | 'all_night';
     }>;
+    interventions?: {
+      lightTherapy?: boolean;
+      breathingTrainer?: boolean;
+      preSleepHeating?: boolean;
+      aromatherapy?: boolean;
+      meditationApp?: boolean;
+      coolingPad?: boolean;
+    };
+    passiveAids?: {
+      whiteNoise?: boolean;
+      sleepMask?: boolean;
+      earplugs?: boolean;
+      weightedBlanket?: boolean;
+    };
   };
 }
 
@@ -144,6 +158,20 @@ export interface DailyLog extends Partial<FullLog>, Partial<SummaryLog> {
       durationMinutes?: number;
       timeOfUse?: 'morning' | 'afternoon' | 'evening' | 'before_bed_15' | 'before_bed_30' | 'before_bed_60' | 'all_night';
     }>;
+    interventions?: {
+      lightTherapy?: boolean;
+      breathingTrainer?: boolean;
+      preSleepHeating?: boolean;
+      aromatherapy?: boolean;
+      meditationApp?: boolean;
+      coolingPad?: boolean;
+    };
+    passiveAids?: {
+      whiteNoise?: boolean;
+      sleepMask?: boolean;
+      earplugs?: boolean;
+      weightedBlanket?: boolean;
+    };
   };
   modifiedBySync?: boolean[];
   source?: 'manual' | 'import';

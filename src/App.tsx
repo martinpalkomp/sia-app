@@ -2071,9 +2071,13 @@ export default function App() {
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    {currentLog.factors.sleepGadgets && currentLog.factors.sleepGadgets.length > 0 && (
+                    {((currentLog.factors.interventions && Object.values(currentLog.factors.interventions).filter(Boolean).length > 0) || 
+                      (currentLog.factors.passiveAids && Object.values(currentLog.factors.passiveAids).filter(Boolean).length > 0) || 
+                      (currentLog.factors.sleepGadgets && currentLog.factors.sleepGadgets.length > 0)) && (
                       <span className="px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-400 text-[10px] font-bold">
-                        {currentLog.factors.sleepGadgets.length}
+                        {(Object.values(currentLog.factors.interventions || {}).filter(Boolean).length + 
+                          Object.values(currentLog.factors.passiveAids || {}).filter(Boolean).length) || 
+                          (currentLog.factors.sleepGadgets?.length || 0)}
                       </span>
                     )}
                     <motion.div

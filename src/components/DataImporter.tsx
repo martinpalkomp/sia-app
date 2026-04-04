@@ -652,11 +652,42 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
         log.factors.moodScore = parseNum(primaryRow.MoodScore);
 
         if (primaryRow.Sleep_Gadgets) {
-          log.factors.sleepGadgets = primaryRow.Sleep_Gadgets.toString().split(',').map((g: string) => ({
-            type: g.trim(),
-            durationMinutes: null,
-            timeOfUse: null
-          }));
+          const gadgetStr = primaryRow.Sleep_Gadgets.toString().toLowerCase();
+          
+          const interventions = {
+            lightTherapy: gadgetStr.includes('light_therapy'),
+            breathingTrainer: gadgetStr.includes('breathing'),
+            preSleepHeating: gadgetStr.includes('heating'),
+            aromatherapy: gadgetStr.includes('aromatherapy'),
+            meditationApp: gadgetStr.includes('meditation'),
+            coolingPad: gadgetStr.includes('cooling'),
+          };
+          
+          const passiveAids = {
+            whiteNoise: gadgetStr.includes('white_noise'),
+            sleepMask: gadgetStr.includes('mask'),
+            earplugs: gadgetStr.includes('earplugs'),
+            weightedBlanket: gadgetStr.includes('blanket'),
+          };
+
+          // Maintain backward compatibility with sleepGadgets array
+          const gadgets: any[] = [];
+          if (interventions.lightTherapy) gadgets.push({ type: 'light_therapy' });
+          if (interventions.breathingTrainer) gadgets.push({ type: 'breathing_trainer' });
+          if (interventions.preSleepHeating) gadgets.push({ type: 'pre_sleep_heating' });
+          if (interventions.aromatherapy) gadgets.push({ type: 'aromatherapy' });
+          if (interventions.meditationApp) gadgets.push({ type: 'meditation_app' });
+          if (interventions.coolingPad) gadgets.push({ type: 'cooling_pad' });
+          if (passiveAids.whiteNoise) gadgets.push({ type: 'white_noise' });
+          if (passiveAids.sleepMask) gadgets.push({ type: 'sleep_mask' });
+          if (passiveAids.earplugs) gadgets.push({ type: 'earplugs' });
+          if (passiveAids.weightedBlanket) gadgets.push({ type: 'weighted_blanket' });
+
+          log.factors.sleepGadgets = gadgets;
+          // @ts-ignore - Adding new fields to factors
+          log.factors.interventions = interventions;
+          // @ts-ignore - Adding new fields to factors
+          log.factors.passiveAids = passiveAids;
         }
 
         // 5. Efficiency Calculation
