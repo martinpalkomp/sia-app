@@ -28,6 +28,7 @@ import FeedbackForm from './FeedbackForm';
 import AdminFeedback from './AdminFeedback';
 import { calculateAge, getAgeDecade } from '../utils/dateUtils';
 import { MaturityInfo, AIService } from '../services/aiService';
+import { exportDailySummary, exportDeepEventLog } from '../utils/exportUtils';
 
 interface AccountPageProps {
   user: User;
@@ -383,6 +384,44 @@ export default function AccountPage({ user, personalizationProfile, onModifyAsse
             </div>
           </div>
         </Card>
+      </div>
+
+      {/* Data Scientist Research Suite */}
+      <div className="pt-8 border-t border-zinc-800">
+        <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 ml-1 mb-4">
+          [ DATA SCIENTIST RESEARCH SUITE ]
+        </h3>
+        <div className="bg-zinc-900/50 border border-zinc-800 p-4 rounded-2xl mb-4">
+          <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest mb-2 flex items-center gap-2">
+            <ShieldCheck size={12} className="text-amber-500" />
+            ⚠️ SECURITY ADVISORY
+          </p>
+          <p className="text-[10px] text-zinc-500 leading-relaxed">
+            Exported CSV files are unencrypted and contain sensitive sleep architecture data. 
+            Store these files securely on your local device and ensure they are not shared 
+            via unencrypted channels.
+          </p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <button 
+            onClick={() => exportDailySummary(Object.values(logs || {}))}
+            className="p-4 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-2xl text-left transition-all group"
+          >
+            <div className="text-sm font-black text-white mb-1">Daily Trends Summary</div>
+            <div className="text-[10px] text-zinc-500 leading-relaxed">
+              Flattened daily metrics (quality, efficiency, factors). Ideal for correlation analysis.
+            </div>
+          </button>
+          <button 
+            onClick={() => exportDeepEventLog(Object.values(logs || {}))}
+            className="p-4 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-2xl text-left transition-all group"
+          >
+            <div className="text-sm font-black text-white mb-1">Deep Architecture Log</div>
+            <div className="text-[10px] text-zinc-500 leading-relaxed">
+              Long-form event ledger. Micro-structure view of sleep events and interruptions.
+            </div>
+          </button>
+        </div>
       </div>
 
       {/* Actions */}

@@ -116,7 +116,7 @@ export default function Dashboard({
   useEffect(() => {
     if (!user) return;
     AIService.getUserDataMaturity(user.uid).then(setMaturity);
-  }, [user?.uid]);
+  }, [user?.uid, Object.keys(logs).length]);
 
   const rephraseGuardrailMessage = (reason: string): string => {
     if (reason.includes("Already generated today")) {
@@ -387,11 +387,12 @@ export default function Dashboard({
   };
 
   const dataMaturity = useMemo(() => {
-    if (maturity) return maturity;
-    const uniqueDates = Object.keys(logs).length;
-    if (uniqueDates >= 90) return { level: 3, count: uniqueDates, label: 'Full Insight', nextThreshold: 90 };
-    if (uniqueDates >= 15) return { level: 2, count: uniqueDates, label: 'Emerging Patterns', nextThreshold: 90 };
-    return { level: 1, count: uniqueDates, label: 'Baseline', nextThreshold: 15 };
+    const localCount = Object.keys(logs).length;
+    const remoteCount = maturity?.count ?? 0;
+    const count = Math.max(localCount, remoteCount);
+    if (count >= 90) return { level: 3, count, label: 'Full Insight', nextThreshold: 90 };
+    if (count >= 15) return { level: 2, count, label: 'Emerging Patterns', nextThreshold: 90 };
+    return { level: 1, count, label: 'Baseline', nextThreshold: 15 };
   }, [logs, maturity]);
 
   const DISCLAIMER = "SIA provides lifestyle recommendations based on patterns. This is not a medical diagnosis. Consult a professional for clinical concerns.";

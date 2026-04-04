@@ -4,7 +4,7 @@ export const calculateLogVitality = (log: DailyLog): number => {
   let score = 0;
 
   // Timeline (40 pts)
-  if (log.sleepEvents && log.sleepEvents.length > 1) {
+  if (log.sleepEvents && log.sleepEvents.length > 0) {
     score += 40;
   }
 
@@ -14,9 +14,9 @@ export const calculateLogVitality = (log: DailyLog): number => {
   }
 
   // Core Metrics (20 pts)
-  if (typeof log.sleep_quality === 'number') score += 10;
-  if (typeof log.morning_alertness === 'number') score += 5;
-  if (typeof log.daytime_energy === 'number') score += 5;
+  if (typeof log.sleep_quality === 'number' && log.sleep_quality > 0) score += 10;
+  if (typeof log.morning_alertness === 'number' && log.morning_alertness > 0) score += 5;
+  if (typeof log.daytime_energy === 'number' && log.daytime_energy > 0) score += 5;
 
   // Factors (10 pts)
   if (log.factors) {

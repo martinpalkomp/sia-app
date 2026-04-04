@@ -2335,9 +2335,13 @@ export default function App() {
                 isImporting={isImporting}
                 setIsImporting={setIsImporting}
                 logs={logs}
-                onImportComplete={() => {
+                onImportComplete={async () => {
                   setToast({ message: 'Data imported and synced successfully', type: 'success' });
                   setIsImporting(false);
+                  if (user) {
+                    AIService.getUserDataMaturity(user.uid).then(setMaturity);
+                  }
+                  refreshAllData();
                 }} 
                 onRefresh={refreshAllData}
               />
