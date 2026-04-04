@@ -2071,15 +2071,26 @@ export default function App() {
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    {((currentLog.factors.interventions && Object.values(currentLog.factors.interventions).filter(Boolean).length > 0) || 
-                      (currentLog.factors.passiveAids && Object.values(currentLog.factors.passiveAids).filter(Boolean).length > 0) || 
-                      (currentLog.factors.sleepGadgets && currentLog.factors.sleepGadgets.length > 0)) && (
-                      <span className="px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-400 text-[10px] font-bold">
-                        {(Object.values(currentLog.factors.interventions || {}).filter(Boolean).length + 
-                          Object.values(currentLog.factors.passiveAids || {}).filter(Boolean).length) || 
-                          (currentLog.factors.sleepGadgets?.length || 0)}
-                      </span>
-                    )}
+                    {(() => {
+                      const interventions = currentLog.factors.interventions || {};
+                      const passiveAids = currentLog.factors.passiveAids || {};
+                      
+                      const interventionCount = Object.values(interventions).filter(
+                        (item: any) => item?.enabled === true
+                      ).length;
+
+                      const passiveCount = Object.values(passiveAids).filter(
+                        (item: any) => item === true || item?.enabled === true
+                      ).length;
+
+                      const totalActive = interventionCount + passiveCount;
+
+                      return totalActive > 0 ? (
+                        <span className="px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-400 text-[10px] font-bold">
+                          {totalActive}
+                        </span>
+                      ) : null;
+                    })()}
                     <motion.div
                       animate={{ rotate: isSleepToolsExpanded ? 180 : 0 }}
                       transition={{ duration: 0.2 }}

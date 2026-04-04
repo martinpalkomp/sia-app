@@ -17,8 +17,8 @@ const TEMPLATE_HEADERS = [
   'Alcohol_Y/N', 'Alcohol_Drinks', 'Alcohol_LastIntake', 
   'Medication_Y/N', 'Medication_Type', 'Medication_Time', 
   'Exercise_Y/N', 'Exercise_Type', 'Exercise_Time', 
-  'Screens_Y/N', 'Stress_1to5', 'LastMeal_Time', 
-  'NaturalWake_Y/N', 'MorningMood_1to5', 'Sleep_Gadgets'
+  'Screens_Y', 'Stress_1to5', 'LastMeal_Time', 
+  'NaturalWake_Y', 'MorningMood_1to5', 'Sleep_Gadgets'
 ];
 
 /**
@@ -114,12 +114,47 @@ export const exportToExcel = async (logs: DailyLog[]) => {
         // Morning Mood
         idx === 0 ? (f.moodScore ?? '') : '',
         // Sleep Gadgets
-        idx === 0 ? (f.sleepGadgets?.map(g => {
-          let s = g.type;
-          if (g.durationMinutes) s += ` (${g.durationMinutes}min)`;
-          if (g.timeOfUse) s += ` @${g.timeOfUse}`;
-          return s;
-        }).join(', ') ?? '') : ''
+        idx === 0 ? (() => {
+          const items: string[] = [];
+          
+          const serializeItem = (name: string, data: { enabled?: boolean; duration?: number; timing?: string } | undefined) => {
+            if (data?.enabled) {
+              let s = name;
+              if (data.duration) s += ` (${data.duration}min)`;
+              if (data.timing) s += ` @${data.timing}`;
+              items.push(s);
+            }
+          };
+
+          if (f.interventions) {
+            serializeItem('light_therapy', f.interventions.lightTherapy);
+            serializeItem('breathing_trainer', f.interventions.breathingTrainer);
+            serializeItem('pre_sleep_heating', f.interventions.preSleepHeating);
+            serializeItem('aromatherapy', f.interventions.aromatherapy);
+            serializeItem('meditation_app', f.interventions.meditationApp);
+            serializeItem('cooling_pad', f.interventions.coolingPad);
+          }
+          if (f.passiveAids) {
+            serializeItem('white_noise', f.passiveAids.whiteNoise);
+            serializeItem('sleep_mask', f.passiveAids.sleepMask);
+            serializeItem('earplugs', f.passiveAids.earplugs);
+            serializeItem('weighted_blanket', f.passiveAids.weightedBlanket);
+          }
+          
+          // Legacy support
+          if (f.sleepGadgets) {
+            f.sleepGadgets.forEach(g => {
+              if (!items.find(i => i.startsWith(g.type))) {
+                let s = g.type;
+                if (g.durationMinutes) s += ` (${g.durationMinutes}min)`;
+                if (g.timeOfUse) s += ` @${g.timeOfUse}`;
+                items.push(s);
+              }
+            });
+          }
+          
+          return items.join(', ');
+        })() : ''
       ];
 
       const row = worksheet.addRow(rowData);

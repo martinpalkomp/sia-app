@@ -654,39 +654,50 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
         if (primaryRow.Sleep_Gadgets) {
           const gadgetStr = primaryRow.Sleep_Gadgets.toString().toLowerCase();
           
+          const parseGadget = (keyword: string) => {
+            const detailRegex = new RegExp(`${keyword}\\((\\d+)min\\)(?:@(\\w+))?`);
+            const match = gadgetStr.match(detailRegex);
+            if (match) {
+              return {
+                enabled: true,
+                duration: parseInt(match[1]),
+                timing: match[2]
+              };
+            }
+            return { enabled: gadgetStr.includes(keyword) };
+          };
+
           const interventions = {
-            lightTherapy: gadgetStr.includes('light_therapy'),
-            breathingTrainer: gadgetStr.includes('breathing'),
-            preSleepHeating: gadgetStr.includes('heating'),
-            aromatherapy: gadgetStr.includes('aromatherapy'),
-            meditationApp: gadgetStr.includes('meditation'),
-            coolingPad: gadgetStr.includes('cooling'),
+            lightTherapy: parseGadget('light_therapy'),
+            breathingTrainer: parseGadget('breathing'),
+            preSleepHeating: parseGadget('heating'),
+            aromatherapy: parseGadget('aromatherapy'),
+            meditationApp: parseGadget('meditation'),
+            coolingPad: parseGadget('cooling'),
           };
           
           const passiveAids = {
-            whiteNoise: gadgetStr.includes('white_noise'),
-            sleepMask: gadgetStr.includes('mask'),
-            earplugs: gadgetStr.includes('earplugs'),
-            weightedBlanket: gadgetStr.includes('blanket'),
+            whiteNoise: parseGadget('white_noise'),
+            sleepMask: parseGadget('mask'),
+            earplugs: parseGadget('earplugs'),
+            weightedBlanket: parseGadget('blanket'),
           };
 
           // Maintain backward compatibility with sleepGadgets array
           const gadgets: any[] = [];
-          if (interventions.lightTherapy) gadgets.push({ type: 'light_therapy' });
-          if (interventions.breathingTrainer) gadgets.push({ type: 'breathing_trainer' });
-          if (interventions.preSleepHeating) gadgets.push({ type: 'pre_sleep_heating' });
-          if (interventions.aromatherapy) gadgets.push({ type: 'aromatherapy' });
-          if (interventions.meditationApp) gadgets.push({ type: 'meditation_app' });
-          if (interventions.coolingPad) gadgets.push({ type: 'cooling_pad' });
-          if (passiveAids.whiteNoise) gadgets.push({ type: 'white_noise' });
-          if (passiveAids.sleepMask) gadgets.push({ type: 'sleep_mask' });
-          if (passiveAids.earplugs) gadgets.push({ type: 'earplugs' });
-          if (passiveAids.weightedBlanket) gadgets.push({ type: 'weighted_blanket' });
+          if (interventions.lightTherapy.enabled) gadgets.push({ type: 'light_therapy', durationMinutes: interventions.lightTherapy.duration, timeOfUse: interventions.lightTherapy.timing });
+          if (interventions.breathingTrainer.enabled) gadgets.push({ type: 'breathing_trainer', durationMinutes: interventions.breathingTrainer.duration, timeOfUse: interventions.breathingTrainer.timing });
+          if (interventions.preSleepHeating.enabled) gadgets.push({ type: 'pre_sleep_heating', durationMinutes: interventions.preSleepHeating.duration, timeOfUse: interventions.preSleepHeating.timing });
+          if (interventions.aromatherapy.enabled) gadgets.push({ type: 'aromatherapy', durationMinutes: interventions.aromatherapy.duration, timeOfUse: interventions.aromatherapy.timing });
+          if (interventions.meditationApp.enabled) gadgets.push({ type: 'meditation_app', durationMinutes: interventions.meditationApp.duration, timeOfUse: interventions.meditationApp.timing });
+          if (interventions.coolingPad.enabled) gadgets.push({ type: 'cooling_pad', durationMinutes: interventions.coolingPad.duration, timeOfUse: interventions.coolingPad.timing });
+          if (passiveAids.whiteNoise.enabled) gadgets.push({ type: 'white_noise', durationMinutes: passiveAids.whiteNoise.duration, timeOfUse: passiveAids.whiteNoise.timing });
+          if (passiveAids.sleepMask.enabled) gadgets.push({ type: 'sleep_mask', durationMinutes: passiveAids.sleepMask.duration, timeOfUse: passiveAids.sleepMask.timing });
+          if (passiveAids.earplugs.enabled) gadgets.push({ type: 'earplugs', durationMinutes: passiveAids.earplugs.duration, timeOfUse: passiveAids.earplugs.timing });
+          if (passiveAids.weightedBlanket.enabled) gadgets.push({ type: 'weighted_blanket', durationMinutes: passiveAids.weightedBlanket.duration, timeOfUse: passiveAids.weightedBlanket.timing });
 
           log.factors.sleepGadgets = gadgets;
-          // @ts-ignore - Adding new fields to factors
           log.factors.interventions = interventions;
-          // @ts-ignore - Adding new fields to factors
           log.factors.passiveAids = passiveAids;
         }
 
@@ -977,7 +988,13 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
 
     // Row 2 — rule row: grey background #E8E8E8, italic grey text showing format hints
     const hints = [
-      'YYYY-MM-DD', 'HH:mm', 'HH:mm', 'SLEEP/AWAKE-IN', '0-10', '0-10', '0-10', 'Text'
+      'YYYY-MM-DD', 'HH:mm', 'HH:mm', 'SLEEP/AWAKE-IN', '0-10', '0-10', '0-10', 'Text',
+      'yes/no', 'number', 'HH:mm',
+      'yes/no', 'number', 'HH:mm',
+      'yes/no', 'Text', 'HH:mm',
+      'yes/no', 'Text', 'HH:mm',
+      'yes/no', '1-5', 'HH:mm',
+      'yes/no', '1-5', 'gadget_name(durationmin)@timing (e.g. light_therapy(30min)@morning; white_noise)'
     ];
     const ruleRow = dataSheet.addRow(hints);
     ruleRow.eachCell((cell) => {
@@ -995,9 +1012,9 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
 
     // Rows 3-5 — three sample rows
     const sampleRows = [
-      ['2026-03-20', '23:00', '07:30', 'SLEEP', 8, 7, 7, 'Slept well'],
-      ['2026-03-20', '07:30', '08:00', 'AWAKE-IN', '', '', '', ''],
-      ['2026-03-21', '23:30', '07:00', 'SLEEP', 6, 5, 6, 'Stressed day']
+      ['2026-03-20', '23:00', '07:30', 'SLEEP', 8, 7, 7, 'Slept well', 'no', '', '', 'no', '', '', 'no', '', '', 'no', '', '', 'no', 2, '19:00', 'yes', 4, 'light_therapy(30min)@morning; white_noise; earplugs'],
+      ['2026-03-20', '07:30', '08:00', 'AWAKE-IN', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
+      ['2026-03-21', '23:30', '07:00', 'SLEEP', 6, 5, 6, 'Stressed day', 'yes', 2, '14:00', 'no', '', '', 'no', '', '', 'yes', 'Yoga', '18:00', 'yes', 5, '20:00', 'no', 2, '']
     ];
 
     sampleRows.forEach((rowData) => {

@@ -37,18 +37,18 @@ export interface FullLog extends BaseLog {
       timeOfUse?: 'morning' | 'afternoon' | 'evening' | 'before_bed_15' | 'before_bed_30' | 'before_bed_60' | 'all_night';
     }>;
     interventions?: {
-      lightTherapy?: boolean;
-      breathingTrainer?: boolean;
-      preSleepHeating?: boolean;
-      aromatherapy?: boolean;
-      meditationApp?: boolean;
-      coolingPad?: boolean;
+      lightTherapy?: { enabled: boolean; duration?: number; timing?: string };
+      breathingTrainer?: { enabled: boolean; duration?: number; timing?: string };
+      preSleepHeating?: { enabled: boolean; duration?: number; timing?: string };
+      aromatherapy?: { enabled: boolean; duration?: number; timing?: string };
+      meditationApp?: { enabled: boolean; duration?: number; timing?: string };
+      coolingPad?: { enabled: boolean; duration?: number; timing?: string };
     };
     passiveAids?: {
-      whiteNoise?: boolean;
-      sleepMask?: boolean;
-      earplugs?: boolean;
-      weightedBlanket?: boolean;
+      whiteNoise?: { enabled: boolean; duration?: number; timing?: string };
+      sleepMask?: { enabled: boolean; duration?: number; timing?: string };
+      earplugs?: { enabled: boolean; duration?: number; timing?: string };
+      weightedBlanket?: { enabled: boolean; duration?: number; timing?: string };
     };
   };
 }
@@ -159,18 +159,18 @@ export interface DailyLog extends Partial<FullLog>, Partial<SummaryLog> {
       timeOfUse?: 'morning' | 'afternoon' | 'evening' | 'before_bed_15' | 'before_bed_30' | 'before_bed_60' | 'all_night';
     }>;
     interventions?: {
-      lightTherapy?: boolean;
-      breathingTrainer?: boolean;
-      preSleepHeating?: boolean;
-      aromatherapy?: boolean;
-      meditationApp?: boolean;
-      coolingPad?: boolean;
+      lightTherapy?: { enabled: boolean; duration?: number; timing?: string };
+      breathingTrainer?: { enabled: boolean; duration?: number; timing?: string };
+      preSleepHeating?: { enabled: boolean; duration?: number; timing?: string };
+      aromatherapy?: { enabled: boolean; duration?: number; timing?: string };
+      meditationApp?: { enabled: boolean; duration?: number; timing?: string };
+      coolingPad?: { enabled: boolean; duration?: number; timing?: string };
     };
     passiveAids?: {
-      whiteNoise?: boolean;
-      sleepMask?: boolean;
-      earplugs?: boolean;
-      weightedBlanket?: boolean;
+      whiteNoise?: { enabled: boolean; duration?: number; timing?: string };
+      sleepMask?: { enabled: boolean; duration?: number; timing?: string };
+      earplugs?: { enabled: boolean; duration?: number; timing?: string };
+      weightedBlanket?: { enabled: boolean; duration?: number; timing?: string };
     };
   };
   modifiedBySync?: boolean[];

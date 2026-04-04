@@ -116,7 +116,7 @@ export default function Dashboard({
   useEffect(() => {
     if (!user) return;
     AIService.getUserDataMaturity(user.uid).then(setMaturity);
-  }, [user?.uid, Object.keys(logs).length]);
+  }, [user?.uid]);
 
   const rephraseGuardrailMessage = (reason: string): string => {
     if (reason.includes("Already generated today")) {
@@ -389,7 +389,7 @@ export default function Dashboard({
   const dataMaturity = useMemo(() => {
     const localCount = Object.keys(logs).length;
     const remoteCount = maturity?.count ?? 0;
-    const count = Math.max(localCount, remoteCount);
+    const count = remoteCount > 0 ? remoteCount : localCount;
     if (count >= 90) return { level: 3, count, label: 'Full Insight', nextThreshold: 90 };
     if (count >= 15) return { level: 2, count, label: 'Emerging Patterns', nextThreshold: 90 };
     return { level: 1, count, label: 'Baseline', nextThreshold: 15 };
