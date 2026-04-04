@@ -69,6 +69,7 @@ interface DashboardProps {
   onDateChange: (date: string | number) => void;
   refreshAllData: () => void;
   isRefreshing: boolean;
+  maturity?: MaturityInfo | null;
 }
 
 const StaticFallbackUI = ({ onLogClick }: { onLogClick: () => void }) => {
@@ -100,7 +101,8 @@ export default function Dashboard({
   onOpenSleepGuide,
   onDateChange,
   refreshAllData,
-  isRefreshing
+  isRefreshing,
+  maturity: externalMaturity
 }: DashboardProps) {
   const [aiInsight, setAiInsight] = useState<string | null>(null);
   const [dailyBrief, setDailyBrief] = useState<string | null>(null);
@@ -387,13 +389,14 @@ export default function Dashboard({
   };
 
   const dataMaturity = useMemo(() => {
-    const localCount = Object.keys(logs).length;
-    const remoteCount = maturity?.count ?? 0;
-    const count = remoteCount > 0 ? remoteCount : localCount;
-    if (count >= 90) return { level: 3, count, label: 'Full Insight', nextThreshold: 90 };
-    if (count >= 15) return { level: 2, count, label: 'Emerging Patterns', nextThreshold: 90 };
-    return { level: 1, count, label: 'Baseline', nextThreshold: 15 };
-  }, [logs, maturity]);
+    // externalMaturity comes from App.tsx via a full Firestore count (not view-filtered)
+    // maturity is the internal fetch — also full count but may lag on load
+    // Never fall back to Object.keys(logs).length — logs is view-filtered (7 or 30 days)
+    const source = externalMaturity || maturity;
+    if (source) return source;
+    // Still loading — show 0 rather than a misleading view-filtered count
+    return { level: 1, count: 0, label: 'Baseline', nextThreshold: 15 };
+  }, [externalMaturity, maturity]);
 
   const DISCLAIMER = "SIA provides lifestyle recommendations based on patterns. This is not a medical diagnosis. Consult a professional for clinical concerns.";
 

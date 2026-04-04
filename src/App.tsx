@@ -669,7 +669,7 @@ export default function App() {
   useEffect(() => {
     if (!user) return;
     AIService.getUserDataMaturity(user.uid).then(setMaturity);
-  }, [user, logs]);
+  }, [user?.uid]);
 
   // Load Personalization Profile
   useEffect(() => {
