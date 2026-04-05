@@ -637,7 +637,7 @@ export default function Dashboard({
               <LockedFeatureOverlay 
                 title="Clinical Insights Feed"
                 description="Unlock deep pattern recognition and risk analysis with Enhanced or PRO tiers."
-                onViewChange={onViewChange}
+                onUpgrade={() => onViewChange('account')}
               />
             </div>
           ) : insights.length > 0 ? (
@@ -780,7 +780,7 @@ export default function Dashboard({
               <LockedFeatureOverlay 
                 title="Deep Analysis"
                 description="Unlock deep analysis with 90 days of data and Enhanced or PRO tiers."
-                onViewChange={onViewChange}
+                onUpgrade={() => onViewChange('account')}
               />
             </div>
           ) : (
@@ -815,31 +815,31 @@ export default function Dashboard({
           {FEATURE_FLAGS.showSiaIntelligence && (
             isEnhanced ? (
               <Card 
-                className="bg-zinc-950 border-violet-500/30 relative overflow-hidden group p-0"
+                className="bg-zinc-950 border-zinc-800 relative overflow-hidden group p-0"
               >
                 <div className="absolute inset-0 opacity-5 pointer-events-none flex items-center justify-center">
-                  <CircadianWaveform className="text-violet-400 w-full scale-150" />
+                  <CircadianWaveform className="text-zinc-400 w-full scale-150" />
                 </div>
                 
                 <div className="relative z-10 p-8">
                   <div className="flex items-center gap-3 mb-6">
-                    <div className="w-10 h-10 bg-violet-500/10 rounded-xl flex items-center justify-center text-violet-400 border border-violet-500/20">
+                    <div className="w-10 h-10 bg-zinc-900 rounded-xl flex items-center justify-center text-zinc-400 border border-zinc-800">
                       <Brain size={20} />
                     </div>
                     <div>
                       <h3 className="text-sm font-black text-white uppercase tracking-widest">SIA Intelligence Feed</h3>
-                      <p className="text-[10px] text-violet-300 font-bold">Advanced Diagnostic Monitoring</p>
+                      <p className="text-[10px] text-zinc-400 font-bold">Advanced Diagnostic Monitoring</p>
                     </div>
                   </div>
 
                   {dataMaturity.level < 3 ? (
                     <div className="py-12 text-center space-y-3">
-                      <div className="w-12 h-12 bg-zinc-900/50 rounded-2xl flex items-center justify-center text-zinc-700 mx-auto border border-zinc-800">
+                      <div className="w-12 h-12 bg-zinc-900 rounded-2xl flex items-center justify-center text-zinc-700 mx-auto border border-zinc-800">
                         <Brain size={24} />
                       </div>
                       <div className="space-y-1">
                         <h4 className="text-sm font-bold text-zinc-500 uppercase tracking-widest">Intelligence Gated</h4>
-                        <p className="text-xs text-zinc-600 max-w-xs mx-auto leading-relaxed">
+                        <p className="text-xs text-zinc-500 max-w-xs mx-auto leading-relaxed">
                           SIA Intelligence requires 90 days of baseline data to identify biological anomalies. (Progress: {dataMaturity.count}/90).
                         </p>
                       </div>
@@ -847,9 +847,9 @@ export default function Dashboard({
                   ) : (
                     <>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="p-4 bg-zinc-900/50 border border-zinc-800 rounded-2xl border-l-2 border-l-violet-500/50">
+                        <div className="p-4 bg-zinc-900 border border-zinc-800 rounded-2xl border-l-2 border-l-zinc-700">
                           <div className="flex items-center gap-2 mb-2">
-                            <div className="w-2 h-2 rounded-full bg-violet-500 animate-pulse" />
+                            <div className="w-2 h-2 rounded-full bg-zinc-500 animate-pulse" />
                             <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Neuro-Diagnostic</span>
                           </div>
                           <h4 className="text-sm font-bold text-white mb-1">Alzheimer's Risk Evaluation</h4>

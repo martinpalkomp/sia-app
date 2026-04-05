@@ -245,6 +245,15 @@ export default function App() {
   const [isSleepToolsExpanded, setIsSleepToolsExpanded] = useState(false);
   const [showPatternReview, setShowPatternReview] = useState(false);
   const [pendingSuggestion, setPendingSuggestion] = useState<SuggestionResult | null>(null);
+  const [highlightTier, setHighlightTier] = useState(false);
+
+  const handleViewChange = (newView: any) => {
+    if (newView === 'account') {
+      setHighlightTier(true);
+      setTimeout(() => setHighlightTier(false), 3000);
+    }
+    setView(newView);
+  };
 
   const derivedTier = useMemo(() => {
     // Temporary override for testing
@@ -1373,7 +1382,7 @@ export default function App() {
                         setSelectedDate(`${year}-${month}-${day}`);
                         setView('log');
                       }}
-                      onViewChange={setView}
+                      onViewChange={handleViewChange}
                       onDateChange={changeDate}
                       onOpenPersonalization={() => setShowPersonalizationWizard(true)}
                       onOpenSleepGuide={() => setShowSleepGuide(true)}
@@ -2458,6 +2467,7 @@ export default function App() {
               onRefresh={refreshAllData}
               logs={logs}
               maturity={maturity}
+              highlightTier={highlightTier}
             />
           ) : (
             <motion.div 
@@ -2635,6 +2645,7 @@ export default function App() {
                 userProfile={userProfile}
                 activeDates={activeDates}
                 viewMode={view as 'weekly' | 'monthly' | 'custom'}
+                onViewChange={handleViewChange}
               />
             </motion.div>
           )}

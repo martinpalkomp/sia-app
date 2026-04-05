@@ -37,9 +37,10 @@ interface AccountPageProps {
   onRefresh?: () => void;
   logs?: Record<string, DailyLog>;
   maturity?: MaturityInfo | null;
+  highlightTier?: boolean;
 }
 
-export default function AccountPage({ user, personalizationProfile, onModifyAssessment, onRefresh, logs, maturity }: AccountPageProps) {
+export default function AccountPage({ user, personalizationProfile, onModifyAssessment, onRefresh, logs, maturity, highlightTier }: AccountPageProps) {
   const [view, setView] = React.useState<'main' | 'data-ledger' | 'feedback' | 'admin-feedback'>('main');
   const [userData, setUserData] = React.useState<any>(null);
   const [modal, setModal] = React.useState<{ isOpen: boolean; message: string; onConfirm: () => void; onCancel?: () => void }>({
@@ -233,7 +234,7 @@ export default function AccountPage({ user, personalizationProfile, onModifyAsse
       </div>
 
       {/* Intelligence Tier Section */}
-      <div className="space-y-4">
+      <div className={`space-y-4 transition-all duration-1000 ${highlightTier ? 'ring-4 ring-indigo-500/50 rounded-3xl p-2 -m-2 shadow-[0_0_50px_rgba(99,102,241,0.3)]' : ''}`}>
         <div className="flex items-center justify-between px-1">
           <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">My Intelligence Tier</h3>
           <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">Upgrade Your Sleep Intelligence</span>

@@ -1,8 +1,20 @@
 import { DailyLog } from '../types';
 
+const formatValue = (val: any) => {
+  if (val === null || val === undefined || val === '') return 'NA';
+  return val;
+};
+
+const formatTime = (time: string | undefined | null) => {
+  if (!time) return 'NA';
+  // If time is HH:mm, convert to HH:mm:ss
+  if (time.match(/^\d{2}:\d{2}$/)) return `${time}:00`;
+  return time;
+};
+
 export const exportDailySummary = (logs: DailyLog[]) => {
   const headers = [
-    'date', 'sleep_quality', 'morning_alertness', 'daytime_energy',
+    'date', 'primary_bedtime', 'sleep_quality', 'morning_alertness', 'daytime_energy',
     'caffeine_consumed', 'caffeine_amount', 'alcohol_consumed', 'alcohol_drinks',
     'medication_taken', 'exercise_completed', 'screens_in_bed', 'stress_level',
     'last_meal_time', 'natural_wake', 'mood_score'
@@ -11,31 +23,35 @@ export const exportDailySummary = (logs: DailyLog[]) => {
   const csvContent = [
     headers.join(','),
     ...logs.map(log => {
+      const firstSleepEvent = (log.sleepEvents || []).find(e => e.type === 'sleep');
+      const primaryBedtime = firstSleepEvent ? formatTime(firstSleepEvent.start) : 'NA';
+
       return [
-        log.date || 'NA',
-        log.sleep_quality ?? 'NA',
-        log.morning_alertness ?? 'NA',
-        log.daytime_energy ?? 'NA',
-        log.factors?.caffeine?.consumed ?? 'NA',
-        log.factors?.caffeine?.amount ?? 'NA',
-        log.factors?.alcohol?.consumed ?? 'NA',
-        log.factors?.alcohol?.drinks ?? 'NA',
-        log.factors?.medication?.taken ?? 'NA',
-        log.factors?.exercise?.completed ?? 'NA',
-        log.factors?.screensInBed ?? 'NA',
-        log.factors?.stressLevel ?? 'NA',
-        log.factors?.lastMealTime ?? 'NA',
-        log.factors?.naturalWake ?? 'NA',
-        log.factors?.moodScore ?? 'NA'
+        formatValue(log.date),
+        primaryBedtime,
+        formatValue(log.sleep_quality),
+        formatValue(log.morning_alertness),
+        formatValue(log.daytime_energy),
+        formatValue(log.factors?.caffeine?.consumed),
+        formatValue(log.factors?.caffeine?.amount),
+        formatValue(log.factors?.alcohol?.consumed),
+        formatValue(log.factors?.alcohol?.drinks),
+        formatValue(log.factors?.medication?.taken),
+        formatValue(log.factors?.exercise?.completed),
+        formatValue(log.factors?.screensInBed),
+        formatValue(log.factors?.stressLevel),
+        formatTime(log.factors?.lastMealTime),
+        formatValue(log.factors?.naturalWake),
+        formatValue(log.factors?.moodScore)
       ].join(',');
     })
   ].join('\n');
 
-  downloadCSV(csvContent, 'tidy_trends.csv');
+  downloadCSV(csvContent, 'daily_trends_summary.csv');
 };
 
 export const exportDeepEventLog = (logs: DailyLog[]) => {
-  const headers = ['parent_date', 'event_type', 'start_time', 'end_time', 'duration_mins', 'is_interruption'];
+  const headers = ['date', 'event_type', 'start_time', 'end_time', 'duration_mins', 'is_interruption'];
 
   const csvContent = [
     headers.join(','),
@@ -45,11 +61,11 @@ export const exportDeepEventLog = (logs: DailyLog[]) => {
         const end = new Date(`1970-01-01T${event.end}:00`);
         const durationMins = Math.round((end.getTime() - start.getTime()) / 60000);
         return [
-          log.date || 'NA',
-          event.type || 'NA',
-          event.start || 'NA',
-          event.end || 'NA',
-          durationMins || 'NA',
+          formatValue(log.date),
+          formatValue(event.type),
+          formatTime(event.start),
+          formatTime(event.end),
+          formatValue(durationMins),
           event.type === 'awake-in' ? 'true' : 'false'
         ].join(',');
       })

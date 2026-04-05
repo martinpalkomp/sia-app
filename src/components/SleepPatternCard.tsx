@@ -7,6 +7,7 @@ import {
   calculateSocialJetlag
 } from '../utils/diagnosticEngine';
 import { Card } from './UI';
+import { LockedFeatureOverlay } from './LockedFeatureOverlay';
 import { ClipboardCheck, Share2, Info, Printer, FileText, Sparkles } from 'lucide-react';
 import { formatDuration, getGridFromEvents, generateASCIIRibbon, generateASCIIRibbonHeader, calculateSleepEfficiency } from '../utils/sleepUtils';
 import { format, parseISO } from 'date-fns';
@@ -22,9 +23,10 @@ interface SleepPatternCardProps {
   userProfile?: UserProfile | null;
   activeDates: string[];
   viewMode: 'weekly' | 'monthly' | 'custom';
+  onViewChange: (view: any) => void;
 }
 
-const SleepPatternCard: React.FC<SleepPatternCardProps> = ({ logs, periodType, personalizationProfile, user, userProfile, activeDates, viewMode }) => {
+const SleepPatternCard: React.FC<SleepPatternCardProps> = ({ logs, periodType, personalizationProfile, user, userProfile, activeDates, viewMode, onViewChange }) => {
   if (!activeDates || activeDates.length === 0) return null;
   
   const recentLogs = activeDates.map(d => logs[d]).filter(Boolean).sort((a, b) => b.date.localeCompare(a.date));
@@ -235,7 +237,7 @@ ${generateASCIIRibbonHeader()}
               <LockedFeatureOverlay 
                 title="Doctor PDF Export"
                 description="Unlock clinical-grade PDF reports with Enhanced or PRO tiers."
-                onViewChange={() => window.location.href = '/account'}
+                onUpgrade={() => onViewChange('account')}
               />
             </div>
           ) : (
