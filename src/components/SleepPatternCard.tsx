@@ -1,5 +1,5 @@
 import React from 'react';
-import { DailyLog, PersonalizationProfile } from '../types';
+import { DailyLog, PersonalizationProfile, UserProfile } from '../types';
 import { 
   calculateBedtimeConsistency,
   calculateFragmentationIndex,
@@ -7,7 +7,7 @@ import {
   calculateSocialJetlag
 } from '../utils/diagnosticEngine';
 import { Card } from './UI';
-import { ClipboardCheck, Share2, Info, Printer, FileText } from 'lucide-react';
+import { ClipboardCheck, Share2, Info, Printer, FileText, Sparkles } from 'lucide-react';
 import { formatDuration, getGridFromEvents, generateASCIIRibbon, generateASCIIRibbonHeader, calculateSleepEfficiency } from '../utils/sleepUtils';
 import { format, parseISO } from 'date-fns';
 import PrintableReport from './PrintableReport';
@@ -19,11 +19,12 @@ interface SleepPatternCardProps {
   periodType: '7-DAY' | '30-DAY' | 'CUSTOM';
   personalizationProfile: PersonalizationProfile | null;
   user: User | null;
+  userProfile?: UserProfile | null;
   activeDates: string[];
   viewMode: 'weekly' | 'monthly' | 'custom';
 }
 
-const SleepPatternCard: React.FC<SleepPatternCardProps> = ({ logs, periodType, personalizationProfile, user, activeDates, viewMode }) => {
+const SleepPatternCard: React.FC<SleepPatternCardProps> = ({ logs, periodType, personalizationProfile, user, userProfile, activeDates, viewMode }) => {
   if (!activeDates || activeDates.length === 0) return null;
   
   const recentLogs = activeDates.map(d => logs[d]).filter(Boolean).sort((a, b) => b.date.localeCompare(a.date));
@@ -67,6 +68,10 @@ const SleepPatternCard: React.FC<SleepPatternCardProps> = ({ logs, periodType, p
   const [copied, setCopied] = React.useState(false);
   
   const handleExportReport = () => {
+    if (userProfile?.tier === 'Basic') {
+      alert('Clinical Reports are available on Enhanced and Pro plans. Upgrade in your Account settings.');
+      return;
+    }
     // Only export logs that are in the active view's date set
     const activeLogs = activeDates
       .map(d => logs[d])
@@ -216,15 +221,34 @@ ${generateASCIIRibbonHeader()}
               </>
             )}
           </button>
-          <button 
-            onClick={handleExportReport}
-            disabled={isExportDisabled}
-            title={isExportDisabled ? 'Select a date range first' : ''}
-            className={`flex-1 py-3 ${isExportDisabled ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-500 text-white'} rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 border ${isExportDisabled ? 'border-zinc-700' : 'border-indigo-500'}`}
-          >
-            <FileText size={14} />
-            {buttonLabel}
-          </button>
+          
+          {(!userProfile || userProfile.tier === 'Basic') ? (
+            <div className="relative">
+              <div className="opacity-30 grayscale blur-sm">
+                <button
+                  className="w-full py-3 bg-zinc-800 border border-indigo-500/20 text-indigo-400 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] flex items-center justify-center gap-2"
+                >
+                  <Sparkles size={12} />
+                  PDF Export — Enhanced+
+                </button>
+              </div>
+              <LockedFeatureOverlay 
+                title="Doctor PDF Export"
+                description="Unlock clinical-grade PDF reports with Enhanced or PRO tiers."
+                onViewChange={() => window.location.href = '/account'}
+              />
+            </div>
+          ) : (
+            <button 
+              onClick={handleExportReport}
+              disabled={isExportDisabled}
+              title={isExportDisabled ? 'Select a date range first' : ''}
+              className={`flex-1 py-3 ${isExportDisabled ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-500 text-white'} rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 border ${isExportDisabled ? 'border-zinc-700' : 'border-indigo-500'}`}
+            >
+              <FileText size={14} />
+              {buttonLabel}
+            </button>
+          )}
         </div>
       </div>
     </Card>

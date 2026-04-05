@@ -2632,6 +2632,7 @@ export default function App() {
                 periodType={view === 'monthly' ? '30-DAY' : view === 'custom' ? 'CUSTOM' : '7-DAY'}
                 personalizationProfile={personalizationProfile}
                 user={user}
+                userProfile={userProfile}
                 activeDates={activeDates}
                 viewMode={view as 'weekly' | 'monthly' | 'custom'}
               />

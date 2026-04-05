@@ -2,8 +2,10 @@ import { DailyLog } from '../types';
 
 export const exportDailySummary = (logs: DailyLog[]) => {
   const headers = [
-    'date', 'quality', 'total_sleep_hrs', 'efficiency_pct', 'latency_mins',
-    'caffeine_mg', 'alcohol_units', 'stress_score'
+    'date', 'sleep_quality', 'morning_alertness', 'daytime_energy',
+    'caffeine_consumed', 'caffeine_amount', 'alcohol_consumed', 'alcohol_drinks',
+    'medication_taken', 'exercise_completed', 'screens_in_bed', 'stress_level',
+    'last_meal_time', 'natural_wake', 'mood_score'
   ];
 
   const csvContent = [
@@ -12,17 +14,24 @@ export const exportDailySummary = (logs: DailyLog[]) => {
       return [
         log.date || 'NA',
         log.sleep_quality ?? 'NA',
-        log.summaryMetrics?.importedDuration ? (log.summaryMetrics.importedDuration / 60).toFixed(2) : 'NA',
-        log.summaryMetrics?.sleep_efficiency ?? 'NA',
-        log.factors?.caffeine?.amount ?? 'NA', // Placeholder for latency, need to check types
+        log.morning_alertness ?? 'NA',
+        log.daytime_energy ?? 'NA',
+        log.factors?.caffeine?.consumed ?? 'NA',
         log.factors?.caffeine?.amount ?? 'NA',
+        log.factors?.alcohol?.consumed ?? 'NA',
         log.factors?.alcohol?.drinks ?? 'NA',
-        log.factors?.stressLevel ?? 'NA'
+        log.factors?.medication?.taken ?? 'NA',
+        log.factors?.exercise?.completed ?? 'NA',
+        log.factors?.screensInBed ?? 'NA',
+        log.factors?.stressLevel ?? 'NA',
+        log.factors?.lastMealTime ?? 'NA',
+        log.factors?.naturalWake ?? 'NA',
+        log.factors?.moodScore ?? 'NA'
       ].join(',');
     })
   ].join('\n');
 
-  downloadCSV(csvContent, 'daily_trends_summary.csv');
+  downloadCSV(csvContent, 'tidy_trends.csv');
 };
 
 export const exportDeepEventLog = (logs: DailyLog[]) => {
@@ -31,18 +40,23 @@ export const exportDeepEventLog = (logs: DailyLog[]) => {
   const csvContent = [
     headers.join(','),
     ...logs.flatMap(log => 
-      (log.sleepEvents || []).map(event => [
-        log.date || 'NA',
-        event.type || 'NA',
-        event.start || 'NA',
-        event.end || 'NA',
-        'NA', // Need calculation for duration
-        event.type === 'awake-in' ? 'true' : 'false'
-      ].join(','))
+      (log.sleepEvents || []).map(event => {
+        const start = new Date(`1970-01-01T${event.start}:00`);
+        const end = new Date(`1970-01-01T${event.end}:00`);
+        const durationMins = Math.round((end.getTime() - start.getTime()) / 60000);
+        return [
+          log.date || 'NA',
+          event.type || 'NA',
+          event.start || 'NA',
+          event.end || 'NA',
+          durationMins || 'NA',
+          event.type === 'awake-in' ? 'true' : 'false'
+        ].join(',');
+      })
     )
   ].join('\n');
 
-  downloadCSV(csvContent, 'deep_architecture_log.csv');
+  downloadCSV(csvContent, 'deep_architecture.csv');
 };
 
 const downloadCSV = (content: string, filename: string) => {

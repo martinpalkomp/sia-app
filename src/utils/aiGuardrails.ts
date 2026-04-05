@@ -12,9 +12,14 @@ export const shouldTriggerAI = (
   maturityLevel: number | null | undefined,
   logsCount: number,
   logsInLastMonthCount: number,
-  featureName: FeatureName,
+  featureName: FeatureName | 'fix_missing_data' | 'fill_gaps',
   lastGeneratedDate: string | null
 ): GuardrailResult => {
+  // Recovery Mode Override
+  if (featureName === 'fix_missing_data' || featureName === 'fill_gaps') {
+    return { shouldTrigger: true, reason: 'RECOVERY_MODE_ACTIVE' };
+  }
+
   // Safety Gate (ARCH-02 Fix): Deny by Default
   if (maturityLevel === null || maturityLevel === undefined) {
     return { shouldTrigger: false, reason: "SIA is still calibrating." };

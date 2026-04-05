@@ -29,6 +29,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { DailyLog, SleepState, SleepEvent, Insight, UserProfile } from '../types';
 import { GoogleGenAI } from "@google/genai";
+import { LockedFeatureOverlay } from './LockedFeatureOverlay';
 import { Card, AvatarFrame, MetricDisplay, CircadianWaveform } from './UI';
 import { calculateSleepDuration, calculateSleepEfficiency, formatDuration, getGridFromEvents, getMinutesFrom2000 } from '../utils/sleepUtils';
 import { calculateSafeAverage } from '../utils/statsEngine';
@@ -623,15 +624,21 @@ export default function Dashboard({
         <div className="space-y-4">
           <h3 className="text-[10px] font-black text-zinc-300 uppercase tracking-[0.2em]">Clinical Insights</h3>
           {userProfile?.tier === 'Basic' ? (
-            <div className="relative p-6 rounded-2xl border border-zinc-800 bg-zinc-900/80 backdrop-blur-md flex flex-col items-center justify-center text-center space-y-4">
-              <p className="font-mono text-xs text-indigo-400">[ SIA CLINICAL INTELLIGENCE: LOCKED ]</p>
-              <p className="text-xs text-zinc-400 max-w-xs">Your data is being processed, but deep pattern recognition and risk analysis require Enhanced or PRO tiers.</p>
-              <button 
-                onClick={() => onViewChange('profile')}
-                className="px-6 py-2 bg-zinc-950 text-white font-bold text-xs uppercase tracking-widest border border-indigo-500/50 shadow-[0_0_15px_rgba(79,70,229,0.4)] hover:bg-indigo-900/20 transition-all"
-              >
-                LEVEL UP TO UNLOCK
-              </button>
+            <div className="relative">
+              <div className="opacity-30 grayscale blur-sm space-y-4">
+                {insights.length > 0 ? (
+                  insights.slice(0, 3).map(insight => (
+                    <InsightCard key={insight.id} insight={insight} />
+                  ))
+                ) : (
+                  <p className="text-zinc-500 text-xs italic">No insights available yet.</p>
+                )}
+              </div>
+              <LockedFeatureOverlay 
+                title="Clinical Insights Feed"
+                description="Unlock deep pattern recognition and risk analysis with Enhanced or PRO tiers."
+                onViewChange={onViewChange}
+              />
             </div>
           ) : insights.length > 0 ? (
             insights.map(insight => (
@@ -749,21 +756,50 @@ export default function Dashboard({
             <ChevronRight size={24} className="text-white group-hover:translate-x-1 transition-transform" />
           </Card>
 
-          <Card 
-            onClick={() => onViewChange('ai')}
-            className="bg-zinc-900 border-zinc-800 hover:bg-zinc-800 flex items-center justify-between group"
-          >
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-zinc-800 rounded-xl flex items-center justify-center text-zinc-400 group-hover:text-indigo-400 transition-colors">
-                <Sparkles size={24} />
+          {userProfile?.tier === 'Basic' ? (
+            <div className="relative">
+              <div className="opacity-30 grayscale blur-sm">
+                <div 
+                  onClick={() => onViewChange('account')}
+                  className="bg-zinc-900 border border-indigo-500/30 p-4 rounded-2xl flex items-center justify-between group cursor-pointer hover:border-indigo-500/50 transition-all"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-zinc-800 rounded-xl flex items-center justify-center text-indigo-400">
+                      <Sparkles size={24} />
+                    </div>
+                    <div className="text-left">
+                      <p className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em]">Deep Analysis</p>
+                      <p className="text-xs text-zinc-400 font-medium mt-0.5">90 days of data + Enhanced/Pro required</p>
+                    </div>
+                  </div>
+                  <div className="px-3 py-1 bg-indigo-500/10 text-indigo-400 text-[10px] font-bold uppercase tracking-widest rounded-lg border border-indigo-500/20">
+                    Upgrade →
+                  </div>
+                </div>
               </div>
-              <div className="text-left">
-                <p className="text-[10px] font-black text-zinc-300 uppercase tracking-[0.2em]">Deep Dive</p>
-                <p className="text-xl text-white font-black tracking-tight mt-0.5">AI Analysis</p>
-              </div>
+              <LockedFeatureOverlay 
+                title="Deep Analysis"
+                description="Unlock deep analysis with 90 days of data and Enhanced or PRO tiers."
+                onViewChange={onViewChange}
+              />
             </div>
-            <ChevronRight size={24} className="text-zinc-300 group-hover:text-white group-hover:translate-x-1 transition-transform" />
-          </Card>
+          ) : (
+            <Card 
+              onClick={handleDeepAnalysis}
+              className="bg-zinc-900 border-zinc-800 hover:bg-zinc-800 flex items-center justify-between group cursor-pointer"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-zinc-800 rounded-xl flex items-center justify-center text-zinc-400 group-hover:text-indigo-400 transition-colors">
+                  <Sparkles size={24} />
+                </div>
+                <div className="text-left">
+                  <p className="text-[10px] font-black text-zinc-300 uppercase tracking-[0.2em]">Deep Dive</p>
+                  <p className="text-xl text-white font-black tracking-tight mt-0.5">AI Analysis</p>
+                </div>
+              </div>
+              <ChevronRight size={24} className="text-zinc-300 group-hover:text-white group-hover:translate-x-1 transition-transform" />
+            </Card>
+          )}
         </div>
       </section>
 
@@ -776,76 +812,107 @@ export default function Dashboard({
         <div className="grid grid-cols-1 gap-6">
           <SleepGuideCard onClick={onOpenSleepGuide} gadgetSummary={recentGadgets} />
           
-          {FEATURE_FLAGS.showSiaIntelligence && isEnhanced && (
-            <Card 
-              className="bg-zinc-950 border-violet-500/30 relative overflow-hidden group p-0"
-            >
-              <div className="absolute inset-0 opacity-5 pointer-events-none flex items-center justify-center">
-                <CircadianWaveform className="text-violet-400 w-full scale-150" />
-              </div>
-              
-              <div className="relative z-10 p-8">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="w-10 h-10 bg-violet-500/10 rounded-xl flex items-center justify-center text-violet-400 border border-violet-500/20">
+          {FEATURE_FLAGS.showSiaIntelligence && (
+            isEnhanced ? (
+              <Card 
+                className="bg-zinc-950 border-violet-500/30 relative overflow-hidden group p-0"
+              >
+                <div className="absolute inset-0 opacity-5 pointer-events-none flex items-center justify-center">
+                  <CircadianWaveform className="text-violet-400 w-full scale-150" />
+                </div>
+                
+                <div className="relative z-10 p-8">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="w-10 h-10 bg-violet-500/10 rounded-xl flex items-center justify-center text-violet-400 border border-violet-500/20">
+                      <Brain size={20} />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-black text-white uppercase tracking-widest">SIA Intelligence Feed</h3>
+                      <p className="text-[10px] text-violet-300 font-bold">Advanced Diagnostic Monitoring</p>
+                    </div>
+                  </div>
+
+                  {dataMaturity.level < 3 ? (
+                    <div className="py-12 text-center space-y-3">
+                      <div className="w-12 h-12 bg-zinc-900/50 rounded-2xl flex items-center justify-center text-zinc-700 mx-auto border border-zinc-800">
+                        <Brain size={24} />
+                      </div>
+                      <div className="space-y-1">
+                        <h4 className="text-sm font-bold text-zinc-500 uppercase tracking-widest">Intelligence Gated</h4>
+                        <p className="text-xs text-zinc-600 max-w-xs mx-auto leading-relaxed">
+                          SIA Intelligence requires 90 days of baseline data to identify biological anomalies. (Progress: {dataMaturity.count}/90).
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="p-4 bg-zinc-900/50 border border-zinc-800 rounded-2xl border-l-2 border-l-violet-500/50">
+                          <div className="flex items-center gap-2 mb-2">
+                            <div className="w-2 h-2 rounded-full bg-violet-500 animate-pulse" />
+                            <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Neuro-Diagnostic</span>
+                          </div>
+                          <h4 className="text-sm font-bold text-white mb-1">Alzheimer's Risk Evaluation</h4>
+                          <p className="text-xs text-zinc-400 leading-relaxed">
+                            Analyzing N3/REM architecture for early biomarkers. Intelligence activation required for full report.
+                          </p>
+                          <p className="text-[8px] text-zinc-600 italic mt-2 leading-tight">{DISCLAIMER}</p>
+                        </div>
+
+                        <div className="p-4 bg-zinc-900/50 border border-zinc-800 rounded-2xl border-l-2 border-l-emerald-500/50">
+                          <div className="flex items-center gap-2 mb-2">
+                            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                            <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Metabolic-Diagnostic</span>
+                          </div>
+                          <h4 className="text-sm font-bold text-white mb-1">Obesity & Metabolic Flux</h4>
+                          <p className="text-xs text-zinc-400 leading-relaxed">
+                            Monitoring circadian alignment with last meal timing. Baseline established.
+                          </p>
+                          <p className="text-[8px] text-zinc-600 italic mt-2 leading-tight">{DISCLAIMER}</p>
+                        </div>
+                      </div>
+
+                      <div className="mt-6 flex items-center justify-center">
+                        <div className="px-4 py-2 bg-violet-500/5 border border-violet-500/10 rounded-full">
+                          <p className="text-[9px] font-black text-violet-300 uppercase tracking-[0.3em] animate-pulse">
+                            Scanning for biological anomalies...
+                          </p>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </Card>
+            ) : (
+              <Card className="bg-zinc-950 border-zinc-800/50 relative overflow-hidden p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 bg-zinc-800 rounded-xl flex items-center justify-center text-zinc-600 border border-zinc-700">
                     <Brain size={20} />
                   </div>
                   <div>
-                    <h3 className="text-sm font-black text-white uppercase tracking-widest">SIA Intelligence Feed</h3>
-                    <p className="text-[10px] text-violet-300 font-bold">Advanced Diagnostic Monitoring</p>
+                    <h3 className="text-sm font-black text-zinc-500 uppercase tracking-widest">SIA Intelligence Feed</h3>
+                    <p className="text-[10px] text-zinc-700 font-bold">Advanced Diagnostic Monitoring</p>
                   </div>
                 </div>
-
-                {dataMaturity.level < 3 ? (
-                  <div className="py-12 text-center space-y-3">
-                    <div className="w-12 h-12 bg-zinc-900/50 rounded-2xl flex items-center justify-center text-zinc-700 mx-auto border border-zinc-800">
-                      <Brain size={24} />
-                    </div>
-                    <div className="space-y-1">
-                      <h4 className="text-sm font-bold text-zinc-500 uppercase tracking-widest">Intelligence Gated</h4>
-                      <p className="text-xs text-zinc-600 max-w-xs mx-auto leading-relaxed">
-                        SIA Intelligence requires 90 days of baseline data to identify biological anomalies. (Progress: {dataMaturity.count}/90).
-                      </p>
-                    </div>
+                <div className="space-y-2 mb-5 opacity-40 pointer-events-none select-none">
+                  <div className="h-10 bg-zinc-900 rounded-xl border border-zinc-800 flex items-center px-4 gap-3">
+                    <div className="w-2 h-2 rounded-full bg-zinc-700" />
+                    <span className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest">Neuro-Diagnostic · Alzheimer's Risk Evaluation</span>
                   </div>
-                ) : (
-                  <>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="p-4 bg-zinc-900/50 border border-zinc-800 rounded-2xl border-l-2 border-l-violet-500/50">
-                        <div className="flex items-center gap-2 mb-2">
-                          <div className="w-2 h-2 rounded-full bg-violet-500 animate-pulse" />
-                          <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Neuro-Diagnostic</span>
-                        </div>
-                        <h4 className="text-sm font-bold text-white mb-1">Alzheimer's Risk Evaluation</h4>
-                        <p className="text-xs text-zinc-400 leading-relaxed">
-                          Analyzing N3/REM architecture for early biomarkers. Intelligence activation required for full report.
-                        </p>
-                        <p className="text-[8px] text-zinc-600 italic mt-2 leading-tight">{DISCLAIMER}</p>
-                      </div>
-
-                      <div className="p-4 bg-zinc-900/50 border border-zinc-800 rounded-2xl border-l-2 border-l-emerald-500/50">
-                        <div className="flex items-center gap-2 mb-2">
-                          <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                          <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Metabolic-Diagnostic</span>
-                        </div>
-                        <h4 className="text-sm font-bold text-white mb-1">Obesity & Metabolic Flux</h4>
-                        <p className="text-xs text-zinc-400 leading-relaxed">
-                          Monitoring circadian alignment with last meal timing. Baseline established.
-                        </p>
-                        <p className="text-[8px] text-zinc-600 italic mt-2 leading-tight">{DISCLAIMER}</p>
-                      </div>
-                    </div>
-
-                    <div className="mt-6 flex items-center justify-center">
-                      <div className="px-4 py-2 bg-violet-500/5 border border-violet-500/10 rounded-full">
-                        <p className="text-[9px] font-black text-violet-300 uppercase tracking-[0.3em] animate-pulse">
-                          Scanning for biological anomalies...
-                        </p>
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
-            </Card>
+                  <div className="h-10 bg-zinc-900 rounded-xl border border-zinc-800 flex items-center px-4 gap-3">
+                    <div className="w-2 h-2 rounded-full bg-zinc-700" />
+                    <span className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest">Metabolic-Diagnostic · Circadian Flux</span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => onViewChange('account')}
+                  className="w-full py-2.5 bg-zinc-900 border border-indigo-500/20 text-indigo-400 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-900/20 transition-all flex items-center justify-center gap-2"
+                >
+                  <Sparkles size={12} />
+                  Unlock with Enhanced or Pro
+                </button>
+              </Card>
+            )
           )}
         </div>
       </section>
