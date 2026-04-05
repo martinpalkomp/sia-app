@@ -121,7 +121,11 @@ export class AIService {
     const today = format(new Date(), 'yyyy-MM-dd');
     const cached = await this.getCachedDailyBrief(userId, today);
     
-    const guardrail = shouldTriggerAI(tier, maturity.level, logs.length, 'DailyBrief', cached ? today : null);
+    const oneMonthAgo = new Date();
+    oneMonthAgo.setDate(oneMonthAgo.getDate() - 30);
+    const logsInLastMonthCount = logs.filter(log => new Date(log.date) >= oneMonthAgo).length;
+
+    const guardrail = shouldTriggerAI(tier, maturity.level, logs.length, logsInLastMonthCount, 'DailyBrief', cached ? today : null);
     if (!guardrail.shouldTrigger) {
       if (cached && guardrail.reason === "Already generated today.") {
         return { content: cached.content, status: 'success' };
@@ -187,7 +191,12 @@ export class AIService {
 
   static async generateDeepAnalysis(userId: string, logs: DailyLog[], tier: UserTier, maturity: MaturityInfo, lastGeneratedDate: string | null): Promise<AIResponse> {
     const today = format(new Date(), 'yyyy-MM-dd');
-    const guardrail = shouldTriggerAI(tier, maturity.level, logs.length, 'DeepAnalysis', lastGeneratedDate);
+    
+    const oneMonthAgo = new Date();
+    oneMonthAgo.setDate(oneMonthAgo.getDate() - 30);
+    const logsInLastMonthCount = logs.filter(log => new Date(log.date) >= oneMonthAgo).length;
+
+    const guardrail = shouldTriggerAI(tier, maturity.level, logs.length, logsInLastMonthCount, 'DeepAnalysis', lastGeneratedDate);
     if (!guardrail.shouldTrigger) {
       return { content: null, status: 'skipped', reason: guardrail.reason };
     }
@@ -240,7 +249,12 @@ export class AIService {
 
   static async generateQuickInsight(userId: string, logs: DailyLog[], tier: UserTier, maturity: MaturityInfo, lastGeneratedDate: string | null): Promise<AIResponse> {
     const today = format(new Date(), 'yyyy-MM-dd');
-    const guardrail = shouldTriggerAI(tier, maturity.level, logs.length, 'QuickInsight', lastGeneratedDate);
+    
+    const oneMonthAgo = new Date();
+    oneMonthAgo.setDate(oneMonthAgo.getDate() - 30);
+    const logsInLastMonthCount = logs.filter(log => new Date(log.date) >= oneMonthAgo).length;
+
+    const guardrail = shouldTriggerAI(tier, maturity.level, logs.length, logsInLastMonthCount, 'QuickInsight', lastGeneratedDate);
     if (!guardrail.shouldTrigger) {
       return { content: null, status: 'skipped', reason: guardrail.reason };
     }
@@ -311,7 +325,19 @@ export class AIService {
     // 2. Check Maturity
     const maturity = await this.getUserDataMaturity(userId);
 
-    // 3. Get Cached Brief for context
+    // 3. Check ClinicalInsights Guardrail
+    const logsRef = collection(db!, 'users', userId, 'sleep_logs');
+    const logsSnap = await getDocs(query(logsRef));
+    const logs: DailyLog[] = [];
+    logsSnap.forEach(doc => logs.push(doc.data() as DailyLog));
+    const logsCount = logs.length;
+    const oneMonthAgo = new Date();
+    oneMonthAgo.setDate(oneMonthAgo.getDate() - 30);
+    const logsInLastMonthCount = logs.filter(log => new Date(log.date) >= oneMonthAgo).length;
+
+    const clinicalGuardrail = shouldTriggerAI(tier, maturity.level, logsCount, logsInLastMonthCount, 'ClinicalInsights', null);
+
+    // 4. Get Cached Brief for context
     const today = format(new Date(), 'yyyy-MM-dd');
     const cachedBrief = await this.getCachedDailyBrief(userId, today);
 
@@ -494,6 +520,10 @@ export class AIService {
       const result = JSON.parse(response.text || '{}');
       const answer = result.answer || "I'm sorry, I couldn't process that.";
       const finalAnswer = `${answer}\n\n***\n\n${DISCLAIMER}`;
+
+      if (!clinicalGuardrail.shouldTrigger) {
+        delete result.newInsights;
+      }
 
       // Increment quota
       const userRef = doc(db!, 'users', userId);

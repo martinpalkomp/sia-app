@@ -1,6 +1,6 @@
 import { UserTier } from '../types';
 
-export type FeatureName = 'DeepAnalysis' | 'DailyBrief' | 'QuickInsight';
+export type FeatureName = 'DeepAnalysis' | 'DailyBrief' | 'QuickInsight' | 'ClinicalInsights';
 
 export interface GuardrailResult {
   shouldTrigger: boolean;
@@ -11,6 +11,7 @@ export const shouldTriggerAI = (
   userTier: UserTier,
   maturityLevel: number | null | undefined,
   logsCount: number,
+  logsInLastMonthCount: number,
   featureName: FeatureName,
   lastGeneratedDate: string | null
 ): GuardrailResult => {
@@ -36,8 +37,13 @@ export const shouldTriggerAI = (
       }
       break;
     case 'QuickInsight':
-      if (maturityLevel < 2) {
-        return { shouldTrigger: false, reason: "SIA is still calibrating. 14 days of data needed for AI insights." };
+      if (logsInLastMonthCount < 14) {
+        return { shouldTrigger: false, reason: "SIA is still calibrating. 14 days of data throughout the last month needed for AI insights." };
+      }
+      break;
+    case 'ClinicalInsights':
+      if (userTier === 'Basic') {
+        return { shouldTrigger: false, reason: "Clinical Insights require Enhanced or PRO tier." };
       }
       break;
   }

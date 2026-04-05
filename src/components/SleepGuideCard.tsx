@@ -33,16 +33,6 @@ export default function SleepGuideCard({ onClick, gadgetSummary }: SleepGuideCar
             <p className="text-zinc-400 text-sm font-medium leading-relaxed max-w-md">
               Unlock peak performance and mood by mastering the science of rest. Learn the laws that govern your recovery.
             </p>
-            {gadgetSummary && gadgetSummary.length > 0 && (
-              <div className="flex flex-wrap gap-2 mt-3">
-                <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-500">Used recently:</span>
-                {gadgetSummary.slice(0, 4).map(g => (
-                  <span key={g} className="text-[9px] font-semibold px-2 py-0.5 bg-indigo-500/10 text-indigo-400 rounded-full border border-indigo-500/20">
-                    {g.replace(/_/g, ' ')}
-                  </span>
-                ))}
-              </div>
-            )}
           </div>
         </div>
 

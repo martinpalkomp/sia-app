@@ -25,7 +25,8 @@ import {
   runTransaction, 
   addDoc, 
   collection,
-  deleteField 
+  deleteField,
+  updateDoc
 } from '../lib/firebase';
 import { DailyLog, SleepState, SleepEvent } from '../types';
 import { TOTAL_SLOTS } from '../constants';
@@ -61,6 +62,40 @@ const TEMPLATE_HEADERS = [
   'NaturalWake_Y', 'MorningMood_1to5', 'Sleep_Gadgets'
 ];
 
+const mapStandardData = (rows: any[]) => {
+  return rows.map(row => ({
+    _mapped: {
+      Date: row.Date,
+      Start_Time: row.Bedtime,
+      End_Time: row.Waketime,
+      Status_Code: row.Status_Code,
+      SQ: row.SQ,
+      R: row.R,
+      L: row.L,
+      Remarks: row.Remarks,
+      Caffeine_Y: row.Caffeine_Y,
+      Caffeine_Cups: row.Caffeine_Cups,
+      Caffeine_LastIntake: row.Caffeine_LastIntake,
+      Alcohol_Y: row.Alcohol_Y,
+      Alcohol_Drinks: row.Alcohol_Drinks,
+      Alcohol_LastIntake: row.Alcohol_LastIntake,
+      Medication_Y: row.Medication_Y,
+      Medication_Type: row.Medication_Type,
+      Medication_Time: row.Medication_Time,
+      Exercise_Y: row.Exercise_Y,
+      Exercise_Type: row.Exercise_Type,
+      Exercise_Time: row.Exercise_Time,
+      Screens_Y: row.Screens_Y,
+      Stress: row.Stress_1to5,
+      LastMeal: row.LastMeal_Time,
+      NaturalWake: row.NaturalWake_Y,
+      MoodScore: row.MorningMood_1to5,
+      Sleep_Gadgets: row.Sleep_Gadgets
+    },
+    _unmapped: []
+  }));
+};
+
 export default function DataImporter({ user, onImportComplete, onRefresh, isImporting, setIsImporting, logs = {} }: DataImporterProps) {
   const [isCollapsed, setIsCollapsed] = useState(true);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -72,12 +107,39 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'success' | 'error' | 'unstructured'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
   const [showConflictModal, setShowConflictModal] = useState(false);
+  const [showAIConfirmModal, setShowAIConfirmModal] = useState(false);
   const [pendingData, setPendingData] = useState<any[] | null>(null);
   const [pendingRawContent, setPendingRawContent] = useState<string | null>(null);
   const [cleaningReport, setCleaningReport] = useState<{ skipped: number; cleaned: number; metrics: string[] } | null>(null);
   const [showLegacyToast, setShowLegacyToast] = useState(false);
   const [previewData, setPreviewData] = useState<any[] | null>(null);
+  const [userProfile, setUserProfile] = useState<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  React.useEffect(() => {
+    const fetchProfile = async () => {
+      if (!db) return;
+      const docRef = doc(db, 'users', user.uid);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        const lastImportDate = data.lastImportDate?.toDate?.() || new Date(0);
+        const now = new Date();
+        
+        if (lastImportDate.getMonth() !== now.getMonth() || lastImportDate.getFullYear() !== now.getFullYear()) {
+          // Reset counter
+          await updateDoc(docRef, {
+            aiImportsCurrentMonth: 0,
+            lastImportDate: serverTimestamp()
+          });
+          setUserProfile({ ...data, aiImportsCurrentMonth: 0 });
+        } else {
+          setUserProfile(data);
+        }
+      }
+    };
+    fetchProfile();
+  }, [user.uid]);
 
   const withTimeout = <T,>(promise: Promise<T>, timeoutMs: number, errorMessage: string): Promise<T> => {
     return Promise.race([
@@ -483,39 +545,80 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
       const isStrictTemplate = actualHeaders.length === TEMPLATE_HEADERS.length && 
                                TEMPLATE_HEADERS.every((h, i) => actualHeaders[i] === h);
       
-      // 1. Initial Validation & Sanitization
       let validRows: any[] = [];
-      cleanedData.forEach((row, idx) => {
-        const result = validateAndMapRow(row, idx, [], isStrictTemplate);
-        // Strict Data Contract: Date, Start_Time (Bedtime), End_Time (Waketime) are required
-        if (result && result._mapped.Date && result._mapped.Start_Time && result._mapped.End_Time) {
-          const processedRow = { ...row, ...result };
-          validRows.push(processedRow);
-        } else {
-          initialInvalidRows.push(row);
+      
+      if (isStrictTemplate) {
+        // Fast-track: Standard Template
+        validRows = mapStandardData(cleanedData);
+        // We still need to validate dates/times
+        validRows = validRows.filter(row => {
+          const dateStr = getSleepDay(row._mapped.Date);
+          const start = normalizeTime(row._mapped.Start_Time);
+          const end = normalizeTime(row._mapped.End_Time);
+          if (!dateStr || !start || !end || start === end) return false;
+          row._mapped.Date = dateStr;
+          row._mapped.Start_Time = start;
+          row._mapped.End_Time = end;
+          return true;
+        });
+        // Show toast
+        // (Need to implement toast or use existing status)
+        setUploadStatus('success');
+        setErrorMessage("Standard Template Detected: Fast-track import complete!");
+      } else {
+        // AI Restructuring
+        if (userProfile?.tier !== 'PRO' && (userProfile?.aiImportsCurrentMonth || 0) >= (userProfile?.tier === 'Basic' ? 5 : 10)) {
+          setUploadStatus('error');
+          setErrorMessage("Monthly AI Limit Reached. Please use the standard SIA Template for unlimited free imports or upgrade to PRO.");
+          return;
         }
-      });
 
-      // 2. AI Normalization for invalid rows
-      if (initialInvalidRows.length > 0) {
-        setErrorMessage(`SIA is attempting to normalize ${initialInvalidRows.length} complex rows...`);
-        const aiNormalized = await normalizeRowsWithAI(initialInvalidRows);
-        
-        if (aiNormalized.length > 0) {
-          aiNormalized.forEach((row, idx) => {
-            const result = validateAndMapRow(row, 9000 + idx, []);
-            if (result && result._mapped.Date && result._mapped.Start_Time && result._mapped.End_Time) {
-              validRows.push({ ...row, ...result });
-            }
-          });
+        if (!showAIConfirmModal) {
+          setPendingData(cleanedData);
+          setPendingRawContent(rawContent || null);
+          setShowAIConfirmModal(true);
+          return;
         }
-        
-        // Calculate truly skipped rows
-        const totalSent = initialInvalidRows.length;
-        const totalRecovered = validRows.length - (cleanedData.length - initialInvalidRows.length);
-        if (totalRecovered < totalSent) {
-          skippedRows.push(`Skipped ${totalSent - totalRecovered} rows that could not be normalized.`);
+
+        // 1. Initial Validation & Sanitization
+        cleanedData.forEach((row, idx) => {
+          const result = validateAndMapRow(row, idx, [], false);
+          if (result && result._mapped.Date && result._mapped.Start_Time && result._mapped.End_Time) {
+            const processedRow = { ...row, ...result };
+            validRows.push(processedRow);
+          } else {
+            initialInvalidRows.push(row);
+          }
+        });
+
+        // 2. AI Normalization for invalid rows
+        if (initialInvalidRows.length > 0) {
+          setErrorMessage(`SIA is attempting to normalize ${initialInvalidRows.length} complex rows...`);
+          const aiNormalized = await normalizeRowsWithAI(initialInvalidRows);
+          
+          if (aiNormalized.length > 0) {
+            aiNormalized.forEach((row, idx) => {
+              const result = validateAndMapRow(row, 9000 + idx, []);
+              if (result && result._mapped.Date && result._mapped.Start_Time && result._mapped.End_Time) {
+                validRows.push({ ...row, ...result });
+              }
+            });
+          }
+          
+          // Calculate truly skipped rows
+          const totalSent = initialInvalidRows.length;
+          const totalRecovered = validRows.length - (cleanedData.length - initialInvalidRows.length);
+          if (totalRecovered < totalSent) {
+            skippedRows.push(`Skipped ${totalSent - totalRecovered} rows that could not be normalized.`);
+          }
         }
+
+        // Increment AI counter
+        const userRef = doc(db, 'users', user.uid);
+        await updateDoc(userRef, {
+          aiImportsCurrentMonth: (userProfile?.aiImportsCurrentMonth || 0) + 1,
+          lastImportDate: serverTimestamp()
+        });
       }
 
       // If no valid rows found after AI normalization, route to unstructured_data
@@ -1113,6 +1216,11 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
                     Importer Tools
                   </h3>
                   <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">CSV or Excel • Max 5MB</p>
+                  {userProfile?.tier !== 'PRO' && (
+                    <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">
+                      AI Restructure Credits: {(userProfile?.tier === 'Basic' ? 5 : 10) - (userProfile?.aiImportsCurrentMonth || 0)} / {userProfile?.tier === 'Basic' ? 5 : 10} remaining
+                    </p>
+                  )}
                 </div>
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full md:w-auto">
                   <button 
@@ -1439,6 +1547,21 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
           </motion.div>
         )}
       </AnimatePresence>
+      {showAIConfirmModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-zinc-900 p-6 rounded-2xl border border-zinc-700 max-w-sm w-full space-y-4">
+            <h3 className="text-white font-bold">Confirm AI Restructuring</h3>
+            <p className="text-zinc-400 text-sm">Non-standard format detected. This will use 1 AI Credit. Continue?</p>
+            <div className="flex gap-2">
+              <button onClick={() => setShowAIConfirmModal(false)} className="flex-1 py-2 bg-zinc-800 rounded-lg text-white">Cancel</button>
+              <button onClick={async () => {
+                setShowAIConfirmModal(false);
+                await processImportedData(pendingData!, true, pendingRawContent || undefined);
+              }} className="flex-1 py-2 bg-indigo-600 rounded-lg text-white">Continue</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

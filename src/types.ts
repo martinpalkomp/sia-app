@@ -194,6 +194,8 @@ export interface UserProfile {
   photoURL?: string;
   tier: UserTier;
   quota: UserQuota;
+  aiImportsCurrentMonth?: number;
+  lastImportDate?: any; // Firestore Timestamp
   createdAt: any;
 }
 

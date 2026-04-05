@@ -620,14 +620,27 @@ export default function Dashboard({
         </Card>
 
         {/* Insights Feed */}
-        {insights.length > 0 && (
-          <div className="space-y-4">
-            <h3 className="text-[10px] font-black text-zinc-300 uppercase tracking-[0.2em]">Clinical Insights</h3>
-            {insights.map(insight => (
+        <div className="space-y-4">
+          <h3 className="text-[10px] font-black text-zinc-300 uppercase tracking-[0.2em]">Clinical Insights</h3>
+          {userProfile?.tier === 'Basic' ? (
+            <div className="relative p-6 rounded-2xl border border-zinc-800 bg-zinc-900/80 backdrop-blur-md flex flex-col items-center justify-center text-center space-y-4">
+              <p className="font-mono text-xs text-indigo-400">[ SIA CLINICAL INTELLIGENCE: LOCKED ]</p>
+              <p className="text-xs text-zinc-400 max-w-xs">Your data is being processed, but deep pattern recognition and risk analysis require Enhanced or PRO tiers.</p>
+              <button 
+                onClick={() => onViewChange('profile')}
+                className="px-6 py-2 bg-zinc-950 text-white font-bold text-xs uppercase tracking-widest border border-indigo-500/50 shadow-[0_0_15px_rgba(79,70,229,0.4)] hover:bg-indigo-900/20 transition-all"
+              >
+                LEVEL UP TO UNLOCK
+              </button>
+            </div>
+          ) : insights.length > 0 ? (
+            insights.map(insight => (
               <InsightCard key={insight.id} insight={insight} />
-            ))}
-          </div>
-        )}
+            ))
+          ) : (
+            <p className="text-zinc-500 text-xs italic">No insights available yet.</p>
+          )}
+        </div>
       </section>
 
       {/* Section: Data Maturity Progress */}
