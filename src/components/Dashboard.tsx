@@ -29,7 +29,6 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { DailyLog, SleepState, SleepEvent, Insight, UserProfile } from '../types';
 import { GoogleGenAI } from "@google/genai";
-import { LockedFeatureOverlay } from './LockedFeatureOverlay';
 import { Card, AvatarFrame, MetricDisplay, CircadianWaveform } from './UI';
 import { calculateSleepDuration, calculateSleepEfficiency, formatDuration, getGridFromEvents, getMinutesFrom2000 } from '../utils/sleepUtils';
 import { calculateSafeAverage } from '../utils/statsEngine';
@@ -55,6 +54,7 @@ import { SleepWindow } from './SleepWindow';
 import SleepPatternCard from './SleepPatternCard';
 import { Header } from './Header';
 import { InsightCard } from './InsightCard';
+import { LockedFeatureCard } from './LockedFeatureCard';
 
 interface DashboardProps {
   logs: Record<string, DailyLog>;
@@ -616,6 +616,30 @@ export default function Dashboard({
               {!isAiLoading && aiInsight && (
                 <p className="text-[10px] text-zinc-500 italic leading-tight">{DISCLAIMER}</p>
               )}
+              {!isAiLoading && (
+                userProfile?.tier === 'Basic' ? (
+                  <div className="flex items-center justify-between pt-2 border-t border-zinc-800/50 mt-2">
+                    <div>
+                      <p className="text-[9px] font-black text-zinc-600 uppercase tracking-widest">Deep Analysis</p>
+                      <p className="text-[9px] text-zinc-700">90 days + Enhanced or Pro required</p>
+                    </div>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onViewChange('account'); }}
+                      className="text-[9px] font-black text-indigo-500 uppercase tracking-widest hover:text-indigo-400 transition-colors"
+                    >
+                      Upgrade →
+                    </button>
+                  </div>
+                ) : !isDeepAnalysis && aiInsight && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleDeepAnalysis(); }}
+                    className="text-[9px] font-black text-indigo-400 hover:text-indigo-300 uppercase tracking-widest flex items-center gap-1 pt-1"
+                  >
+                    <Sparkles size={10} />
+                    Run Deep Analysis ({personalizationProfile ? '180' : '30'} Days)
+                  </button>
+                )
+              )}
             </div>
           </div>
         </Card>
@@ -634,7 +658,7 @@ export default function Dashboard({
                   <p className="text-zinc-500 text-xs italic">No insights available yet.</p>
                 )}
               </div>
-              <LockedFeatureOverlay 
+              <LockedFeatureCard 
                 title="Clinical Insights Feed"
                 description="Unlock deep pattern recognition and risk analysis with Enhanced or PRO tiers."
                 onUpgrade={() => onViewChange('account')}
@@ -777,7 +801,7 @@ export default function Dashboard({
                   </div>
                 </div>
               </div>
-              <LockedFeatureOverlay 
+              <LockedFeatureCard 
                 title="Deep Analysis"
                 description="Unlock deep analysis with 90 days of data and Enhanced or PRO tiers."
                 onUpgrade={() => onViewChange('account')}

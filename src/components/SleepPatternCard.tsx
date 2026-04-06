@@ -7,7 +7,7 @@ import {
   calculateSocialJetlag
 } from '../utils/diagnosticEngine';
 import { Card } from './UI';
-import { LockedFeatureOverlay } from './LockedFeatureOverlay';
+import { LockedFeatureCard } from './LockedFeatureCard';
 import { ClipboardCheck, Share2, Info, Printer, FileText, Sparkles } from 'lucide-react';
 import { formatDuration, getGridFromEvents, generateASCIIRibbon, generateASCIIRibbonHeader, calculateSleepEfficiency } from '../utils/sleepUtils';
 import { format, parseISO } from 'date-fns';
@@ -234,7 +234,7 @@ ${generateASCIIRibbonHeader()}
                   PDF Export — Enhanced+
                 </button>
               </div>
-              <LockedFeatureOverlay 
+              <LockedFeatureCard 
                 title="Doctor PDF Export"
                 description="Unlock clinical-grade PDF reports with Enhanced or PRO tiers."
                 onUpgrade={() => onViewChange('account')}

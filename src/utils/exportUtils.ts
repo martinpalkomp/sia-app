@@ -1,4 +1,5 @@
-import { DailyLog } from '../types';
+import { DailyLog, PersonalizationProfile } from '../types';
+import { getAgeDecade } from './dateUtils';
 
 const formatValue = (val: any) => {
   if (val === null || val === undefined || val === '') return 'NA';
@@ -73,6 +74,59 @@ export const exportDeepEventLog = (logs: DailyLog[]) => {
   ].join('\n');
 
   downloadCSV(csvContent, 'deep_architecture.csv');
+};
+
+export const exportForResearch = (logs: DailyLog[], profile: PersonalizationProfile) => {
+  const headers = [
+    'date', 'age_decade', 'health_conditions', 'device_type',
+    'sleep_quality', 'morning_alertness', 'daytime_energy',
+    'event_type', 'start_time', 'end_time', 'duration_mins'
+  ];
+
+  const ageDecade = profile.demographics.dateOfBirth ? getAgeDecade(profile.demographics.dateOfBirth) : 'NA';
+  const healthConditions = profile.demographics.healthConditions?.join(';') || 'NA';
+  const deviceType = profile.connectedDevices?.map(d => d.brand).join(';') || 'NA';
+
+  const csvContent = [
+    headers.join(','),
+    ...logs.flatMap(log => {
+      const events = log.sleepEvents || [];
+      if (events.length === 0) {
+        return [
+          [
+            formatValue(log.date),
+            formatValue(ageDecade),
+            formatValue(healthConditions),
+            formatValue(deviceType),
+            formatValue(log.sleep_quality),
+            formatValue(log.morning_alertness),
+            formatValue(log.daytime_energy),
+            'NA', 'NA', 'NA', 'NA'
+          ].join(',')
+        ];
+      }
+      return events.map(event => {
+        const start = new Date(`1970-01-01T${event.start}:00`);
+        const end = new Date(`1970-01-01T${event.end}:00`);
+        const durationMins = Math.round((end.getTime() - start.getTime()) / 60000);
+        return [
+          formatValue(log.date),
+          formatValue(ageDecade),
+          formatValue(healthConditions),
+          formatValue(deviceType),
+          formatValue(log.sleep_quality),
+          formatValue(log.morning_alertness),
+          formatValue(log.daytime_energy),
+          formatValue(event.type),
+          formatTime(event.start),
+          formatTime(event.end),
+          formatValue(durationMins)
+        ].join(',');
+      });
+    })
+  ].join('\n');
+
+  downloadCSV(csvContent, 'research_export.csv');
 };
 
 const downloadCSV = (content: string, filename: string) => {

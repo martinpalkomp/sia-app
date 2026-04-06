@@ -47,7 +47,8 @@ import {
   Bed,
   Circle,
   Watch,
-  Activity
+  Activity,
+  Sparkles
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { GoogleGenAI } from "@google/genai";
@@ -1137,6 +1138,10 @@ export default function App() {
 
 
   const handlePrint = () => {
+    if (!userProfile || userProfile.tier === 'Basic') {
+      setToast({ message: 'Clinical Reports are available on Enhanced and Pro plans.', type: 'info' });
+      return;
+    }
     const printContent = reportRef.current;
     if (!printContent) return;
 
@@ -2505,6 +2510,24 @@ export default function App() {
                       </button>
                     ))}
                   </div>
+                  {userProfile?.tier === 'Basic' ? (
+                    <button
+                      onClick={() => setView('account')}
+                      className="flex items-center gap-2 px-3 py-1.5 bg-zinc-900 border border-indigo-500/20 text-indigo-400 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-900/20 transition-all"
+                    >
+                      <Sparkles size={12} />
+                      Clinical Report — Enhanced+
+                    </button>
+                  ) : (
+                    <button
+                      onClick={handlePrint}
+                      disabled={!averageStats}
+                      className="flex items-center gap-2 px-3 py-1.5 bg-zinc-900 border border-zinc-700 text-zinc-300 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-zinc-800 transition-all disabled:opacity-40"
+                    >
+                      <Stethoscope size={12} />
+                      Clinical Report
+                    </button>
+                  )}
 
 
                 </div>

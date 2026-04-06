@@ -184,7 +184,7 @@ export default function AccountPage({ user, personalizationProfile, onModifyAsse
           <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
           <span className="text-xs font-black uppercase tracking-widest">Back to Account</span>
         </button>
-        <DataManager user={user} onRefresh={onRefresh} />
+        <DataManager user={user} onRefresh={onRefresh} logs={logs} personalizationProfile={personalizationProfile} />
       </motion.div>
     );
   }
@@ -411,15 +411,28 @@ export default function AccountPage({ user, personalizationProfile, onModifyAsse
               Aggregates sleep metrics and lifestyle factors for longitudinal analysis in R/RStudio.
             </div>
           </button>
-          <button 
-            onClick={() => exportDeepEventLog(Object.values(logs || {}))}
-            className="p-4 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-2xl text-left transition-all group"
-          >
-            <div className="text-sm font-black text-white mb-1">Export Deep Architecture (.CSV)</div>
-            <div className="text-[10px] text-zinc-500 leading-relaxed">
-              High-resolution event log for analyzing sleep fragmentation and circadian phase shifts.
-            </div>
-          </button>
+          {derivedTier === 'Basic' ? (
+            <button
+              onClick={() => onModifyAssessment()}
+              className="p-4 bg-zinc-900 border border-zinc-800 rounded-2xl text-left transition-all group opacity-50 cursor-not-allowed"
+              title="Available on Enhanced and Pro"
+            >
+              <div className="text-sm font-black text-white mb-1">Deep Architecture Export — Enhanced+</div>
+              <div className="text-[10px] text-zinc-500 leading-relaxed">
+                High-resolution event log for analyzing sleep fragmentation and circadian phase shifts.
+              </div>
+            </button>
+          ) : (
+            <button 
+              onClick={() => exportDeepEventLog(Object.values(logs || {}))}
+              className="p-4 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-2xl text-left transition-all group"
+            >
+              <div className="text-sm font-black text-white mb-1">Export Deep Architecture (.CSV)</div>
+              <div className="text-[10px] text-zinc-500 leading-relaxed">
+                High-resolution event log for analyzing sleep fragmentation and circadian phase shifts.
+              </div>
+            </button>
+          )}
         </div>
       </div>
 

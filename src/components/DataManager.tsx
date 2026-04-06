@@ -30,9 +30,14 @@ import { format } from 'date-fns';
 import { Card } from './UI';
 import { exportUserData } from '../utils/DataExporter';
 
+import { exportDailySummary, exportDeepEventLog, exportForResearch } from '../utils/exportUtils';
+import { DailyLog, PersonalizationProfile } from '../types';
+
 interface DataManagerProps {
   user: User;
   onRefresh?: () => void;
+  logs?: Record<string, DailyLog>;
+  personalizationProfile: PersonalizationProfile | null;
 }
 
 interface DataItem {
@@ -43,7 +48,7 @@ interface DataItem {
   content?: string;
 }
 
-export default function DataManager({ user, onRefresh }: DataManagerProps) {
+export default function DataManager({ user, onRefresh, logs, personalizationProfile }: DataManagerProps) {
   const [items, setItems] = useState<DataItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [previewItem, setPreviewItem] = useState<DataItem | null>(null);
@@ -175,6 +180,29 @@ export default function DataManager({ user, onRefresh }: DataManagerProps) {
           <p className="text-sm text-zinc-500 font-medium">Manage your personal health data sources</p>
         </div>
         <div className="flex items-center gap-2">
+          <button 
+            onClick={() => exportDailySummary(Object.values(logs || {}))}
+            className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2"
+          >
+            <Download size={14} />
+            Export Daily Summary (CSV)
+          </button>
+          <button 
+            onClick={() => exportDeepEventLog(Object.values(logs || {}))}
+            className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2"
+          >
+            <Download size={14} />
+            Export Deep Event Log (CSV)
+          </button>
+          {personalizationProfile && (
+            <button 
+              onClick={() => exportForResearch(Object.values(logs || {}), personalizationProfile)}
+              className="px-4 py-2 bg-violet-500/10 hover:bg-violet-500/20 text-violet-400 border border-violet-500/30 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2"
+            >
+              <Download size={14} />
+              Export for Research (CSV)
+            </button>
+          )}
           <button 
             onClick={handleExportData}
             disabled={isExporting}
