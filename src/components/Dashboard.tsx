@@ -15,7 +15,8 @@ import {
   Settings,
   Ghost,
   FileText,
-  Activity
+  Activity,
+  Lock
 } from 'lucide-react';
 import { 
   ResponsiveContainer, 
@@ -27,6 +28,7 @@ import {
   CartesianGrid 
 } from 'recharts';
 import { motion, AnimatePresence } from 'motion/react';
+import { getPendingCorrections } from '../utils/correctionLogic';
 import { DailyLog, SleepState, SleepEvent, Insight, UserProfile } from '../types';
 import { GoogleGenAI } from "@google/genai";
 import { Card, AvatarFrame, MetricDisplay, CircadianWaveform } from './UI';
@@ -55,6 +57,7 @@ import SleepPatternCard from './SleepPatternCard';
 import { Header } from './Header';
 import { InsightCard } from './InsightCard';
 import { LockedFeatureCard } from './LockedFeatureCard';
+import { format } from 'date-fns';
 
 interface DashboardProps {
   logs: Record<string, DailyLog>;
@@ -94,7 +97,6 @@ export default function Dashboard({
   user,
   userProfile,
   selectedDate,
-  correctionsCount, 
   personalizationProfile,
   onLogClick, 
   onViewChange,
@@ -114,6 +116,11 @@ export default function Dashboard({
   const [isFirstVisit, setIsFirstVisit] = useState(false);
   const [showUnlockEnhanced, setShowUnlockEnhanced] = useState(false);
   const [maturity, setMaturity] = useState<MaturityInfo | null>(null);
+
+  const correctionsCount = useMemo(() => {
+    const trackingStartDate = format(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd');
+    return getPendingCorrections(logs, trackingStartDate).length;
+  }, [logs]);
 
   // Fetch maturity info
   useEffect(() => {
@@ -618,22 +625,26 @@ export default function Dashboard({
               )}
               {!isAiLoading && (
                 userProfile?.tier === 'Basic' ? (
-                  <div className="flex items-center justify-between pt-2 border-t border-zinc-800/50 mt-2">
-                    <div>
-                      <p className="text-[9px] font-black text-zinc-600 uppercase tracking-widest">Deep Analysis</p>
-                      <p className="text-[9px] text-zinc-700">90 days + Enhanced or Pro required</p>
+                  /* Styled Lock Box for Basic Users */
+                  <div className="flex items-center justify-between pt-3 border-t border-zinc-800/50 mt-3 bg-zinc-900/30 -mx-1 px-2 py-2 rounded-b-lg">
+                    <div className="flex flex-col gap-0.5">
+                      <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-1">
+                        <Lock size={8} /> Deep Analysis
+                      </p>
+                      <p className="text-[9px] text-zinc-600 font-medium">90 days + Enhanced or Pro required</p>
                     </div>
                     <button
                       onClick={(e) => { e.stopPropagation(); onViewChange('account'); }}
-                      className="text-[9px] font-black text-indigo-500 uppercase tracking-widest hover:text-indigo-400 transition-colors"
+                      className="text-[10px] font-black text-indigo-500 uppercase tracking-widest hover:text-indigo-400 transition-colors bg-indigo-500/10 px-2 py-1 rounded"
                     >
                       Upgrade →
                     </button>
                   </div>
                 ) : !isDeepAnalysis && aiInsight && (
+                  /* Standard Pro Button */
                   <button
                     onClick={(e) => { e.stopPropagation(); handleDeepAnalysis(); }}
-                    className="text-[9px] font-black text-indigo-400 hover:text-indigo-300 uppercase tracking-widest flex items-center gap-1 pt-1"
+                    className="mt-3 w-full py-2 bg-zinc-800/50 hover:bg-zinc-700/50 border border-zinc-800 text-indigo-400 text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-2 rounded transition-all"
                   >
                     <Sparkles size={10} />
                     Run Deep Analysis ({personalizationProfile ? '180' : '30'} Days)

@@ -1,4 +1,5 @@
 import { DailyLog } from '../types';
+import { isAfter, parseISO, startOfDay } from 'date-fns';
 
 export const calculateLogVitality = (log: DailyLog): number => {
   let score = 0;
@@ -38,4 +39,20 @@ export const calculateLogVitality = (log: DailyLog): number => {
   }
 
   return score;
+};
+
+export const getPendingCorrections = (logs: Record<string, DailyLog>, trackingStartDate: string) => {
+  const start = startOfDay(parseISO(trackingStartDate));
+  
+  return (Object.values(logs) as DailyLog[])
+    .filter((log: DailyLog) => {
+      const logDate = parseISO(log.date);
+      const isAfterStart = isAfter(logDate, start) || log.date === trackingStartDate;
+      const isNotIgnored = !log.isIgnored;
+      
+      const vitalityScore = calculateLogVitality(log);
+      
+      return isAfterStart && isNotIgnored && vitalityScore < 70;
+    })
+    .sort((a, b) => b.date.localeCompare(a.date));
 };

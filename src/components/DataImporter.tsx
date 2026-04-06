@@ -161,7 +161,7 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
       if (apiKey) {
         const ai = new GoogleGenAI({ apiKey });
         const aiPromise = ai.models.generateContent({
-          model: "gemini-2.0-flash",
+          model: "gemini-3-flash-preview",
           config: {
             systemInstruction: "Extract sleep insights from this text. Return only valid JSON: { summary, estimatedDateRange, extractedInsights (string array), rawDataType }.",
             temperature: 0.4
@@ -485,7 +485,7 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
       `;
 
       const aiPromise = ai.models.generateContent({
-        model: "gemini-2.0-flash",
+        model: "gemini-3-flash-preview",
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
         config: { temperature: 0.4 }
       });

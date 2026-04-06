@@ -14,12 +14,11 @@ import {
   Zap,
   Loader2
 } from 'lucide-react';
-import { calculateLogVitality } from '../utils/correctionLogic';
+import { getPendingCorrections } from '../utils/correctionLogic';
 import { DailyLog } from '../types';
 import { saveLog } from '../services/sleepService';
-import { formatDuration, snapTo15Min } from '../utils/sleepUtils';
-import { User } from '../lib/firebase';
 import { format, isAfter, parseISO, startOfDay } from 'date-fns';
+import { User } from '../lib/firebase';
 
 interface CorrectionHubProps {
   user: User;
@@ -34,19 +33,7 @@ const CorrectionHub: React.FC<CorrectionHubProps> = ({ user, logs, onUpdate, onG
   );
 
   const incompleteLogs = useMemo(() => {
-    const start = startOfDay(parseISO(trackingStartDate));
-    
-    return (Object.values(logs) as DailyLog[])
-      .filter((log: DailyLog) => {
-        const logDate = parseISO(log.date);
-        const isAfterStart = isAfter(logDate, start) || log.date === trackingStartDate;
-        const isNotIgnored = !log.isIgnored;
-        
-        const vitalityScore = calculateLogVitality(log);
-        
-        return isAfterStart && isNotIgnored && vitalityScore < 70;
-      })
-      .sort((a, b) => b.date.localeCompare(a.date));
+    return getPendingCorrections(logs, trackingStartDate);
   }, [logs, trackingStartDate]);
 
   const handleIgnore = async (date: string) => {
