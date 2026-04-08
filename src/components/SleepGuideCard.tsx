@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sparkles, ArrowRight, BookOpen } from 'lucide-react';
+import { ArrowRight, BookOpen } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Card } from './UI';
 
@@ -23,7 +23,7 @@ export default function SleepGuideCard({ onClick, gadgetSummary }: SleepGuideCar
       <div className="relative z-10 p-8 flex flex-col md:flex-row md:items-center justify-between gap-8">
         <div className="flex items-start gap-6">
           <div className="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-indigo-600/20 group-hover:scale-110 transition-transform">
-            <Sparkles size={32} />
+            <BookOpen size={32} />
           </div>
           <div className="space-y-2">
             <div className="flex items-center gap-2 text-indigo-400">

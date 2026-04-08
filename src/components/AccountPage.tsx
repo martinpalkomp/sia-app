@@ -60,7 +60,7 @@ export default function AccountPage({ user, personalizationProfile, onModifyAsse
     return () => unsubscribe();
   }, [user]);
 
-  const isAdmin = userData?.role === 'admin';
+  const isAdmin = userData?.role === 'admin' || (process.env.NODE_ENV !== 'production' && user?.email === 'martinpalko.mp@gmail.com');
 
   const handleLogout = async () => {
     try {

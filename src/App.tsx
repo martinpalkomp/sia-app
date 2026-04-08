@@ -254,7 +254,12 @@ export default function App() {
       setTimeout(() => setHighlightTier(false), 3000);
     }
     setView(newView);
+    window.scrollTo({ top: 0, behavior: 'instant' });
   };
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }, [view]);
 
   const derivedTier = useMemo(() => {
     // Temporary override for testing
@@ -1342,7 +1347,7 @@ export default function App() {
       <Navbar 
         user={user} 
         view={view} 
-        setView={setView} 
+        setView={handleViewChange} 
         handleLogout={handleLogout} 
         derivedTier={derivedTier} 
       />
@@ -1523,13 +1528,6 @@ export default function App() {
 
               {/* Timeline Section */}
               <section className="space-y-4">
-                <div className="flex justify-between items-end">
-                  <div>
-                    <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-300">Sleep Window</h2>
-                    <p className="text-[10px] text-zinc-400 mt-1">{sleepWindowText}</p>
-                  </div>
-                </div>
-
                 {/* Anchor Container for SIA Learning & Editing Controls */}
                 {(isEditing || (activeSuggestion && !prefillUsed) || (!isEditing && !activeSuggestion)) && (
                   <div className="h-[140px] flex items-center justify-center bg-zinc-900/50 border border-zinc-800 rounded-2xl overflow-hidden relative">
@@ -1686,6 +1684,13 @@ export default function App() {
                   </div>
                 )}
 
+                <div className="flex justify-between items-end">
+                  <div>
+                    <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-300">Sleep Window</h2>
+                    <p className="text-[10px] text-zinc-400 mt-1">{sleepWindowText}</p>
+                  </div>
+                </div>
+
                 <div className="flex gap-2 justify-center mb-4 z-30 relative">
                   {SLEEP_STATES.filter(s => s.value !== 'awake-out').map((state) => (
                     <button
@@ -1841,7 +1846,7 @@ export default function App() {
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2 text-zinc-300">
-                        <Coffee size={18} className="text-amber-500" />
+                        <Coffee size={18} className={currentLog.factors.caffeine.consumed ? "text-amber-500" : "text-zinc-600"} />
                         <span className="text-sm font-medium">Caffeine</span>
                       </div>
                       <button 
@@ -1879,7 +1884,7 @@ export default function App() {
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2 text-zinc-300">
-                        <Wine size={18} className="text-red-500" />
+                        <Wine size={18} className={currentLog.factors.alcohol.consumed ? "text-red-500" : "text-zinc-600"} />
                         <span className="text-sm font-medium">Alcohol</span>
                       </div>
                       <button 
@@ -1917,7 +1922,7 @@ export default function App() {
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2 text-zinc-300">
-                        <Pill size={18} className="text-blue-400" />
+                        <Pill size={18} className={currentLog.factors.medication.taken ? "text-blue-400" : "text-zinc-600"} />
                         <span className="text-sm font-medium">Medication</span>
                       </div>
                       <button 
@@ -1956,7 +1961,7 @@ export default function App() {
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2 text-zinc-300">
-                        <Dumbbell size={18} className="text-emerald-500" />
+                        <Dumbbell size={18} className={currentLog.factors.exercise.completed ? "text-emerald-500" : "text-zinc-600"} />
                         <span className="text-sm font-medium">Exercise</span>
                       </div>
                       <button 
@@ -2029,7 +2034,7 @@ export default function App() {
                   {/* Last Meal */}
                   <div className="space-y-1">
                     <div className="flex items-center gap-2 text-zinc-300">
-                      <UtensilsCrossed size={18} className="text-orange-400" />
+                      <UtensilsCrossed size={18} className={currentLog.factors.lastMealTime ? "text-orange-400" : "text-zinc-600"} />
                       <span className="text-sm font-medium">Last Meal</span>
                     </div>
                     <input 
@@ -2043,7 +2048,7 @@ export default function App() {
                   {/* Natural Wake */}
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 text-zinc-300 group relative">
-                      <Sunrise size={18} className="text-yellow-400" />
+                      <Sunrise size={18} className={currentLog.factors.naturalWake ? "text-yellow-400" : "text-zinc-600"} />
                       <span className="text-sm font-medium">Natural Wake</span>
                       <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block bg-zinc-800 text-white text-[10px] px-2 py-1 rounded shadow-lg whitespace-nowrap z-10">
                         Did you wake up without an alarm?
@@ -2121,7 +2126,7 @@ export default function App() {
                       animate={{ height: 'auto', opacity: 1 }}
                       exit={{ height: 0, opacity: 0 }}
                       transition={{ duration: 0.3, ease: "easeInOut" }}
-                      className="px-6 pb-6 space-y-8"
+                      className="px-6 pb-6 pt-6 space-y-8"
                     >
                       {/* Sub-section 1: Interventions */}
                       <div className="space-y-4">
@@ -2131,9 +2136,7 @@ export default function App() {
                           <div className="space-y-3">
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-3">
-                                <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors ${isGadgetSelected('light_therapy') ? 'bg-yellow-500/20 text-yellow-400' : 'bg-zinc-800 text-zinc-500'}`}>
-                                  <Lightbulb size={16} />
-                                </div>
+                                <Lightbulb size={18} className={isGadgetSelected('light_therapy') ? 'text-yellow-400' : 'text-zinc-600'} />
                                 <span className="text-sm font-medium text-zinc-300">Light Therapy</span>
                               </div>
                               <button 
@@ -2182,9 +2185,7 @@ export default function App() {
                           <div className="space-y-3">
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-3">
-                                <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors ${isGadgetSelected('breathing_trainer') ? 'bg-blue-500/20 text-blue-400' : 'bg-zinc-800 text-zinc-500'}`}>
-                                  <Wind size={16} />
-                                </div>
+                                <Wind size={18} className={isGadgetSelected('breathing_trainer') ? 'text-blue-400' : 'text-zinc-600'} />
                                 <span className="text-sm font-medium text-zinc-300">Breathing Trainer</span>
                               </div>
                               <button 
@@ -2216,9 +2217,7 @@ export default function App() {
                           <div className="space-y-3">
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-3">
-                                <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors ${isGadgetSelected('pre_sleep_heating') ? 'bg-orange-500/20 text-orange-400' : 'bg-zinc-800 text-zinc-500'}`}>
-                                  <Flame size={16} />
-                                </div>
+                                <Flame size={18} className={isGadgetSelected('pre_sleep_heating') ? 'text-orange-400' : 'text-zinc-600'} />
                                 <span className="text-sm font-medium text-zinc-300">Pre-sleep Heating</span>
                               </div>
                               <button 
@@ -2251,9 +2250,7 @@ export default function App() {
                           <div className="space-y-3">
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-3">
-                                <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors ${isGadgetSelected('aromatherapy') ? 'bg-emerald-500/20 text-emerald-400' : 'bg-zinc-800 text-zinc-500'}`}>
-                                  <Leaf size={16} />
-                                </div>
+                                <Leaf size={18} className={isGadgetSelected('aromatherapy') ? 'text-emerald-400' : 'text-zinc-600'} />
                                 <span className="text-sm font-medium text-zinc-300">Aromatherapy</span>
                               </div>
                               <button 
@@ -2284,9 +2281,7 @@ export default function App() {
                           {/* Meditation App */}
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
-                              <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors ${isGadgetSelected('meditation_app') ? 'bg-purple-500/20 text-purple-400' : 'bg-zinc-800 text-zinc-500'}`}>
-                                <Flower2 size={16} />
-                              </div>
+                              <Flower2 size={18} className={isGadgetSelected('meditation_app') ? 'text-purple-400' : 'text-zinc-600'} />
                               <span className="text-sm font-medium text-zinc-300">Meditation App</span>
                             </div>
                             <button 
@@ -2302,7 +2297,7 @@ export default function App() {
                       {/* Sub-section 2: Passive aids */}
                       <div className="space-y-4">
                         <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-300 border-b border-zinc-800/50 pb-2">Passive aids</h3>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        <div className="grid grid-cols-2 gap-3">
                           {[
                             { id: 'cooling_pad', label: 'Cooling Pad', icon: Snowflake, color: 'text-blue-400' },
                             { id: 'white_noise', label: 'White Noise', icon: Volume2, color: 'text-zinc-400' },
@@ -2313,10 +2308,10 @@ export default function App() {
                             <button
                               key={aid.id}
                               onClick={() => toggleGadget(aid.id)}
-                              className={`flex flex-col items-center gap-2 p-3 rounded-2xl border transition-all ${isGadgetSelected(aid.id) ? 'bg-indigo-500/10 border-indigo-500/50' : 'bg-zinc-800/50 border-zinc-800 hover:border-zinc-700'}`}
+                              className={`flex items-center gap-3 p-3 rounded-2xl border transition-all ${isGadgetSelected(aid.id) ? 'bg-indigo-500/10 border-indigo-500/50' : 'bg-zinc-800/50 border-zinc-800 hover:border-zinc-700'}`}
                             >
-                              <aid.icon size={20} className={isGadgetSelected(aid.id) ? aid.color : 'text-zinc-400'} />
-                              <span className={`text-[10px] font-bold text-center ${isGadgetSelected(aid.id) ? 'text-white' : 'text-zinc-300'}`}>{aid.label}</span>
+                              <aid.icon size={18} className={isGadgetSelected(aid.id) ? aid.color : 'text-zinc-400'} />
+                              <span className={`text-[10px] font-bold ${isGadgetSelected(aid.id) ? 'text-white' : 'text-zinc-300'}`}>{aid.label}</span>
                             </button>
                           ))}
                         </div>

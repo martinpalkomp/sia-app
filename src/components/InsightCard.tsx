@@ -32,6 +32,8 @@ const getCategoryInfo = (insight: Insight) => {
   }
 };
 
+import { Card } from './UI';
+
 export const InsightCard: React.FC<InsightCardProps> = ({ insight, tier = 'Basic' }) => {
   const [isHovered, setIsHovered] = useState(false);
   const { label, icon: Icon } = getCategoryInfo(insight);
@@ -39,10 +41,9 @@ export const InsightCard: React.FC<InsightCardProps> = ({ insight, tier = 'Basic
   const borderGlow = tier === 'Pro' ? 'border-l-violet-500' : tier === 'Enhanced' ? 'border-l-indigo-500' : 'border-l-zinc-500';
 
   return (
-    <motion.div
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-      className={`relative bg-zinc-900/40 border border-white/5 backdrop-blur-md rounded-2xl p-5 border-l-4 ${borderGlow} transition-all duration-300`}
+    <Card
+      onClick={() => setIsHovered(!isHovered)}
+      className={`border-l-4 ${borderGlow} p-5 transition-all duration-300`}
     >
       <div className="flex items-start gap-4">
         <div className="p-2 rounded-lg bg-white/5 text-zinc-400">
@@ -67,6 +68,6 @@ export const InsightCard: React.FC<InsightCardProps> = ({ insight, tier = 'Basic
           )}
         </div>
       </div>
-    </motion.div>
+    </Card>
   );
 };
