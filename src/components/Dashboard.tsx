@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useUser } from '../context/UserContext';
 import { 
   Moon, 
   Sun, 
@@ -92,6 +93,31 @@ const StaticFallbackUI = ({ onLogClick }: { onLogClick: () => void }) => {
   );
 };
 
+const DEMO_INSIGHTS: Insight[] = [
+  {
+    id: 'demo-1',
+    type: 'Pattern',
+    confidence: 0.8,
+    aiConfidence: 0.8,
+    computedConfidence: 0.8,
+    summary: 'Circadian Alignment: Your sleep onset is shifting earlier by 15 minutes each week, aligning better with your natural rhythm.',
+    linkedDates: [],
+    createdAt: new Date(),
+    occurrences: 1
+  },
+  {
+    id: 'demo-2',
+    type: 'Pattern',
+    confidence: 0.7,
+    aiConfidence: 0.7,
+    computedConfidence: 0.7,
+    summary: 'Recovery Efficiency: Your deep sleep phases are most consistent on days you engage in light activity before 6 PM.',
+    linkedDates: [],
+    createdAt: new Date(),
+    occurrences: 1
+  }
+];
+
 export default function Dashboard({ 
   logs, 
   user,
@@ -107,6 +133,7 @@ export default function Dashboard({
   isRefreshing,
   maturity: externalMaturity
 }: DashboardProps) {
+  const { dataDepth } = useUser();
   const [aiInsight, setAiInsight] = useState<string | null>(null);
   const [dailyBrief, setDailyBrief] = useState<string | null>(null);
   const [insights, setInsights] = useState<Insight[]>([]);
@@ -618,7 +645,7 @@ export default function Dashboard({
             
             <div className="space-y-4">
               <p className="text-zinc-200 leading-relaxed text-sm font-medium">
-                {isAiLoading ? (isDeepAnalysis ? "Analyzing long-term trends..." : "Scanning recent logs...") : (aiInsight ? aiInsight : "Log more nights to unlock my personalized insights.")}
+                {isAiLoading ? (isDeepAnalysis ? "Analyzing long-term trends..." : "Scanning recent logs...") : (aiInsight ? aiInsight : `Log ${dataDepth.nextThreshold - dataDepth.count} more nights to unlock my personalized insights. (Progress: ${dataDepth.count}/${dataDepth.nextThreshold})`)}
               </p>
               {!isAiLoading && aiInsight && (
                 <p className="text-[10px] text-zinc-500 italic leading-tight">{DISCLAIMER}</p>
@@ -656,33 +683,48 @@ export default function Dashboard({
         </Card>
 
         {/* Insights Feed */}
-        <div className="space-y-4">
+        <section className="space-y-4">
           <h3 className="text-[10px] font-black text-zinc-300 uppercase tracking-[0.2em]">Clinical Insights</h3>
-          {userProfile?.tier === 'Basic' ? (
-            <div className="relative">
-              <div className="opacity-30 grayscale blur-sm space-y-4">
-                {insights.length > 0 ? (
-                  insights.slice(0, 3).map(insight => (
-                    <InsightCard key={insight.id} insight={insight} />
-                  ))
-                ) : (
-                  <p className="text-zinc-500 text-xs italic">No insights available yet.</p>
-                )}
+          {userProfile?.tier === 'Basic' || dataDepth.count < 15 ? (
+            <Card className="bg-zinc-900/30 border-zinc-800/50 p-6 space-y-4">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-10 h-10 bg-zinc-800 rounded-xl flex items-center justify-center text-zinc-400 border border-zinc-700">
+                  <Brain size={20} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-zinc-300 uppercase tracking-widest">Clinical Insights Feed</h3>
+                  <p className="text-[10px] text-zinc-500 font-bold uppercase">Advanced Diagnostic Monitoring</p>
+                </div>
               </div>
-              <LockedFeatureCard 
-                title="Clinical Insights Feed"
-                description="Unlock deep pattern recognition and risk analysis with Enhanced or PRO tiers."
-                onUpgrade={() => onViewChange('account')}
-              />
-            </div>
+
+              <div className="space-y-2 opacity-60">
+                {DEMO_INSIGHTS.map(insight => (
+                  <div key={insight.id} className="bg-zinc-950/50 border border-zinc-800 rounded-lg p-3 flex items-center gap-3">
+                    <div className="w-2 h-2 rounded-full bg-zinc-700" />
+                    <p className="text-xs text-zinc-400 font-medium">{insight.summary.split(':')[0]}</p>
+                  </div>
+                ))}
+              </div>
+
+              <button 
+                onClick={() => onViewChange('account')}
+                className="w-full mt-2 py-2 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2"
+              >
+                <Sparkles size={12} /> Unlock with Enhanced or Pro
+              </button>
+            </Card>
           ) : insights.length > 0 ? (
             insights.map(insight => (
               <InsightCard key={insight.id} insight={insight} />
             ))
           ) : (
-            <p className="text-zinc-500 text-xs italic">No insights available yet.</p>
+            <p className="text-zinc-500 text-xs italic">
+              {dataDepth.count < 15 
+                ? `Log ${15 - dataDepth.count} more nights to unlock clinical insights.`
+                : "No insights available yet."}
+            </p>
           )}
-        </div>
+        </section>
       </section>
 
       {/* Section: Data Maturity Progress */}
@@ -790,14 +832,32 @@ export default function Dashboard({
             </div>
             <ChevronRight size={24} className="text-white group-hover:translate-x-1 transition-transform" />
           </Card>
+        </div>
 
-          {userProfile?.tier === 'Basic' ? (
-            <div className="relative">
-              <div className="opacity-30 grayscale blur-sm">
-                <div 
-                  onClick={() => onViewChange('account')}
-                  className="bg-zinc-900 border border-indigo-500/30 p-4 rounded-2xl flex items-center justify-between group cursor-pointer hover:border-indigo-500/50 transition-all"
-                >
+        {userProfile?.tier === 'Basic' && (
+          <section className="space-y-4">
+            <h3 className="text-[10px] font-black text-zinc-300 uppercase tracking-[0.2em]">SIA INTELLIGENCE FEED</h3>
+            <Card className="bg-zinc-900/30 border-zinc-800/50 p-6">
+              <p className="text-zinc-400 text-sm">
+                Unlock deep clinical insights and personalized analysis by upgrading to Enhanced or Pro tiers.
+              </p>
+              <button 
+                onClick={() => onViewChange('account')}
+                className="mt-4 px-6 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition-all"
+              >
+                Upgrade Now
+              </button>
+            </Card>
+          </section>
+        )}
+
+        {userProfile?.tier === 'Basic' ? (
+          <div className="relative">
+            <div className="opacity-30 grayscale blur-sm">
+              <div 
+                onClick={() => onViewChange('account')}
+                className="bg-zinc-900 border border-indigo-500/30 p-4 rounded-2xl flex items-center justify-between group cursor-pointer hover:border-indigo-500/50 transition-all"
+              >
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 bg-zinc-800 rounded-xl flex items-center justify-center text-indigo-400">
                       <Sparkles size={24} />
@@ -835,7 +895,6 @@ export default function Dashboard({
               <ChevronRight size={24} className="text-zinc-300 group-hover:text-white group-hover:translate-x-1 transition-transform" />
             </Card>
           )}
-        </div>
       </section>
 
       {/* Section 4: The Growth Hub */}

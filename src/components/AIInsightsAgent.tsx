@@ -35,6 +35,8 @@ import {
   updateDoc
 } from '../lib/firebase';
 import Markdown from 'react-markdown';
+import { useUser } from '../context/UserContext';
+import { getAIPageTheme } from '../utils/themeUtils';
 import { Type } from "@google/genai";
 
 import { AvatarFrame } from './UI';
@@ -47,14 +49,6 @@ interface Message {
   role: 'user' | 'assistant';
   content: string;
   createdAt?: any;
-}
-
-interface AIInsightsAgentProps {
-  logs: Record<string, DailyLog>;
-  user: User | null;
-  userProfile: UserProfile | null;
-  personalizationProfile: PersonalizationProfile | null;
-  isProfileLoading?: boolean;
 }
 
 const getQuickPrompts = (tier: string, maturityLevel: number) => {
@@ -134,7 +128,9 @@ const buildLogDigest = (logs: DailyLog[], days: number) => {
   }));
 };
 
-export default function AIInsightsAgent({ logs, user, userProfile, personalizationProfile, isProfileLoading }: AIInsightsAgentProps) {
+export default function AIInsightsAgent() {
+  const { logs, user, userProfile, personalizationProfile, isProfileLoading, tier, dataDepth } = useUser();
+  const theme = useMemo(() => getAIPageTheme(tier), [tier]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -148,13 +144,6 @@ export default function AIInsightsAgent({ logs, user, userProfile, personalizati
 
   const isEnhanced = !!personalizationProfile;
   const daysCount = isEnhanced ? 180 : 30;
-
-  const dataMaturity = useMemo(() => {
-    const count = Object.keys(logs).length;
-    if (count >= 90) return { level: 3, label: 'Full Insight', nextThreshold: 90, count };
-    if (count >= 14) return { level: 2, label: 'Emerging Patterns', nextThreshold: 90, count };
-    return { level: 1, label: 'Baseline', nextThreshold: 14, count };
-  }, [logs]);
 
   const getAnalyzingLabel = (prompt: string): string => {
     if (/last\s+7\s+days?|past\s+week/i.test(prompt)) return 'ANALYZING 7 DAYS';
@@ -380,11 +369,11 @@ export default function AIInsightsAgent({ logs, user, userProfile, personalizati
   }
 
   return (
-    <div className="flex flex-col h-[100dvh] md:h-[80vh] max-md:landscape:h-[200vh] w-full bg-zinc-950 border border-zinc-800 rounded-none md:rounded-3xl overflow-hidden animate-scanning relative">
+    <div className={`flex flex-col h-[100dvh] md:h-[80vh] max-md:landscape:h-[200vh] w-full bg-zinc-950 border ${theme.border} rounded-none md:rounded-3xl overflow-hidden animate-scanning relative`}>
       {/* Header */}
-      <div className="p-4 border-b border-zinc-800 bg-zinc-900/80 backdrop-blur-md flex items-center justify-between text-left relative z-10">
+      <div className={`p-4 border-b ${theme.border} bg-zinc-900/80 backdrop-blur-md flex items-center justify-between text-left relative z-10`}>
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl overflow-hidden border border-indigo-500/30 bg-zinc-900 flex items-center justify-center aspect-square">
+          <div className={`w-10 h-10 rounded-xl overflow-hidden border ${theme.border} bg-zinc-900 flex items-center justify-center aspect-square`}>
             <img 
               src="https://i.imgur.com/MnI5hn3.png" 
               alt="SIA" 
@@ -394,13 +383,13 @@ export default function AIInsightsAgent({ logs, user, userProfile, personalizati
           </div>
           <div>
             <h3 className="text-lg md:text-xl font-black text-white tracking-tight">Sleep Intelligence Agent</h3>
-            <p className="text-[10px] text-zinc-300 uppercase tracking-widest font-bold">Fidelity: {isEnhanced ? 'Enhanced Analysis' : 'Baseline'}</p>
+            <p className={`text-[10px] ${theme.text} uppercase tracking-widest font-bold`}>Access Tier: {isEnhanced ? 'Enhanced Analysis' : 'Basic'}</p>
           </div>
         </div>
         {isAnalyzing && (
-          <div className="flex items-center gap-2 px-3 py-1 bg-indigo-500/10 border border-indigo-500/20 rounded-full">
-            <div className="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-pulse" />
-            <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest">{analyzingLabel}</span>
+          <div className={`flex items-center gap-2 px-3 py-1 ${theme.bg} border ${theme.border} rounded-full`}>
+            <div className={`w-1.5 h-1.5 ${theme.accent} rounded-full animate-pulse`} />
+            <span className={`text-[9px] font-black ${theme.text} uppercase tracking-widest`}>{analyzingLabel}</span>
           </div>
         )}
       </div>
@@ -476,12 +465,12 @@ export default function AIInsightsAgent({ logs, user, userProfile, personalizati
         {isExpanded && (
           <div className="flex flex-wrap gap-2 pb-2">
             <p className="text-[9px] text-zinc-600 uppercase tracking-widest font-bold mb-2 px-1">
-              {dataMaturity.level === 1 ? 'Starter questions — log 14 nights to unlock patterns' :
-               dataMaturity.level === 2 ? 'Pattern questions — 90 nights unlocks deep analysis' :
-               userProfile.tier === 'Basic' ? 'Deep questions — upgrade for full clinical set' :
+              {dataDepth.level === 1 ? 'Starter questions — log 14 nights to unlock patterns' :
+               dataDepth.level === 2 ? 'Pattern questions — 90 nights unlocks advanced analysis' :
+               tier === 'Basic' ? 'Deep questions — upgrade for full clinical set' :
                'Full clinical set'}
             </p>
-            {getQuickPrompts(userProfile.tier, dataMaturity.level).map((qp, i) => (
+            {getQuickPrompts(tier, dataDepth.level).map((qp, i) => (
               <button
                 key={i}
                 onClick={() => handleSend(qp.prompt)}
@@ -497,13 +486,13 @@ export default function AIInsightsAgent({ logs, user, userProfile, personalizati
 
       {/* Input Area */}
       <div className="p-2 md:p-4 bg-zinc-900 border-t border-zinc-800">
-        {dataMaturity.level < 2 && (
+        {dataDepth.level < 2 && (
           <div className="mb-2 p-2 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-start gap-2">
             <AlertCircle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
             <div className="space-y-0.5">
-              <p className="text-[10px] font-bold text-amber-400 uppercase tracking-widest">Low Data Fidelity</p>
+              <p className="text-[10px] font-bold text-amber-400 uppercase tracking-widest">Low Data Depth</p>
               <p className="text-[9px] text-zinc-400 leading-relaxed">
-                SIA is in Baseline mode. Log 14 days for better correlations. (Progress: {dataMaturity.count}/14)
+                SIA is in Initializing mode. Log 14 days for better correlations. (Progress: {dataDepth.count}/14)
               </p>
             </div>
           </div>

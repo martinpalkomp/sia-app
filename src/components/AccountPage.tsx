@@ -1,6 +1,7 @@
 import React from 'react';
+import { useUser } from '../context/UserContext';
 import { DevModal } from './DevModal';
-import { User, signOut, auth, db, doc, setDoc, onSnapshot, updateDoc } from '../lib/firebase';
+import { signOut, auth, db, doc, setDoc, onSnapshot, updateDoc } from '../lib/firebase';
 import { motion } from 'motion/react';
 import { 
   LogOut, 
@@ -19,7 +20,6 @@ import {
   MessageSquare,
   Rocket
 } from 'lucide-react';
-import { PersonalizationProfile, DailyLog } from '../types';
 import { Card, AvatarFrame } from './UI';
 import EthicalDataPledge from './EthicalDataPledge';
 import { seedTestData, purgeUserData } from '../utils/devTools';
@@ -27,20 +27,11 @@ import DataManager from './DataManager';
 import FeedbackForm from './FeedbackForm';
 import AdminFeedback from './AdminFeedback';
 import { calculateAge, getAgeDecade } from '../utils/dateUtils';
-import { MaturityInfo, AIService } from '../services/aiService';
+import { AIService } from '../services/aiService';
 import { exportDailySummary, exportDeepEventLog } from '../utils/exportUtils';
 
-interface AccountPageProps {
-  user: User;
-  personalizationProfile: PersonalizationProfile | null;
-  onModifyAssessment: () => void;
-  onRefresh?: () => void;
-  logs?: Record<string, DailyLog>;
-  maturity?: MaturityInfo | null;
-  highlightTier?: boolean;
-}
-
-export default function AccountPage({ user, personalizationProfile, onModifyAssessment, onRefresh, logs, maturity, highlightTier }: AccountPageProps) {
+export default function AccountPage({ onModifyAssessment, onRefresh }: { onModifyAssessment: () => void; onRefresh?: () => void; }) {
+  const { user, personalizationProfile, logs, maturity, highlightTier, tier } = useUser();
   const [view, setView] = React.useState<'main' | 'data-ledger' | 'feedback' | 'admin-feedback'>('main');
   const [userData, setUserData] = React.useState<any>(null);
   const [modal, setModal] = React.useState<{ isOpen: boolean; message: string; onConfirm: () => void; onCancel?: () => void }>({
@@ -72,11 +63,7 @@ export default function AccountPage({ user, personalizationProfile, onModifyAsse
 
   const isEnhanced = !!personalizationProfile;
 
-  const derivedTier = React.useMemo(() => {
-    if (userData?.tier === 'Pro') return 'Pro';
-    if (personalizationProfile) return 'Enhanced';
-    return 'Basic';
-  }, [userData, personalizationProfile]);
+  const derivedTier = tier; // Using tier from context
 
   const toggleSharing = async () => {
     if (!user) return;
@@ -98,9 +85,9 @@ export default function AccountPage({ user, personalizationProfile, onModifyAsse
       onConfirm: async () => {
         setModal({ ...modal, isOpen: false });
         try {
-          await seedTestData(days, user.uid, async () => {
-            await AIService.getUserDataMaturity(user.uid);
-            onRefresh();
+          await seedTestData(days, user!.uid, async () => {
+            await AIService.getUserDataMaturity(user!.uid);
+            onRefresh?.();
           });
         } catch (error) {
           console.error("Seeding error:", error);
@@ -122,7 +109,7 @@ export default function AccountPage({ user, personalizationProfile, onModifyAsse
       onConfirm: async () => {
         setModal({ ...modal, isOpen: false });
         try {
-          await purgeUserData(user.uid, onRefresh);
+          await purgeUserData(user!.uid, onRefresh);
           setModal({
             isOpen: true,
             message: "Database Cleared. You are starting with a clean slate.",
@@ -150,13 +137,13 @@ export default function AccountPage({ user, personalizationProfile, onModifyAsse
       // Explicitly ensure role is not in updateData
       delete updateData.role; 
 
-      await updateDoc(doc(db, 'users', user.uid), updateData);
+      await updateDoc(doc(db, 'users', user!.uid), updateData);
       setModal({
         isOpen: true,
         message: `Tier changed to ${newTier} (Level ${levelOverride}). Please refresh.`,
         onConfirm: () => {
           setModal({ ...modal, isOpen: false });
-          onRefresh();
+          onRefresh?.();
         },
       });
     } catch (error) {
@@ -211,6 +198,8 @@ export default function AccountPage({ user, personalizationProfile, onModifyAsse
       <AdminFeedback onBack={() => setView('main')} />
     );
   }
+
+  if (!user) return null;
 
   return (
     <motion.div 
@@ -325,6 +314,7 @@ export default function AccountPage({ user, personalizationProfile, onModifyAsse
         </Card>
       )}
 
+
       {/* Data Overview */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="md:col-span-2">
@@ -413,9 +403,9 @@ export default function AccountPage({ user, personalizationProfile, onModifyAsse
           </button>
           {derivedTier === 'Basic' ? (
             <button
-              onClick={() => onModifyAssessment()}
-              className="p-4 bg-zinc-900 border border-zinc-800 rounded-2xl text-left transition-all group opacity-50 cursor-not-allowed"
+              disabled
               title="Available on Enhanced and Pro"
+              className="p-4 bg-zinc-900 border border-zinc-800 rounded-2xl text-left transition-all group opacity-40 cursor-not-allowed"
             >
               <div className="text-sm font-black text-white mb-1">Deep Architecture Export — Enhanced+</div>
               <div className="text-[10px] text-zinc-500 leading-relaxed">

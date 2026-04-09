@@ -1,5 +1,4 @@
-import React from 'react';
-import { Brain, Sparkles } from 'lucide-react';
+import { Brain, ArrowRight } from 'lucide-react';
 import { Card } from './UI';
 
 interface LockedFeatureCardProps {
@@ -31,7 +30,7 @@ export const LockedFeatureCard: React.FC<LockedFeatureCardProps> = ({ title, des
         onClick={onUpgrade}
         className="w-full py-2.5 bg-zinc-900 border border-indigo-500/20 text-indigo-400 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-900/20 transition-all flex items-center justify-center gap-2"
       >
-        <Sparkles size={12} />
+        <ArrowRight size={12} />
         Unlock with Enhanced or Pro
       </button>
     </Card>

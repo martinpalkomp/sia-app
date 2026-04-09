@@ -119,6 +119,7 @@ import DataImporter from './components/DataImporter';
 import { AvatarFrame, MetricDisplay } from './components/UI';
 import { Navbar } from './components/Navbar';
 import { SiaPatternReview } from './components/SiaPatternReview';
+import { UserProvider } from './context/UserContext';
 
 import { saveLog, validateLogMetrics } from './services/sleepService';
 import { getSuggestedLog, AICorrection, SuggestionResult } from './utils/patternEngine';
@@ -257,8 +258,11 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'instant' });
   };
 
+  const MAJOR_VIEWS = ['dashboard', 'log', 'ai', 'account', 'corrections', 'import', 'data'];
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'instant' });
+    if (MAJOR_VIEWS.includes(view)) {
+      window.scrollTo({ top: 0, behavior: 'instant' });
+    }
   }, [view]);
 
   const derivedTier = useMemo(() => {
@@ -1342,19 +1346,29 @@ export default function App() {
   }
 
   return (
-    <div className={`min-h-screen bg-clinical-bg text-clinical-text font-sans selection:bg-indigo-500/30 max-w-[100vw] overflow-x-hidden ${personalizationProfile ? 'enhanced-mode' : ''}`}>
-      {/* Navbar */}
-      <Navbar 
-        user={user} 
-        view={view} 
-        setView={handleViewChange} 
-        handleLogout={handleLogout} 
-        derivedTier={derivedTier} 
-      />
+    <UserProvider
+      logs={logs}
+      user={user}
+      userProfile={userProfile}
+      personalizationProfile={personalizationProfile}
+      isProfileLoading={isProfileLoading}
+      tier={derivedTier}
+      maturity={maturity}
+      highlightTier={highlightTier}
+    >
+      <div className={`min-h-screen bg-clinical-bg text-clinical-text font-sans selection:bg-indigo-500/30 max-w-[100vw] overflow-x-hidden ${personalizationProfile ? 'enhanced-mode' : ''}`}>
+        {/* Navbar */}
+        <Navbar 
+          user={user} 
+          view={view} 
+          setView={handleViewChange} 
+          handleLogout={handleLogout} 
+          derivedTier={derivedTier} 
+        />
 
-      <main className="max-w-4xl mx-auto p-4 pb-24 pt-20 md:pt-24 touch-pan-y">
-        <AnimatePresence mode="wait">
-          {view === 'dashboard' ? (
+        <main className="max-w-4xl mx-auto p-4 pb-24 pt-20 md:pt-24 touch-pan-y">
+          <AnimatePresence mode="wait">
+            {view === 'dashboard' ? (
             <motion.div
               key="dashboard"
               initial={{ opacity: 0, y: 10 }}
@@ -1611,7 +1625,7 @@ export default function App() {
                                   onClick={() => setToast({ message: `SIA needs ${3 - historyCount} more days of data to recognize your patterns.`, type: 'info' })}
                                   className="w-full flex flex-row items-center justify-center gap-3 grayscale opacity-50 cursor-not-allowed px-6 py-1.5 max-h-10 overflow-hidden"
                                 >
-                                  <Rocket className="text-zinc-600 shrink-0" size={14} />
+                                  <Sparkles className="text-zinc-600 shrink-0" size={14} />
                                   <div className="text-left">
                                     <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest leading-tight">
                                       {historyCount === 0 ? "SIA Learning: Log nights to enable prefill" : `SIA Learning: Log ${3 - historyCount} more nights for prefill`}
@@ -2448,26 +2462,15 @@ export default function App() {
                 <p className="text-sm text-zinc-300">Advanced correlation analysis of your sleep history</p>
               </div>
               <Suspense fallback={<div className="flex items-center justify-center h-64"><div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"/></div>}>
-                <AIInsightsAgent 
-                  logs={logs} 
-                  user={user} 
-                  userProfile={userProfile ? { ...userProfile, tier: derivedTier } : null}
-                  personalizationProfile={personalizationProfile}
-                  isProfileLoading={isProfileLoading}
-                />
+                <AIInsightsAgent />
               </Suspense>
             </motion.div>
           ) : view === 'legal' ? (
             <Legal onBack={() => setView('dashboard')} />
           ) : view === 'account' ? (
             <AccountPage 
-              user={user} 
-              personalizationProfile={personalizationProfile} 
               onModifyAssessment={() => setShowPersonalizationWizard(true)}
               onRefresh={refreshAllData}
-              logs={logs}
-              maturity={maturity}
-              highlightTier={highlightTier}
             />
           ) : (
             <motion.div 
@@ -2818,5 +2821,6 @@ export default function App() {
         />
       )}
     </div>
+  </UserProvider>
   );
 }

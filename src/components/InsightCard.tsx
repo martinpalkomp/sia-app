@@ -11,6 +11,7 @@ import {
   Sun
 } from 'lucide-react';
 import { Insight } from '../types';
+import { Card } from './UI';
 
 interface InsightCardProps {
   insight: Insight;
@@ -31,8 +32,6 @@ const getCategoryInfo = (insight: Insight) => {
     default: return { label: 'INSIGHT', icon: Activity };
   }
 };
-
-import { Card } from './UI';
 
 export const InsightCard: React.FC<InsightCardProps> = ({ insight, tier = 'Basic' }) => {
   const [isHovered, setIsHovered] = useState(false);

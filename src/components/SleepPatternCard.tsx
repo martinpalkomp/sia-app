@@ -198,34 +198,9 @@ ${generateASCIIRibbonHeader()}
         ))}
       </div>
 
-      <div className="pt-4 border-t border-zinc-800 space-y-4">
-        <div className="flex items-start gap-3 text-zinc-300 text-left">
-          <Info size={14} className="mt-0.5 flex-shrink-0" />
-          <p className="text-[10px] leading-relaxed font-medium italic">
-            SIA provides observations based on your logged data. This is not medical advice. Consult a professional for clinical concerns.
-          </p>
-        </div>
-
-        <div className="flex gap-2">
-          <button 
-            onClick={handleExport}
-            className="flex-1 py-3 bg-zinc-800 hover:bg-zinc-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 border border-zinc-700"
-          >
-            {copied ? (
-              <>
-                <ClipboardCheck size={14} className="text-emerald-400" />
-                Report Copied
-              </>
-            ) : (
-              <>
-                <Share2 size={14} />
-                Copy text data to clipboard
-              </>
-            )}
-          </button>
-          
+      <div className="pt-4 border-t border-zinc-800">
           {(!userProfile || userProfile.tier === 'Basic') ? (
-            <div className="relative">
+            <div className="relative w-full">
               <div className="opacity-30 grayscale blur-sm">
                 <button
                   className="w-full py-3 bg-zinc-800 border border-indigo-500/20 text-indigo-400 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] flex items-center justify-center gap-2"
@@ -245,13 +220,12 @@ ${generateASCIIRibbonHeader()}
               onClick={handleExportReport}
               disabled={isExportDisabled}
               title={isExportDisabled ? 'Select a date range first' : ''}
-              className={`flex-1 py-3 ${isExportDisabled ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-500 text-white'} rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 border ${isExportDisabled ? 'border-zinc-700' : 'border-indigo-500'}`}
+              className={`w-full py-3 ${isExportDisabled ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-500 text-white'} rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 border ${isExportDisabled ? 'border-zinc-700' : 'border-indigo-500'}`}
             >
               <FileText size={14} />
               {buttonLabel}
             </button>
           )}
-        </div>
       </div>
     </Card>
   );

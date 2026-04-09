@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Menu, X, LogOut } from 'lucide-react';
+import { Menu, X, LogOut, Sparkles } from 'lucide-react';
 import { AvatarFrame } from './UI';
 import { User } from '../lib/firebase';
 
@@ -79,6 +79,7 @@ export const Navbar: React.FC<NavbarProps> = ({ user, view, setView, handleLogou
                   : 'text-zinc-500 hover:text-zinc-300'
               } ${v.id === 'ai' ? 'border border-indigo-500/30 bg-indigo-500/5 text-indigo-300' : ''}`}
             >
+              {v.id === 'ai' && <Sparkles size={12} />}
               {v.label}
             </button>
           ))}
@@ -139,8 +140,9 @@ export const Navbar: React.FC<NavbarProps> = ({ user, view, setView, handleLogou
                   <button 
                     key={v.id}
                     onClick={() => { setView(v.id === 'insights' ? 'weekly' : v.id as any); setIsOpen(false); }}
-                    className="text-sm md:text-lg font-black text-white uppercase tracking-widest whitespace-normal text-left"
+                    className="text-sm md:text-lg font-black text-white uppercase tracking-widest whitespace-normal text-left flex items-center gap-2"
                   >
+                    {v.id === 'ai' && <Sparkles size={16} />}
                     {v.label}
                   </button>
                 ))}
