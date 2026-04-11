@@ -108,6 +108,7 @@ import { calculateSafeAverage } from './utils/statsEngine';
 
 import Legal from './components/Legal';
 import CorrectionHub from './components/CorrectionHub';
+import DevElementMap from './components/DevElementMap';
 const AIInsightsAgent = lazy(() => import('./components/AIInsightsAgent'));
 const Dashboard = lazy(() => import('./components/Dashboard'));
 const PersonalizationWizard = lazy(() => import('./components/PersonalizationWizard'));
@@ -218,7 +219,7 @@ export default function App() {
     return d.toISOString().split('T')[0];
   });
   const [direction, setDirection] = useState(0);
-  const [view, setView] = useState<'dashboard' | 'log' | 'weekly' | 'monthly' | 'custom' | 'ai' | 'corrections' | 'legal' | 'account' | 'import'>('dashboard');
+  const [view, setView] = useState<'dashboard' | 'log' | 'weekly' | 'monthly' | 'custom' | 'ai' | 'corrections' | 'legal' | 'account' | 'import' | 'dev-map'>('dashboard');
   const [customRange, setCustomRange] = useState({ start: getTodayDate(), end: getTodayDate() });
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [personalizationProfile, setPersonalizationProfile] = useState<PersonalizationProfile | null>(null);
@@ -249,6 +250,18 @@ export default function App() {
   const [pendingSuggestion, setPendingSuggestion] = useState<SuggestionResult | null>(null);
   const [highlightTier, setHighlightTier] = useState(false);
 
+  // Handle hash-based navigation for dev tools
+  useEffect(() => {
+    const handleHashChange = () => {
+      if (window.location.hash === '#/dev/map') {
+        setView('dev-map');
+      }
+    };
+    window.addEventListener('hashchange', handleHashChange);
+    handleHashChange(); // Check on mount
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+
   const handleViewChange = (newView: any) => {
     if (newView === 'account') {
       setHighlightTier(true);
@@ -258,7 +271,7 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'instant' });
   };
 
-  const MAJOR_VIEWS = ['dashboard', 'log', 'ai', 'account', 'corrections', 'import', 'data'];
+  const MAJOR_VIEWS = ['dashboard', 'log', 'ai', 'account', 'corrections', 'import', 'data', 'dev-map'];
   useEffect(() => {
     if (MAJOR_VIEWS.includes(view)) {
       window.scrollTo({ top: 0, behavior: 'instant' });
@@ -1416,6 +1429,15 @@ export default function App() {
                   </Suspense>
                 </motion.div>
               </AnimatePresence>
+            </motion.div>
+          ) : view === 'dev-map' ? (
+            <motion.div
+              key="dev-map"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+            >
+              <DevElementMap />
             </motion.div>
           ) : view === 'corrections' ? (
             <motion.div

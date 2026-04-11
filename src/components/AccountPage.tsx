@@ -18,9 +18,11 @@ import {
   ArrowLeft,
   Trash2,
   MessageSquare,
-  Rocket
+  Rocket,
+  Layers
 } from 'lucide-react';
 import { Card, AvatarFrame } from './UI';
+import DataMaturityTracker from './DataMaturityTracker';
 import EthicalDataPledge from './EthicalDataPledge';
 import { seedTestData, purgeUserData } from '../utils/devTools';
 import DataManager from './DataManager';
@@ -284,35 +286,7 @@ export default function AccountPage({ onModifyAssessment, onRefresh }: { onModif
       </div>
 
       {/* Data Maturity Tracker */}
-      {maturity && (
-        <Card className="bg-zinc-900/50 border-zinc-800 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-400">
-                <Database size={20} />
-              </div>
-              <div>
-                <h3 className="text-sm font-black text-white uppercase tracking-tight">Data Maturity</h3>
-                <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">{maturity.label} Status</p>
-              </div>
-            </div>
-            <div className="text-right">
-              <div className="text-lg font-black text-white tracking-tighter">{maturity.count}/{maturity.nextThreshold}</div>
-              <div className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">Days to Full Calibration</div>
-            </div>
-          </div>
-          <div className="w-full h-2 bg-zinc-800 rounded-full overflow-hidden">
-            <motion.div 
-              initial={{ width: 0 }}
-              animate={{ width: `${Math.min(100, (maturity.count / maturity.nextThreshold) * 100)}%` }}
-              className="h-full bg-gradient-to-r from-indigo-600 to-indigo-400"
-            />
-          </div>
-          <p className="text-[10px] text-zinc-500 mt-4 leading-relaxed italic">
-            SIA requires consistent data to calibrate its intelligence. As your maturity increases, insights become more accurate and personalized.
-          </p>
-        </Card>
-      )}
+      {maturity && <DataMaturityTracker maturity={maturity} />}
 
 
       {/* Data Overview */}
@@ -544,6 +518,13 @@ export default function AccountPage({ onModifyAssessment, onRefresh }: { onModif
             >
               <Trash2 size={18} className="text-red-400" />
               <span className="text-sm font-black text-red-400 uppercase tracking-widest">PURGE ALL DATA</span>
+            </button>
+            <button 
+              onClick={() => window.location.hash = '/dev/map'}
+              className="w-full p-4 bg-indigo-600/10 hover:bg-indigo-600/20 border border-indigo-500/30 rounded-2xl flex items-center justify-center gap-3 group transition-all"
+            >
+              <Layers size={18} className="text-indigo-400" />
+              <span className="text-sm font-black text-indigo-400 uppercase tracking-widest">OPEN ELEMENT MAP</span>
             </button>
           </div>
           <div className="mt-4 grid grid-cols-3 gap-2">

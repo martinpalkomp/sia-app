@@ -38,11 +38,12 @@ export const InsightCard: React.FC<InsightCardProps> = ({ insight, tier = 'Basic
   const { label, icon: Icon } = getCategoryInfo(insight);
   
   const borderGlow = tier === 'Pro' ? 'border-l-violet-500' : tier === 'Enhanced' ? 'border-l-indigo-500' : 'border-l-zinc-500';
+  const basicStyles = tier === 'Basic' ? 'bg-zinc-900/30 border-zinc-800/50' : '';
 
   return (
     <Card
       onClick={() => setIsHovered(!isHovered)}
-      className={`border-l-4 ${borderGlow} p-5 transition-all duration-300`}
+      className={`border-l-4 ${borderGlow} ${basicStyles} p-5 transition-all duration-300`}
     >
       <div className="flex items-start gap-4">
         <div className="p-2 rounded-lg bg-white/5 text-zinc-400">

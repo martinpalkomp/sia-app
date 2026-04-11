@@ -58,6 +58,7 @@ import SleepPatternCard from './SleepPatternCard';
 import { Header } from './Header';
 import { InsightCard } from './InsightCard';
 import { LockedFeatureCard } from './LockedFeatureCard';
+import DataMaturityTracker from './DataMaturityTracker';
 import { format } from 'date-fns';
 
 interface DashboardProps {
@@ -480,54 +481,6 @@ export default function Dashboard({
       {/* Header Section */}
       <Header user={user} greeting={greeting} />
 
-      {/* Daily Brief Section */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className={`${getTierColors(userProfile?.tier || 'Basic')} rounded-[2.5rem] p-8 relative overflow-hidden`}
-      >
-        <div className="absolute top-0 right-0 p-8 opacity-10">
-          <Sparkles size={120} className="text-indigo-500" />
-        </div>
-        
-        <div className="relative z-10 space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-indigo-500/20 flex items-center justify-center">
-              <Sparkles className="text-indigo-400" size={20} />
-            </div>
-            <div>
-              <h2 className="text-lg font-black uppercase tracking-widest text-white">SIA DAILY BRIEF</h2>
-              <p className="text-xs text-indigo-300/70 font-medium uppercase tracking-widest">Personalized Recovery Summary</p>
-            </div>
-          </div>
-
-          {isBriefLoading ? (
-            <div className="flex items-center gap-3 py-4">
-              <Loader2 className="animate-spin text-indigo-500" size={20} />
-              <p className="text-zinc-400 text-sm italic">SIA is analyzing your recent patterns...</p>
-            </div>
-          ) : (!logs || Object.keys(logs).length === 0) ? (
-            <StaticFallbackUI onLogClick={onLogClick} />
-          ) : dailyBrief ? (
-            <div className="space-y-4">
-              <p className="text-zinc-200 leading-relaxed text-sm font-medium">
-                {dailyBrief.split('\n\n***\n\n')[0]}
-              </p>
-              <div className="flex items-center gap-4">
-                <button 
-                  onClick={() => onViewChange('ai')}
-                  className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl text-xs font-bold transition-all shadow-lg shadow-indigo-500/20"
-                >
-                  Discuss with SIA
-                </button>
-              </div>
-            </div>
-          ) : (
-            <p className="text-zinc-500 text-sm italic py-4">No brief available for today yet. Log your sleep to get started.</p>
-          )}
-        </div>
-      </motion.div>
-
       {/* Section: Status Report */}
       <section className="space-y-4">
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
@@ -622,6 +575,54 @@ export default function Dashboard({
           </Card>
         </div>
       </section>
+
+      {/* Daily Brief Section */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className={`${getTierColors(userProfile?.tier || 'Basic')} rounded-[2.5rem] p-8 relative overflow-hidden`}
+      >
+        <div className="absolute top-0 right-0 p-8 opacity-10">
+          <Sparkles size={120} className="text-indigo-500" />
+        </div>
+        
+        <div className="relative z-10 space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-indigo-500/20 flex items-center justify-center">
+              <Sparkles className="text-indigo-400" size={20} />
+            </div>
+            <div>
+              <h2 className="text-lg font-black uppercase tracking-widest text-white">SIA DAILY BRIEF</h2>
+              <p className="text-xs text-indigo-300/70 font-medium uppercase tracking-widest">Personalized Recovery Summary</p>
+            </div>
+          </div>
+
+          {isBriefLoading ? (
+            <div className="flex items-center gap-3 py-4">
+              <Loader2 className="animate-spin text-indigo-500" size={20} />
+              <p className="text-zinc-400 text-sm italic">SIA is analyzing your recent patterns...</p>
+            </div>
+          ) : (!logs || Object.keys(logs).length === 0) ? (
+            <StaticFallbackUI onLogClick={onLogClick} />
+          ) : dailyBrief ? (
+            <div className="space-y-4">
+              <p className="text-zinc-200 leading-relaxed text-sm font-medium">
+                {dailyBrief.split('\n\n***\n\n')[0]}
+              </p>
+              <div className="flex items-center gap-4">
+                <button 
+                  onClick={() => onViewChange('ai')}
+                  className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl text-xs font-bold transition-all shadow-lg shadow-indigo-500/20"
+                >
+                  Discuss with SIA
+                </button>
+              </div>
+            </div>
+          ) : (
+            <p className="text-zinc-500 text-sm italic py-4">No brief available for today yet. Log your sleep to get started.</p>
+          )}
+        </div>
+      </motion.div>
 
       {/* Section: SIA Quick Insight */}
       <section className="grid grid-cols-1 gap-4">
@@ -727,81 +728,6 @@ export default function Dashboard({
         </section>
       </section>
 
-      {/* Section: Data Maturity Progress */}
-      <section className="space-y-6">
-        <div className="flex items-center justify-between group relative">
-          <h3 className="text-[10px] font-black text-zinc-300 uppercase tracking-[0.2em]">SIA Intelligence Maturity</h3>
-          <div className="w-4 h-4 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-500 cursor-help opacity-0 group-hover:opacity-100 transition-opacity">
-            <span className="text-[10px]">i</span>
-          </div>
-          <div className="absolute top-full right-0 mt-2 w-64 p-4 bg-zinc-900/95 border border-zinc-800 rounded-lg text-[11px] text-zinc-300 z-50 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity">
-            <div className={`mb-2 pb-2 border-b border-zinc-800 ${dataMaturity.level === 1 ? 'text-indigo-400 font-bold' : ''}`}>
-              <strong>BASELINE (0-14d):</strong> SIA is establishing your unique physiological 'normal' and identifying initial sleep-wake patterns.
-            </div>
-            <div className={`mb-2 pb-2 border-b border-zinc-800 ${dataMaturity.level === 2 ? 'text-indigo-400 font-bold' : ''}`}>
-              <strong>RHYTHM ANALYSIS (15-89d):</strong> SIA begins mapping circadian consistency and identifying external triggers affecting your recovery.
-            </div>
-            <div className={`${dataMaturity.level === 3 ? 'text-indigo-400 font-bold' : ''}`}>
-              <strong>DEEP INTELLIGENCE (90d+):</strong> Full activation. SIA correlates long-term lifestyle data with clinical markers for high-precision health forecasting.
-            </div>
-          </div>
-        </div>
-        <Card className="bg-zinc-900/30 border-zinc-800/50 p-6 relative overflow-hidden group">
-          <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-            <Zap size={48} className="text-indigo-500" />
-          </div>
-          
-          <div className="relative z-10 space-y-4">
-            <div className="flex flex-col md:flex-row md:justify-between items-start md:items-end mb-1 gap-2">
-              <div className="text-left">
-                <p className="text-xs font-bold text-white">Data Fidelity Progress</p>
-                <p className="text-[10px] text-zinc-500 uppercase tracking-wider">
-                  {dataMaturity.level === 3 
-                    ? "Maximum insight level reached" 
-                    : `Next milestone: ${dataMaturity.nextThreshold} days`}
-                </p>
-              </div>
-              <div className="text-left md:text-right">
-                <span className="text-2xl font-black text-white">{dataMaturity.count}</span>
-                <span className="text-xs text-zinc-500 font-bold uppercase ml-1">Days Logged</span>
-              </div>
-            </div>
-            
-            <div className="w-full h-2 bg-zinc-800 rounded-full overflow-hidden">
-              <motion.div 
-                initial={{ width: 0 }}
-                animate={{ width: `${Math.min(100, (dataMaturity.count / dataMaturity.nextThreshold) * 100)}%` }}
-                className={`h-full transition-all duration-1000 ${
-                  dataMaturity.level === 3 ? 'bg-emerald-500' :
-                  dataMaturity.level === 2 ? 'bg-blue-500' :
-                  'bg-amber-500'
-                }`}
-              />
-            </div>
-            
-            <div className="grid grid-cols-3 gap-2 pt-2">
-              {[
-                { level: 1, label: 'Baseline', days: '0+', active: dataMaturity.level >= 1 },
-                { level: 2, label: 'Rhythms', days: '15+', active: dataMaturity.level >= 2 },
-                { level: 3, label: 'Deep Analysis', days: '90+', active: dataMaturity.level >= 3 },
-              ].map((step) => (
-                <div key={step.level} className="text-center space-y-1">
-                  <div className={`h-1 rounded-full transition-colors ${step.active ? 'bg-indigo-500' : 'bg-zinc-800'}`} />
-                  <p className={`text-[8px] font-black uppercase tracking-tighter ${step.active ? 'text-indigo-400' : 'text-zinc-600'}`}>{step.label}</p>
-                  <p className="text-[8px] text-zinc-700 font-bold">{step.days} Days</p>
-                </div>
-              ))}
-            </div>
-
-            {userProfile?.tier === 'Pro' && dataMaturity.level < 3 && (
-              <div className="pt-2 flex items-center gap-2 text-[10px] font-bold text-violet-400 uppercase tracking-widest">
-                <Sparkles size={12} />
-                <span>Pro Member: Your analysis will automatically deepen as data matures</span>
-              </div>
-            )}
-          </div>
-        </Card>
-      </section>
 
       {/* Section 3: Engagement & Actions */}
       <section className="space-y-6">
@@ -1010,6 +936,13 @@ export default function Dashboard({
           )}
         </div>
       </section>
+
+      {/* Section: Data Maturity Progress */}
+      <DataMaturityTracker 
+        maturity={dataMaturity as MaturityInfo} 
+        showTimeline={true} 
+        proMessage={userProfile?.tier === 'Pro' && dataMaturity.level < 3 ? "Pro Member: Your analysis will automatically deepen as data matures" : undefined} 
+      />
     </div>
   );
 }
