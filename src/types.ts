@@ -196,6 +196,7 @@ export interface UserProfile {
   quota: UserQuota;
   aiImportsCurrentMonth?: number;
   lastImportDate?: any; // Firestore Timestamp
+  importedLogCount?: number;
   createdAt: any;
 }
 

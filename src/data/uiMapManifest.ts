@@ -24,6 +24,21 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
       ]
     },
     {
+      id: 'db-daily-brief',
+      name: 'Weekly Brief Section',
+      tag: 'section',
+      description: 'AI-generated summary container',
+      path: '/src/components/Dashboard.tsx',
+      children: [
+        { id: 'daily-brief-card', name: 'Weekly Brief Card', tag: 'card', description: 'Tier-coloured container', path: '/src/components/Dashboard.tsx', children: [
+          { id: 'brief-body', name: 'Brief Body Text', tag: 'comp', description: 'AI-generated summary', path: '/src/components/Dashboard.tsx' },
+          { id: 'discuss-btn', name: 'Discuss with SIA Button', tag: 'btn', description: 'Navigates to AI view via onViewChange(ai). Mutually exclusive with fallback-ui.', path: '/src/components/Dashboard.tsx' },
+          { id: 'fallback-ui', name: 'Static Fallback UI', tag: 'comp', description: 'Displays dynamic countdown to 7-day unlock.', path: '/src/components/Dashboard.tsx' },
+          { id: 'loading-spinner', name: 'Loading Spinner', tag: 'comp', description: 'Shown while generating brief', path: '/src/components/Dashboard.tsx' },
+        ]}
+      ]
+    },
+    {
       id: 'db-status-report',
       name: 'Status Report Section',
       tag: 'section',
@@ -38,21 +53,6 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
       ]
     },
     {
-      id: 'db-daily-brief',
-      name: 'Daily Brief Section',
-      tag: 'section',
-      description: 'AI-generated summary container',
-      path: '/src/components/Dashboard.tsx',
-      children: [
-        { id: 'daily-brief-card', name: 'Daily Brief Card', tag: 'card', description: 'Tier-coloured container', path: '/src/components/Dashboard.tsx', children: [
-          { id: 'brief-body', name: 'Brief Body Text', tag: 'comp', description: 'AI-generated summary', path: '/src/components/Dashboard.tsx' },
-          { id: 'discuss-btn', name: 'Discuss with SIA Button', tag: 'btn', description: 'Navigates to AI view via onViewChange(ai)', path: '/src/components/Dashboard.tsx' },
-          { id: 'fallback-ui', name: 'Static Fallback UI', tag: 'comp', description: 'Shown when 0 logs', path: '/src/components/Dashboard.tsx' },
-          { id: 'loading-spinner', name: 'Loading Spinner', tag: 'comp', description: 'Shown while generating brief', path: '/src/components/Dashboard.tsx' },
-        ]}
-      ]
-    },
-    {
       id: 'db-quick-insight',
       name: 'SIA Quick Insight Section',
       tag: 'section',
@@ -62,7 +62,7 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
         { id: 'quick-insight-card', name: 'Quick Insight Card', tag: 'card', description: 'Full-width clickable card, navigates to AI view', path: '/src/components/Dashboard.tsx', children: [
           { id: 'insight-body', name: 'Insight Body Text', tag: 'comp', description: 'AI-generated insight', path: '/src/components/Dashboard.tsx' },
           { id: 'deep-analysis-row', name: 'Deep Analysis CTA Row', tag: 'comp', description: 'Container for analysis button', path: '/src/components/Dashboard.tsx' },
-          { id: 'run-analysis-btn', name: 'Run Deep Analysis Button', tag: 'btn', description: 'Triggers handleDeepAnalysis', path: '/src/components/Dashboard.tsx' },
+          { id: 'run-analysis-btn', name: 'Run Deep Analysis Button', tag: 'btn', description: 'Triggers handleDeepAnalysis if user maturity level is 4 (90+ days)', path: '/src/components/Dashboard.tsx' },
           { id: 'disclaimer-text', name: 'Disclaimer Text', tag: 'comp', description: 'Italic disclaimer', path: '/src/components/Dashboard.tsx' },
         ]},
         { id: 'clinical-insights-feed', name: 'Clinical Insights Feed', tag: 'section', description: 'List of insights (InsightCard.tsx for Pro/Enhanced) or locked card (LockedFeatureCard.tsx for Basic)', path: '/src/components/Dashboard.tsx', children: [
@@ -91,15 +91,27 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
       path: '/src/components/Dashboard.tsx',
       children: [
         { id: 'sleep-guide-card', name: 'SleepGuideCard', tag: 'comp', description: 'Opens SleepGuideInteractive via onOpenSleepGuide', path: '/src/components/SleepGuideCard.tsx' },
+      ]
+    },
+    {
+      id: 'db-sia-intelligence',
+      name: 'SIA Intelligence Feed Section',
+      tag: 'section',
+      description: 'Diagnostic monitoring',
+      path: '/src/components/Dashboard.tsx',
+      children: [
         { id: 'sia-intel-feed-card', name: 'SIA Intelligence Feed Card', tag: 'card', description: 'Diagnostic monitoring', path: '/src/components/Dashboard.tsx' },
       ]
     },
     {
       id: 'db-maturity',
-      name: 'Data Maturity Tracker',
-      tag: 'comp',
+      name: 'Data Maturity Section',
+      tag: 'section',
       description: 'Progress bar for data calibration',
-      path: '/src/components/DataMaturityTracker.tsx',
+      path: '/src/components/Dashboard.tsx',
+      children: [
+        { id: 'maturity-tracker', name: 'Data Maturity Tracker', tag: 'comp', description: 'Progress bar for data calibration', path: '/src/components/DataMaturityTracker.tsx' },
+      ]
     },
   ],
   Log: [
@@ -133,8 +145,7 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
           { id: 'sleep-btn', name: 'Sleep Button', tag: 'btn', description: 'Set state to sleep', path: '/src/pages/Log.tsx' },
         ]},
         { id: 'log-sleep-window-container', name: 'Sleep Window Container', tag: 'comp', description: 'Container for sleep window grid', path: '/src/pages/Log.tsx', children: [
-          { id: 'log-empty-overlay', name: 'Empty Overlay', tag: 'overlay', description: 'Shown when no data', path: '/src/pages/Log.tsx' },
-          { id: 'log-has-data-overlay', name: 'Data Overlay', tag: 'overlay', description: 'Shown when data exists', path: '/src/pages/Log.tsx' },
+          { id: 'log-has-data-overlay', name: 'Data Overlay', tag: 'overlay', description: 'Shown when log view is loaded', path: '/src/pages/Log.tsx' },
           { id: 'log-grid', name: 'Sleep Window Grid', tag: 'comp', description: 'SleepWindow component', path: '/src/components/SleepWindow.tsx' },
           { id: 'log-scroll-hint', name: 'Scroll Hint', tag: 'comp', description: 'Visual scroll indicator', path: '/src/pages/Log.tsx' },
         ]},
@@ -196,7 +207,6 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
           { id: 'ins-tab-30d', name: '30-Day Tab', tag: 'btn', description: 'Select 30-day range. Triggers 30d view state.', path: '/src/pages/Insights.tsx' },
           { id: 'ins-tab-custom', name: 'Custom Tab', tag: 'btn', description: 'Select custom range. Triggers custom view state.', path: '/src/pages/Insights.tsx' },
         ]},
-        { id: 'ins-clinical-report-btn', name: 'Clinical Report Button', tag: 'btn', description: 'Generates report. Dual State: Pro = Action, Basic = Upgrade Overlay.', path: '/src/pages/Insights.tsx' },
         { id: 'ins-custom-pickers', name: 'Custom Date Pickers', tag: 'section', description: 'Visible only when view === custom', path: '/src/pages/Insights.tsx', children: [
           { id: 'ins-picker-start', name: 'Start Date Picker', tag: 'input', description: 'Start date selection', path: '/src/pages/Insights.tsx' },
           { id: 'ins-picker-end', name: 'End Date Picker', tag: 'input', description: 'End date selection', path: '/src/pages/Insights.tsx' },
@@ -232,16 +242,25 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
       ]
     },
     {
-      id: 'ins-pattern-summary',
-      name: 'Sleep Pattern Summary Card',
-      tag: 'card',
-      description: 'Pattern metric grid, export buttons',
-      path: '/src/components/SleepPatternCard.tsx',
+      id: 'ins-pattern-summary-section',
+      name: 'Sleep Pattern Summary Section',
+      tag: 'section',
+      description: 'Sleep pattern summary and export controls',
+      path: '/src/App.tsx',
       children: [
-        { id: 'ins-pattern-metric-grid', name: 'Pattern Metric Grid', tag: 'comp', description: 'Grid with hover tooltips', path: '/src/components/SleepPatternCard.tsx' },
-        { id: 'ins-export-ascii-btn', name: 'Export ASCII Button', tag: 'btn', description: 'Export pattern as ASCII', path: '/src/components/SleepPatternCard.tsx' },
-        { id: 'ins-export-pdf-btn', name: 'Export PDF Button', tag: 'btn', description: 'Export pattern as PDF. Dual State: Pro = Action, Basic = Upgrade Overlay.', path: '/src/components/SleepPatternCard.tsx' },
-        { id: 'ins-pdf-lock-overlay', name: 'PDF Lock Overlay', tag: 'overlay', description: 'LockedFeatureCard shown for Basic tier', path: '/src/components/LockedFeatureCard.tsx' },
+        {
+          id: 'ins-pattern-summary',
+          name: 'Sleep Pattern Summary Card',
+          tag: 'card',
+          description: 'Pattern metric grid, export buttons',
+          path: '/src/components/SleepPatternCard.tsx',
+          children: [
+            { id: 'ins-pattern-metric-grid', name: 'Pattern Metric Grid', tag: 'comp', description: 'Grid with hover tooltips', path: '/src/components/SleepPatternCard.tsx' },
+            { id: 'ins-export-ascii-btn', name: 'Export ASCII Button', tag: 'btn', description: 'Export pattern as ASCII', path: '/src/components/SleepPatternCard.tsx' },
+            { id: 'ins-export-pdf-btn', name: 'Export PDF Button', tag: 'btn', description: 'Export pattern as PDF. Dual State: Pro = Action, Basic = Upgrade Overlay.', path: '/src/components/SleepPatternCard.tsx' },
+            { id: 'ins-pdf-lock-overlay', name: 'PDF Lock Overlay', tag: 'overlay', description: 'LockedFeatureCard shown for Basic tier', path: '/src/components/LockedFeatureCard.tsx' },
+          ]
+        }
       ]
     },
   ],
@@ -338,6 +357,7 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
         ]},
         { id: 'acc-maturity-tracker', name: 'Data Maturity Tracker', tag: 'comp', description: 'Progress bar for data calibration. Source is Firestore count.', path: '/src/components/DataMaturityTracker.tsx' },
         { id: 'acc-data-overview', name: 'Data Overview Section', tag: 'section', description: 'Sleep goals and demographics', path: '/src/pages/Account.tsx', children: [
+          { id: 'acc-import-credit-label', name: 'Imported Data Credit Label', tag: 'comp', description: 'Displays imported log count', path: '/src/pages/Account.tsx' },
           { id: 'acc-goals-list', name: 'Goals List', tag: 'comp', description: 'List of sleep goals', path: '/src/pages/Account.tsx' },
           { id: 'acc-health-tags', name: 'Health Tags', tag: 'comp', description: 'Health tags', path: '/src/pages/Account.tsx' },
           { id: 'acc-demographics-row', name: 'Demographics Row', tag: 'comp', description: 'Age, Sex, Work, etc.', path: '/src/pages/Account.tsx' },
@@ -350,6 +370,7 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
           { id: 'acc-delete-account-btn', name: 'Delete Account Button', tag: 'btn', description: 'Delete account', path: '/src/pages/Account.tsx' },
         ]},
         { id: 'acc-dev-tools', name: 'Developer Tools Section', tag: 'section', description: 'Admin-only debugging and data management', path: '/src/pages/Account.tsx', children: [
+          { id: 'dev-maturity-input', name: 'Maturity Override Input', tag: 'input', description: 'Dev Environment Only / Admin only.', path: '/src/pages/Account.tsx' },
           { id: 'dev-tier-switcher', name: 'Tier Switcher', tag: 'input', description: 'Dev Environment Only / Admin only.', path: '/src/pages/Account.tsx' },
           { id: 'dev-open-map-btn', name: 'Open Map Button', tag: 'btn', description: 'Navigates to /dev/map. Dev Environment Only / Admin only.', path: '/src/pages/Account.tsx' },
         ]}
@@ -484,7 +505,7 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
       path: '/src/components/Navbar.tsx',
     },
   ],
-  VOCABULARY_GUIDE: [
+  VOCABULARY_GUIDE_ROW_1: [
     { id: 'voc-view', name: 'View', tag: 'comp', description: 'The top-level page container.', path: 'N/A' },
     { id: 'voc-section', name: 'Section', tag: 'comp', description: 'A logical grouping within a view.', path: 'N/A' },
     { id: 'voc-sub-section', name: 'Sub-section', tag: 'comp', description: 'A nested grouping within a section.', path: 'N/A' },
@@ -497,17 +518,5 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
     { id: 'voc-panel', name: 'Panel', tag: 'comp', description: 'A side-drawer or specific content area.', path: 'N/A' },
     { id: 'voc-drawer', name: 'Drawer', tag: 'comp', description: 'A sliding panel.', path: 'N/A' },
     { id: 'voc-button', name: 'Button', tag: 'comp', description: 'A standard interactive element.', path: 'N/A' },
-    { id: 'voc-menu-button', name: 'Menu Button', tag: 'comp', description: 'A button that triggers a menu.', path: 'N/A' },
-    { id: 'voc-toggle', name: 'Toggle', tag: 'comp', description: 'A binary switch.', path: 'N/A' },
-    { id: 'voc-slider-input', name: 'SliderInput', tag: 'comp', description: 'A range input component.', path: 'N/A' },
-    { id: 'voc-fab', name: 'FAB', tag: 'comp', description: 'Floating Action Button.', path: 'N/A' },
-    { id: 'voc-slot-cell', name: 'Slot Cell', tag: 'comp', description: 'A grid cell in the sleep window.', path: 'N/A' },
-    { id: 'voc-toggle-row', name: 'Toggle Row', tag: 'comp', description: 'A row containing a toggle.', path: 'N/A' },
-    { id: 'voc-conf-badge', name: 'ConfBadge', tag: 'comp', description: 'A confidence indicator badge.', path: 'N/A' },
-    { id: 'voc-factor-row', name: 'FactorRow', tag: 'comp', description: 'A row displaying a data factor.', path: 'N/A' },
-    { id: 'voc-locked-feature-card', name: 'LockedFeatureCard', tag: 'comp', description: 'A card indicating a locked feature.', path: 'N/A' },
-    { id: 'voc-quick-ask-pill', name: 'Quick Ask Pill', tag: 'comp', description: 'A small, clickable pill for AI prompts.', path: 'N/A' },
-    { id: 'voc-toast', name: 'Toast', tag: 'comp', description: 'A transient notification.', path: 'N/A' },
-    { id: 'voc-refresh-overlay', name: 'Refresh Overlay', tag: 'comp', description: 'A full-screen loading overlay.', path: 'N/A' },
   ],
 };

@@ -24,8 +24,8 @@ export default function DataMaturityTracker({ maturity, showTimeline = false, pr
           <div className="text-left">
             <p className="text-xs font-bold text-white">Data Fidelity Progress</p>
             <p className="text-[10px] text-zinc-500 uppercase tracking-wider">
-              {maturity.level === 3 
-                ? "Maximum insight level reached" 
+              {maturity.level === 4 
+                ? "Maximum diagnostic level reached" 
                 : `Next milestone: ${maturity.nextThreshold} days`}
             </p>
           </div>
@@ -40,7 +40,8 @@ export default function DataMaturityTracker({ maturity, showTimeline = false, pr
             initial={{ width: 0 }}
             animate={{ width: `${Math.min(100, (maturity.count / maturity.nextThreshold) * 100)}%` }}
             className={`h-full transition-all duration-1000 ${
-              maturity.level === 3 ? 'bg-emerald-500' :
+              maturity.level === 4 ? 'bg-emerald-500' :
+              maturity.level === 3 ? 'bg-indigo-500' :
               maturity.level === 2 ? 'bg-blue-500' :
               'bg-amber-500'
             }`}
@@ -48,11 +49,12 @@ export default function DataMaturityTracker({ maturity, showTimeline = false, pr
         </div>
         
         {showTimeline && (
-          <div className="grid grid-cols-3 gap-2 pt-2">
+          <div className="grid grid-cols-4 gap-2 pt-2">
             {[
               { level: 1, label: 'Baseline', days: '0+', active: maturity.level >= 1 },
-              { level: 2, label: 'Rhythms', days: '15+', active: maturity.level >= 2 },
-              { level: 3, label: 'Deep Analysis', days: '90+', active: maturity.level >= 3 },
+              { level: 2, label: 'Trends', days: '7+', active: maturity.level >= 2 },
+              { level: 3, label: 'Deep Analysis', days: '14+', active: maturity.level >= 3 },
+              { level: 4, label: 'Advanced', days: '90+', active: maturity.level >= 4 },
             ].map((step) => (
               <div key={step.level} className="text-center space-y-1">
                 <div className={`h-1 rounded-full transition-colors ${step.active ? 'bg-indigo-500' : 'bg-zinc-800'}`} />

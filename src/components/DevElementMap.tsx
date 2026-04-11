@@ -113,12 +113,10 @@ export default function DevElementMap() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedElement, setSelectedElement] = useState<UIElement | null>(null);
 
-  const views = ['All', ...Object.keys(UI_MAP_DATA), 'VOCABULARY', 'NAVBAR'];
+  const views = ['All', ...Object.keys(UI_MAP_DATA)];
   const filteredData = activeView === 'All' 
     ? Object.values(UI_MAP_DATA).flat()
-    : (activeView === 'VOCABULARY' || activeView === 'NAVBAR')
-      ? []
-      : UI_MAP_DATA[activeView] || [];
+    : UI_MAP_DATA[activeView] || [];
 
   return (
     <div className="p-8 bg-zinc-950 min-h-screen text-zinc-100">
@@ -168,7 +166,7 @@ export default function DevElementMap() {
           />
         </div>
 
-        <div className="flex gap-2 border-b border-zinc-800">
+        <div className="flex flex-wrap gap-2 border-b border-zinc-800">
           {views.map((view) => {
             const count = view === 'All' ? countElements(Object.values(UI_MAP_DATA).flat()) : view === 'VOCABULARY' ? UI_MAP_DATA.VOCABULARY_GUIDE?.length || 0 : view === 'NAVBAR' ? UI_MAP_DATA.Navbar?.length || 0 : countElements(UI_MAP_DATA[view]);
             return (

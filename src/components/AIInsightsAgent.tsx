@@ -53,7 +53,7 @@ interface Message {
 
 const getQuickPrompts = (tier: string, maturityLevel: number) => {
 
-  // LEVEL 1 — Baseline (0–14 logs): No correlations yet, only reflective
+  // LEVEL 1 — Baseline (0–6 logs): No correlations yet, only reflective
   const level1 = [
     { label: 'Last Night',    prompt: 'How did my last logged night look? Any notable patterns from the first logs?' },
     { label: 'Sleep Timing',  prompt: 'What time do I typically go to bed based on my logs so far?' },
@@ -61,7 +61,7 @@ const getQuickPrompts = (tier: string, maturityLevel: number) => {
     { label: 'Log Quality',   prompt: 'How complete is my data so far and what should I prioritise logging next?' },
   ];
 
-  // LEVEL 2 BASIC — Emerging Patterns, conserve the 3-message quota
+  // LEVEL 2 — Trends (7–13 logs)
   const level2Basic = [
     { label: 'Best Night',    prompt: 'What factors were present on my best-quality sleep nights?' },
     { label: 'Worst Night',   prompt: 'What do my lowest-quality nights have in common?' },
@@ -69,7 +69,6 @@ const getQuickPrompts = (tier: string, maturityLevel: number) => {
     { label: 'Consistency',   prompt: 'How consistent is my bedtime and how does that affect quality?' },
   ];
 
-  // LEVEL 2 ENHANCED/PRO — Emerging Patterns, deeper factor access
   const level2Enhanced = [
     { label: 'Best Night',      prompt: 'What factors were present on my best-quality sleep nights?' },
     { label: 'Caffeine Effect', prompt: 'Correlate my caffeine intake timing with sleep quality scores.' },
@@ -79,15 +78,14 @@ const getQuickPrompts = (tier: string, maturityLevel: number) => {
     { label: 'Gadget Report',   prompt: 'Which sleep tools correlate with better efficiency in my logs?' },
   ];
 
-  // LEVEL 3 BASIC — Full Insight, but quota-constrained
+  // LEVEL 3 — Deep Analysis (14–89 logs)
   const level3Basic = [
-    { label: '90-Day Trend',   prompt: 'What is my overall sleep quality trend across the full history?' },
+    { label: 'Trend Analysis', prompt: 'What is my overall sleep quality trend across my history?' },
     { label: 'Best Period',    prompt: 'What was my best sustained sleep period and what habits defined it?' },
     { label: 'Consistency',    prompt: 'Score my long-term bedtime consistency and its effect on quality.' },
     { label: 'Top Disruptor',  prompt: 'What is my single most confirmed sleep disruptor across all logs?' },
   ];
 
-  // LEVEL 3 ENHANCED/PRO — Full clinical depth
   const level3Enhanced = [
     { label: 'Chronotype',      prompt: 'Define my chronotype from my sleep timing history.' },
     { label: 'Trigger Map',     prompt: 'What are my top 3 confirmed sleep disruptors across all data?' },
@@ -97,9 +95,14 @@ const getQuickPrompts = (tier: string, maturityLevel: number) => {
     { label: 'Seasonal Shift',  prompt: 'Has my sleep quality or timing shifted across different months?' },
   ];
 
+  // LEVEL 4 — Advanced Diagnostic (90+ logs)
+  const level4Basic = level3Basic;
+  const level4Enhanced = level3Enhanced;
+
   if (maturityLevel === 1) return level1;
   if (maturityLevel === 2) return (tier === 'Basic') ? level2Basic : level2Enhanced;
-  return (tier === 'Basic') ? level3Basic : level3Enhanced;
+  if (maturityLevel === 3) return (tier === 'Basic') ? level3Basic : level3Enhanced;
+  return (tier === 'Basic') ? level4Basic : level4Enhanced;
 };
 
 const buildLogDigest = (logs: DailyLog[], days: number) => {

@@ -22,7 +22,7 @@ import { calculateLogVitality } from "../utils/correctionLogic";
 const DISCLAIMER = "SIA provides lifestyle recommendations based on patterns. This is not a medical diagnosis. Consult a professional for clinical concerns.";
 
 export interface MaturityInfo {
-  level: 1 | 2 | 3;
+  level: 1 | 2 | 3 | 4;
   count: number;
   label: string;
   nextThreshold: number;
@@ -46,18 +46,20 @@ export class AIService {
     const userData = userSnap.data();
     if (userData?.levelOverride) {
       const level = userData.levelOverride;
-      if (level === 3) return { level: 3, count: 90, label: 'Full Insight', nextThreshold: 90 };
-      if (level === 2) return { level: 2, count: 15, label: 'Emerging Patterns', nextThreshold: 90 };
-      return { level: 1, count: 0, label: 'Baseline', nextThreshold: 15 };
+      if (level === 4) return { level: 4, count: 90, label: 'Advanced Diagnostic', nextThreshold: 90 };
+      if (level === 3) return { level: 3, count: 14, label: 'Deep Analysis', nextThreshold: 90 };
+      if (level === 2) return { level: 2, count: 7, label: 'Trends', nextThreshold: 14 };
+      return { level: 1, count: 0, label: 'Baseline', nextThreshold: 7 };
     }
 
     const logsRef = collection(db!, 'users', userId, 'sleep_logs');
     const snapshot = await getDocs(query(logsRef));
     const count = snapshot.size;
 
-    if (count >= 90) return { level: 3, count, label: 'Full Insight', nextThreshold: 90 };
-    if (count >= 15) return { level: 2, count, label: 'Emerging Patterns', nextThreshold: 90 };
-    return { level: 1, count, label: 'Baseline', nextThreshold: 15 };
+    if (count >= 90) return { level: 4, count, label: 'Advanced Diagnostic', nextThreshold: 90 };
+    if (count >= 14) return { level: 3, count, label: 'Deep Analysis', nextThreshold: 90 };
+    if (count >= 7) return { level: 2, count, label: 'Trends', nextThreshold: 14 };
+    return { level: 1, count, label: 'Baseline', nextThreshold: 7 };
   }
 
   static async checkAndResetQuota(userId: string, tier: UserTier): Promise<UserQuota> {

@@ -78,18 +78,13 @@ interface DashboardProps {
   maturity?: MaturityInfo | null;
 }
 
-const StaticFallbackUI = ({ onLogClick }: { onLogClick: () => void }) => {
+const StaticFallbackUI = ({ dataDepth }: { dataDepth: any }) => {
+  const count = Math.min(7, dataDepth.count);
   return (
     <div className="space-y-4">
       <p className="text-zinc-200 leading-relaxed text-sm font-medium">
-        Awaiting Initial Data. Log your first sleep session to activate your Intelligence Agent.
+        Log more nights to unlock your weekly trend analysis ({count}/7)
       </p>
-      <button 
-        onClick={onLogClick}
-        className="px-6 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-2xl text-xs font-bold transition-all border border-zinc-700"
-      >
-        Log Last Night
-      </button>
     </div>
   );
 };
@@ -481,6 +476,54 @@ export default function Dashboard({
       {/* Header Section */}
       <Header user={user} greeting={greeting} />
 
+      {/* Daily Brief Section */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className={`${getTierColors(userProfile?.tier || 'Basic')} rounded-clinical p-8 relative overflow-hidden`}
+      >
+        <div className="absolute top-0 right-0 p-8 opacity-10">
+          <Sparkles size={120} className="text-indigo-500" />
+        </div>
+        
+        <div className="relative z-10 space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-indigo-500/20 flex items-center justify-center">
+              <Sparkles className="text-indigo-400" size={20} />
+            </div>
+            <div>
+              <h2 className="text-lg font-black uppercase tracking-widest text-white">SIA WEEKLY BRIEF</h2>
+              <p className="text-xs text-indigo-300/70 font-medium uppercase tracking-widest">Personalized Weekly Summary</p>
+            </div>
+          </div>
+
+          {isBriefLoading ? (
+            <div className="flex items-center gap-3 py-4">
+              <Loader2 className="animate-spin text-indigo-500" size={20} />
+              <p className="text-zinc-400 text-sm italic">SIA is analyzing your recent patterns...</p>
+            </div>
+          ) : (dataDepth.level < 2) ? (
+            <StaticFallbackUI dataDepth={dataDepth} />
+          ) : dailyBrief ? (
+            <div className="space-y-4">
+              <p className="text-zinc-200 leading-relaxed text-sm font-medium">
+                {dailyBrief.split('\n\n***\n\n')[0]}
+              </p>
+              <div className="flex items-center gap-4">
+                <button 
+                  onClick={() => onViewChange('ai')}
+                  className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl text-xs font-bold transition-all shadow-lg shadow-indigo-500/20"
+                >
+                  Discuss with SIA
+                </button>
+              </div>
+            </div>
+          ) : (
+            <p className="text-zinc-500 text-sm italic py-4">No brief available for today yet. Log your sleep to get started.</p>
+          )}
+        </div>
+      </motion.div>
+
       {/* Section: Status Report */}
       <section className="space-y-4">
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
@@ -490,13 +533,9 @@ export default function Dashboard({
               <span className="text-[8px] md:text-[10px] text-zinc-300 uppercase tracking-widest font-bold">Status Report</span>
             </div>
             <p className="text-zinc-400 text-[10px] md:text-sm font-medium leading-relaxed">
-              {Object.keys(logs).length > 0
+              {maturity && maturity.count >= 7
                 ? "I've analyzed your sleep intelligence for the last 7 days."
-                : userProfile?.tier === 'Pro'
-                ? "Consistency is key. Log now to maintain your high-precision forecasting."
-                : userProfile?.tier === 'Enhanced'
-                ? "Log 7 nights to unlock your weekly trend analysis."
-                : "Log 3 nights to see your first patterns."}
+                : `Log more nights to unlock your weekly trend analysis (${maturity?.count || 0}/7)`}
             </p>
           </Card>
 
@@ -576,54 +615,6 @@ export default function Dashboard({
         </div>
       </section>
 
-      {/* Daily Brief Section */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className={`${getTierColors(userProfile?.tier || 'Basic')} rounded-[2.5rem] p-8 relative overflow-hidden`}
-      >
-        <div className="absolute top-0 right-0 p-8 opacity-10">
-          <Sparkles size={120} className="text-indigo-500" />
-        </div>
-        
-        <div className="relative z-10 space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-indigo-500/20 flex items-center justify-center">
-              <Sparkles className="text-indigo-400" size={20} />
-            </div>
-            <div>
-              <h2 className="text-lg font-black uppercase tracking-widest text-white">SIA DAILY BRIEF</h2>
-              <p className="text-xs text-indigo-300/70 font-medium uppercase tracking-widest">Personalized Recovery Summary</p>
-            </div>
-          </div>
-
-          {isBriefLoading ? (
-            <div className="flex items-center gap-3 py-4">
-              <Loader2 className="animate-spin text-indigo-500" size={20} />
-              <p className="text-zinc-400 text-sm italic">SIA is analyzing your recent patterns...</p>
-            </div>
-          ) : (!logs || Object.keys(logs).length === 0) ? (
-            <StaticFallbackUI onLogClick={onLogClick} />
-          ) : dailyBrief ? (
-            <div className="space-y-4">
-              <p className="text-zinc-200 leading-relaxed text-sm font-medium">
-                {dailyBrief.split('\n\n***\n\n')[0]}
-              </p>
-              <div className="flex items-center gap-4">
-                <button 
-                  onClick={() => onViewChange('ai')}
-                  className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl text-xs font-bold transition-all shadow-lg shadow-indigo-500/20"
-                >
-                  Discuss with SIA
-                </button>
-              </div>
-            </div>
-          ) : (
-            <p className="text-zinc-500 text-sm italic py-4">No brief available for today yet. Log your sleep to get started.</p>
-          )}
-        </div>
-      </motion.div>
-
       {/* Section: SIA Quick Insight */}
       <section className="grid grid-cols-1 gap-4">
         <Card 
@@ -646,7 +637,7 @@ export default function Dashboard({
             
             <div className="space-y-4">
               <p className="text-zinc-200 leading-relaxed text-sm font-medium">
-                {isAiLoading ? (isDeepAnalysis ? "Analyzing long-term trends..." : "Scanning recent logs...") : (aiInsight ? aiInsight : `Log ${dataDepth.nextThreshold - dataDepth.count} more nights to unlock my personalized insights. (Progress: ${dataDepth.count}/${dataDepth.nextThreshold})`)}
+                {isAiLoading ? (isDeepAnalysis ? "Analyzing long-term trends..." : "Scanning recent logs...") : (aiInsight ? aiInsight : `Log more nights to unlock personalized pattern analysis (${dataDepth.count}/7)`)}
               </p>
               {!isAiLoading && aiInsight && (
                 <p className="text-[10px] text-zinc-500 italic leading-tight">{DISCLAIMER}</p>
@@ -669,13 +660,23 @@ export default function Dashboard({
                     </button>
                   </div>
                 ) : !isDeepAnalysis && aiInsight && (
-                  /* Standard Pro Button */
+                  /* Maturity-Locked Pro Button */
                   <button
-                    onClick={(e) => { e.stopPropagation(); handleDeepAnalysis(); }}
-                    className="mt-3 w-full py-2 bg-zinc-800/50 hover:bg-zinc-700/50 border border-zinc-800 text-indigo-400 text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-2 rounded transition-all"
+                    onClick={(e) => { e.stopPropagation(); if (maturity?.level === 4) handleDeepAnalysis(); }}
+                    className={`mt-3 w-full py-2 border text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-2 rounded transition-all ${
+                      maturity?.level === 4 
+                        ? 'bg-zinc-800/50 hover:bg-zinc-700/50 border-zinc-800 text-indigo-400'
+                        : 'bg-zinc-900/50 border-zinc-800 text-zinc-600 cursor-not-allowed'
+                    }`}
                   >
                     <Sparkles size={10} />
-                    Run Deep Analysis ({personalizationProfile ? '180' : '30'} Days)
+                    {maturity?.level === 4 ? (
+                      `Run Deep Analysis (${personalizationProfile ? '180' : '30'} Days)`
+                    ) : (
+                      <>
+                        <Lock size={8} /> Locked (Unlocks at Level 4)
+                      </>
+                    )}
                   </button>
                 )
               )}
@@ -734,7 +735,7 @@ export default function Dashboard({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Card 
             onClick={onLogClick}
-            className="bg-indigo-600 border-none hover:bg-indigo-500 flex items-center justify-between group shadow-lg shadow-indigo-600/20"
+            className="bg-indigo-600 border-none hover:bg-indigo-500 flex items-center justify-between group shadow-lg shadow-indigo-600/20 min-h-[120px]"
           >
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center text-white">
@@ -758,56 +759,30 @@ export default function Dashboard({
             </div>
             <ChevronRight size={24} className="text-white group-hover:translate-x-1 transition-transform" />
           </Card>
-        </div>
 
-        {userProfile?.tier === 'Basic' && (
-          <section className="space-y-4">
-            <h3 className="text-[10px] font-black text-zinc-300 uppercase tracking-[0.2em]">SIA INTELLIGENCE FEED</h3>
-            <Card className="bg-zinc-900/30 border-zinc-800/50 p-6">
-              <p className="text-zinc-400 text-sm">
-                Unlock deep clinical insights and personalized analysis by upgrading to Enhanced or Pro tiers.
-              </p>
-              <button 
-                onClick={() => onViewChange('account')}
-                className="mt-4 px-6 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition-all"
-              >
-                Upgrade Now
-              </button>
-            </Card>
-          </section>
-        )}
-
-        {userProfile?.tier === 'Basic' ? (
-          <div className="relative">
-            <div className="opacity-30 grayscale blur-sm">
-              <div 
-                onClick={() => onViewChange('account')}
-                className="bg-zinc-900 border border-indigo-500/30 p-4 rounded-2xl flex items-center justify-between group cursor-pointer hover:border-indigo-500/50 transition-all"
-              >
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-zinc-800 rounded-xl flex items-center justify-center text-indigo-400">
-                      <Sparkles size={24} />
-                    </div>
-                    <div className="text-left">
-                      <p className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em]">Deep Analysis</p>
-                      <p className="text-xs text-zinc-400 font-medium mt-0.5">90 days of data + Enhanced/Pro required</p>
-                    </div>
-                  </div>
-                  <div className="px-3 py-1 bg-indigo-500/10 text-indigo-400 text-[10px] font-bold uppercase tracking-widest rounded-lg border border-indigo-500/20">
-                    Upgrade →
-                  </div>
+          {/* Deep Analysis Card (Placeholder/Locked or Active) */}
+          {userProfile?.tier === 'Basic' ? (
+            <Card 
+              onClick={() => onViewChange('account')}
+              className="bg-zinc-900 border border-indigo-500/30 p-4 flex items-center justify-between group cursor-pointer hover:border-indigo-500/50 transition-all min-h-[120px]"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-zinc-800 rounded-xl flex items-center justify-center text-indigo-400">
+                  <Sparkles size={24} />
+                </div>
+                <div className="text-left">
+                  <p className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em]">Deep Analysis</p>
+                  <p className="text-xs text-zinc-400 font-medium mt-0.5">90 days of data + Enhanced/Pro required</p>
                 </div>
               </div>
-              <LockedFeatureCard 
-                title="Deep Analysis"
-                description="Unlock deep analysis with 90 days of data and Enhanced or PRO tiers."
-                onUpgrade={() => onViewChange('account')}
-              />
-            </div>
+              <div className="px-3 py-1 bg-indigo-500/10 text-indigo-400 text-[10px] font-bold uppercase tracking-widest rounded-lg border border-indigo-500/20">
+                Upgrade →
+              </div>
+            </Card>
           ) : (
             <Card 
               onClick={handleDeepAnalysis}
-              className="bg-zinc-900 border-zinc-800 hover:bg-zinc-800 flex items-center justify-between group cursor-pointer"
+              className="bg-zinc-900 border-zinc-800 hover:bg-zinc-800 flex items-center justify-between group cursor-pointer min-h-[120px]"
             >
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 bg-zinc-800 rounded-xl flex items-center justify-center text-zinc-400 group-hover:text-indigo-400 transition-colors">
@@ -821,6 +796,7 @@ export default function Dashboard({
               <ChevronRight size={24} className="text-zinc-300 group-hover:text-white group-hover:translate-x-1 transition-transform" />
             </Card>
           )}
+        </div>
       </section>
 
       {/* Section 4: The Growth Hub */}
@@ -831,7 +807,17 @@ export default function Dashboard({
         
         <div className="grid grid-cols-1 gap-6">
           <SleepGuideCard onClick={onOpenSleepGuide} gadgetSummary={recentGadgets} />
-          
+        
+        </div>
+      </section>
+
+      {/* Section: SIA Intelligence Feed */}
+      <section className="space-y-6 pt-6 border-t border-zinc-800">
+        <div className="flex items-center justify-between">
+          <h3 className="text-[10px] font-black text-zinc-300 uppercase tracking-[0.2em]">SIA Intelligence Feed</h3>
+        </div>
+        
+        <div className="grid grid-cols-1 gap-6">
           {FEATURE_FLAGS.showSiaIntelligence && (
             isEnhanced ? (
               <Card 
@@ -938,11 +924,16 @@ export default function Dashboard({
       </section>
 
       {/* Section: Data Maturity Progress */}
-      <DataMaturityTracker 
-        maturity={dataMaturity as MaturityInfo} 
-        showTimeline={true} 
-        proMessage={userProfile?.tier === 'Pro' && dataMaturity.level < 3 ? "Pro Member: Your analysis will automatically deepen as data matures" : undefined} 
-      />
+      <section className="space-y-6 pt-6 border-t border-zinc-800">
+        <div className="flex items-center justify-between">
+          <h3 className="text-[10px] font-black text-zinc-300 uppercase tracking-[0.2em]">Data Maturity</h3>
+        </div>
+        <DataMaturityTracker 
+          maturity={dataMaturity as MaturityInfo} 
+          showTimeline={true} 
+          proMessage={userProfile?.tier === 'Pro' && dataMaturity.level < 3 ? "Pro Member: Your analysis will automatically deepen as data matures" : undefined} 
+        />
+      </section>
     </div>
   );
 }

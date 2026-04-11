@@ -35,11 +35,15 @@ export const UserProvider: React.FC<{
 }> = ({ children, logs, user, userProfile, personalizationProfile, isProfileLoading, tier, maturity, highlightTier }) => {
   
   const dataDepth = useMemo(() => {
-    const count = Object.keys(logs).length;
-    if (count >= 90) return { level: 3, label: 'Advanced Analysis', nextThreshold: 90, count };
-    if (count >= 15) return { level: 2, label: 'Pattern Discovery', nextThreshold: 90, count };
-    return { level: 1, label: 'Initializing', nextThreshold: 15, count };
-  }, [logs]);
+    const devOverride = parseInt(localStorage.getItem('devOverrideMaturity') || '0', 10);
+    const importedLogCount = userProfile?.importedLogCount || 0;
+    const count = (devOverride || importedLogCount || 0) + Object.keys(logs).length;
+    
+    if (count >= 90) return { level: 4, label: 'Advanced Diagnostic', nextThreshold: 90, count };
+    if (count >= 14) return { level: 3, label: 'Deep Analysis', nextThreshold: 90, count };
+    if (count >= 7) return { level: 2, label: 'Trends', nextThreshold: 14, count };
+    return { level: 1, label: 'Baseline', nextThreshold: 7, count };
+  }, [logs, userProfile?.importedLogCount]);
 
   const value = useMemo(() => ({
     logs,

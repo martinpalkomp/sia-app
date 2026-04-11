@@ -33,7 +33,7 @@ import { AIService } from '../services/aiService';
 import { exportDailySummary, exportDeepEventLog } from '../utils/exportUtils';
 
 export default function AccountPage({ onModifyAssessment, onRefresh }: { onModifyAssessment: () => void; onRefresh?: () => void; }) {
-  const { user, personalizationProfile, logs, maturity, highlightTier, tier } = useUser();
+  const { user, personalizationProfile, logs, maturity, highlightTier, tier, userProfile } = useUser();
   const [view, setView] = React.useState<'main' | 'data-ledger' | 'feedback' | 'admin-feedback'>('main');
   const [userData, setUserData] = React.useState<any>(null);
   const [modal, setModal] = React.useState<{ isOpen: boolean; message: string; onConfirm: () => void; onCancel?: () => void }>({
@@ -288,9 +288,14 @@ export default function AccountPage({ onModifyAssessment, onRefresh }: { onModif
       {/* Data Maturity Tracker */}
       {maturity && <DataMaturityTracker maturity={maturity} />}
 
-
       {/* Data Overview */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="md:col-span-2 bg-zinc-900/50 border border-zinc-800 p-4 rounded-2xl flex justify-between items-center">
+          <span className="text-xs font-black uppercase tracking-widest text-zinc-400">Imported Data Credit</span>
+          <span className="text-sm font-black text-white" id="acc-import-credit-label">
+            {userProfile?.importedLogCount || 0} Days
+          </span>
+        </div>
         <div className="md:col-span-2">
           <EthicalDataPledge 
             agreed={!!personalizationProfile?.allowsAnonymizedSharing}
@@ -537,6 +542,20 @@ export default function AccountPage({ onModifyAssessment, onRefresh }: { onModif
                 {tier}
               </button>
             ))}
+          </div>
+          <div className="mt-4">
+            <input
+              type="number"
+              id="dev-maturity-input"
+              placeholder="Override Maturity Days"
+              className="w-full p-2 bg-zinc-800 border border-zinc-700 rounded-lg text-xs text-white"
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val) localStorage.setItem('devOverrideMaturity', val);
+                else localStorage.removeItem('devOverrideMaturity');
+                onRefresh?.();
+              }}
+            />
           </div>
         </div>
       )}

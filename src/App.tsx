@@ -1767,53 +1767,25 @@ export default function App() {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className={`absolute inset-0 z-20 flex flex-col items-center justify-center group touch-manipulation pointer-events-none ${
-                          historyCount === 0 ? '' : 'bg-black/20 backdrop-blur-[2px]'
-                        }`}
+                        className="absolute inset-0 z-20 flex flex-col items-center justify-center group touch-manipulation pointer-events-none bg-black/20 backdrop-blur-[2px]"
                       >
-                        {historyCount === 0 ? (
-                          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 pointer-events-none">
-                            <p className="text-[10px] font-semibold tracking-[0.12em] uppercase text-zinc-400">
-                              No data for this night
-                            </p>
-                            <p className="text-[10px] text-zinc-500 tracking-wide">
-                              Tap and drag to select multiple slots
-                            </p>
-                            <button 
-                              onClick={() => {
-                                setInitialTimeline([...currentLog.visualTimeline]);
-                                setInitialMetrics({
-                                  sleep_quality: currentLog.sleep_quality,
-                                  morning_alertness: currentLog.morning_alertness,
-                                  daytime_energy: currentLog.daytime_energy
-                                });
-                                setIsEditing(true);
-                              }}
-                              className="px-4 py-1.5 bg-zinc-800/50 hover:bg-zinc-800 border border-zinc-700/50 rounded-lg text-[9px] font-bold text-zinc-400 hover:text-zinc-200 uppercase tracking-[0.2em] transition-all flex items-center gap-2 pointer-events-auto"
-                            >
-                              <Plus size={12} />
-                              Edit Sleep Window
-                            </button>
+                        <>
+                          <div className="bg-zinc-900/90 border border-zinc-700 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest text-zinc-300 group-hover:text-white transition-colors flex items-center gap-2">
+                            <Plus size={14} />
+                            Tap to edit sleep window
                           </div>
-                        ) : (
-                          <>
-                            <div className="bg-zinc-900/90 border border-zinc-700 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest text-zinc-300 group-hover:text-white transition-colors flex items-center gap-2">
-                              <Plus size={14} />
-                              Tap to edit sleep window
-                            </div>
-                            
-                            {/* Scroll Hint */}
-                            <div className="absolute bottom-4 flex flex-col items-center gap-1 opacity-40 group-hover:opacity-100 transition-opacity">
-                              <p className="text-[8px] font-black uppercase tracking-[0.2em] text-zinc-400">Drag to scroll / Tap to edit</p>
-                              <motion.div
-                                animate={{ y: [0, 4, 0] }}
-                                transition={{ repeat: Infinity, duration: 1.5 }}
-                              >
-                                <ChevronDown size={12} className="text-zinc-500" />
-                              </motion.div>
-                            </div>
-                          </>
-                        )}
+                          
+                          {/* Scroll Hint */}
+                          <div className="absolute bottom-4 flex flex-col items-center gap-1 opacity-40 group-hover:opacity-100 transition-opacity">
+                            <p className="text-[8px] font-black uppercase tracking-[0.2em] text-zinc-400">Drag to scroll / Tap to edit</p>
+                            <motion.div
+                              animate={{ y: [0, 4, 0] }}
+                              transition={{ repeat: Infinity, duration: 1.5 }}
+                            >
+                              <ChevronDown size={12} className="text-zinc-500" />
+                            </motion.div>
+                          </div>
+                        </>
                       </motion.div>
                     )}
                   </AnimatePresence>
@@ -2679,17 +2651,20 @@ export default function App() {
                 })}
               </div>
 
-              {/* Sleep Pattern Summary Card */}
-              <SleepPatternCard 
-                logs={logs} 
-                periodType={view === 'monthly' ? '30-DAY' : view === 'custom' ? 'CUSTOM' : '7-DAY'}
-                personalizationProfile={personalizationProfile}
-                user={user}
-                userProfile={userProfile}
-                activeDates={activeDates}
-                viewMode={view as 'weekly' | 'monthly' | 'custom'}
-                onViewChange={handleViewChange}
-              />
+              {/* Sleep Pattern Summary Section */}
+              <section className="space-y-4">
+                <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-300">Sleep Pattern Summary</h3>
+                <SleepPatternCard 
+                  logs={logs} 
+                  periodType={view === 'monthly' ? '30-DAY' : view === 'custom' ? 'CUSTOM' : '7-DAY'}
+                  personalizationProfile={personalizationProfile}
+                  user={user}
+                  userProfile={userProfile}
+                  activeDates={activeDates}
+                  viewMode={view as 'weekly' | 'monthly' | 'custom'}
+                  onViewChange={handleViewChange}
+                />
+              </section>
             </motion.div>
           )}
         </AnimatePresence>
