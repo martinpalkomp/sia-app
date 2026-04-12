@@ -1216,7 +1216,7 @@ export default function App() {
         <motion.div 
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="max-w-md w-full bg-zinc-900/50 border border-red-500/30 p-8 rounded-[2.5rem] text-center space-y-6 shadow-2xl"
+          className="max-w-md w-full bg-zinc-900/50 border border-red-500/30 p-8 rounded-3xl text-center space-y-6 shadow-2xl"
         >
           <div className="flex justify-center">
             <div className="w-16 h-16 bg-red-900/20 rounded-2xl flex items-center justify-center border border-red-500/30">
@@ -1269,7 +1269,7 @@ export default function App() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              className="max-w-md w-full bg-zinc-900/50 border border-zinc-800 p-8 rounded-[2.5rem] text-center space-y-8 shadow-2xl"
+              className="max-w-md w-full bg-zinc-900/50 border border-zinc-800 p-8 rounded-3xl text-center space-y-8 shadow-2xl"
             >
               <div className="flex justify-center">
                 <div className="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-xl shadow-indigo-500/20 overflow-hidden aspect-square">
@@ -1652,7 +1652,7 @@ export default function App() {
                                     <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest leading-tight">
                                       {historyCount === 0 ? "SIA Learning: Log nights to enable prefill" : `SIA Learning: Log ${3 - historyCount} more nights for prefill`}
                                     </p>
-                                    <p className="text-[8px] text-zinc-500 uppercase tracking-wider leading-tight">
+                                    <p className="text-[8px] text-zinc-500 uppercase tracking-widest leading-tight">
                                       {historyCount === 0 ? "Log your first night to enable pattern prefill" : "Log more nights to enable pattern prefill"}
                                     </p>
                                   </div>
@@ -1669,7 +1669,7 @@ export default function App() {
                                   <Lightbulb className="text-amber-400 group-hover:scale-110 transition-transform" size={24} />
                                   <div className="text-center">
                                     <p className="text-[10px] font-black text-amber-500 uppercase tracking-widest">SIA Draft: Suggested Fill Available</p>
-                                    <p className="text-[8px] text-amber-600/70 mt-1 uppercase tracking-wider">Click to preview your routine</p>
+                                    <p className="text-[8px] text-amber-600/70 mt-1 uppercase tracking-widest">Click to preview your routine</p>
                                   </div>
                                 </button>
                               );
@@ -1684,7 +1684,7 @@ export default function App() {
                                 <Wand2 className="text-indigo-400 group-hover:rotate-12 transition-transform" size={24} />
                                 <div className="text-center">
                                   <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">SIA Master: Apply Routine</p>
-                                  <p className="text-[8px] text-indigo-500/70 mt-1 uppercase tracking-wider">High confidence pattern detected</p>
+                                  <p className="text-[8px] text-indigo-500/70 mt-1 uppercase tracking-widest">High confidence pattern detected</p>
                                 </div>
                               </button>
                             );
@@ -2018,41 +2018,6 @@ export default function App() {
                     </button>
                   </div>
 
-                  {/* Stress Level */}
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2 text-zinc-300">
-                      <Brain size={18} className="text-purple-400" />
-                      <span className="text-sm font-medium">Stress Level</span>
-                      <span className="ml-auto text-sm font-bold text-white">{currentLog.factors.stressLevel}</span>
-                    </div>
-                    <input 
-                      type="range" 
-                      min="1" 
-                      max="5" 
-                      value={currentLog.factors.stressLevel} 
-                      onChange={(e) => updateFactors({ stressLevel: parseInt(e.target.value) })}
-                      className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-indigo-500"
-                    />
-                    <div className="flex justify-between text-[8px] text-zinc-400 uppercase font-bold">
-                      <span>Low</span>
-                      <span>High</span>
-                    </div>
-                  </div>
-
-                  {/* Last Meal */}
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2 text-zinc-300">
-                      <UtensilsCrossed size={18} className={currentLog.factors.lastMealTime ? "text-orange-400" : "text-zinc-600"} />
-                      <span className="text-sm font-medium">Last Meal</span>
-                    </div>
-                    <input 
-                      type="time" 
-                      value={currentLog.factors.lastMealTime || ''} 
-                      onChange={(e) => updateFactors({ lastMealTime: e.target.value })}
-                      className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-white focus:ring-1 focus:ring-indigo-500/50 outline-none"
-                    />
-                  </div>
-
                   {/* Natural Wake */}
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 text-zinc-300 group relative">
@@ -2070,6 +2035,16 @@ export default function App() {
                     </button>
                   </div>
 
+                  {/* Stress Level */}
+                  <SliderInput 
+                    label="Stress Level" 
+                    value={currentLog.factors.stressLevel} 
+                    onChange={(val) => updateFactors({ stressLevel: val })} 
+                    min={1}
+                    max={5}
+                    icon={Brain}
+                  />
+
                   {/* Morning Mood */}
                   <SliderInput 
                     label="Morning Mood" 
@@ -2079,6 +2054,20 @@ export default function App() {
                     max={5}
                     icon={Sun}
                   />
+
+                  {/* Last Meal */}
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 text-zinc-300">
+                      <UtensilsCrossed size={18} className={currentLog.factors.lastMealTime ? "text-orange-400" : "text-zinc-600"} />
+                      <span className="text-sm font-medium">Last Meal</span>
+                    </div>
+                    <input 
+                      type="time" 
+                      value={currentLog.factors.lastMealTime || ''} 
+                      onChange={(e) => updateFactors({ lastMealTime: e.target.value })}
+                      className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-white focus:ring-1 focus:ring-indigo-500/50 outline-none"
+                    />
+                  </div>
                 </div>
               </section>
 
@@ -2094,7 +2083,7 @@ export default function App() {
                     </div>
                     <div className="text-left">
                       <h2 className="text-sm font-bold text-white">Sleep support tools</h2>
-                      <p className="text-[10px] text-zinc-300 uppercase tracking-wider font-medium">Interventions & Aids</p>
+                      <p className="text-[10px] text-zinc-300 uppercase tracking-widest font-black">Interventions & Aids</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
@@ -2139,7 +2128,7 @@ export default function App() {
                       {/* Sub-section 1: Interventions */}
                       <div className="space-y-4">
                         <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-300 border-b border-zinc-800/50 pb-2">Interventions</h3>
-                        <div className="grid grid-cols-1 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           {/* Light Therapy */}
                           <div className="space-y-3">
                             <div className="flex items-center justify-between">
@@ -2177,7 +2166,7 @@ export default function App() {
                                       <button
                                         key={time}
                                         onClick={() => updateGadgetDetails('light_therapy', { timeOfUse: time })}
-                                        className={`px-3 py-1.5 rounded-lg text-[10px] font-bold capitalize transition-all ${getGadget('light_therapy')?.timeOfUse === time ? 'bg-indigo-500 text-white' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}
+                                        className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${getGadget('light_therapy')?.timeOfUse === time ? 'bg-indigo-500 text-white' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}
                                       >
                                         {time}
                                       </button>
@@ -2477,7 +2466,7 @@ export default function App() {
               {/* Insights Header */}
               <div className="space-y-6">
                 <div className="text-center space-y-2">
-                  <h2 className="text-2xl font-bold tracking-tight capitalize">
+                  <h2 className="text-2xl font-bold tracking-tight">
                     {view === 'weekly' ? 'Last 7 Days' : view === 'monthly' ? 'Last 30 Days' : 'Insights'}
                   </h2>
                   <p className="text-sm text-zinc-300">
@@ -2611,7 +2600,7 @@ export default function App() {
                         setSelectedDate(date);
                         setView('log');
                       }}
-                      className={`w-full flex flex-col gap-4 p-5 rounded-[2rem] border transition-all min-h-[100px] ${
+                      className={`w-full flex flex-col gap-4 p-5 rounded-2xl border transition-all min-h-[100px] ${
                         log 
                           ? 'bg-zinc-900 border-zinc-800 hover:border-zinc-700' 
                           : 'bg-transparent border-zinc-900 hover:bg-zinc-900/30'
@@ -2718,7 +2707,7 @@ export default function App() {
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="relative w-full max-w-md bg-zinc-900 border border-zinc-800 rounded-[2.5rem] shadow-2xl overflow-hidden p-8"
+              className="relative w-full max-w-md bg-zinc-900 border border-zinc-800 rounded-3xl shadow-2xl overflow-hidden p-8"
             >
               <div className="flex flex-col items-center text-center gap-6">
                 <div className="w-16 h-16 bg-amber-500/20 rounded-2xl flex items-center justify-center text-amber-500">

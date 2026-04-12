@@ -51,7 +51,7 @@ const CorrectionHub: React.FC<CorrectionHubProps> = ({ user, logs, onUpdate, onG
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-zinc-900/50 p-6 rounded-[2.5rem] shadow-sm border border-zinc-800/50">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-zinc-900/50 p-6 rounded-3xl shadow-sm border border-zinc-800/50">
         <div>
           <h2 className="text-xl md:text-3xl font-black tracking-tighter text-white flex items-center gap-3 leading-[0.95]">
             <AlertCircle className="w-6 h-6 text-amber-500" />
@@ -80,7 +80,7 @@ const CorrectionHub: React.FC<CorrectionHubProps> = ({ user, logs, onUpdate, onG
             <motion.div 
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="flex flex-col items-center justify-center py-16 bg-zinc-900/30 rounded-[2.5rem] border-2 border-dashed border-zinc-800/50"
+              className="flex flex-col items-center justify-center py-16 bg-zinc-900/30 rounded-3xl border-2 border-dashed border-zinc-800/50"
             >
               <div className="w-16 h-16 bg-emerald-500/10 rounded-2xl flex items-center justify-center mb-4 border border-emerald-500/20">
                 <CheckCircle2 className="w-8 h-8 text-emerald-500" />
@@ -96,7 +96,7 @@ const CorrectionHub: React.FC<CorrectionHubProps> = ({ user, logs, onUpdate, onG
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
-                className="group bg-zinc-900/50 p-6 rounded-[2rem] border border-zinc-800/50 hover:border-zinc-700/50 transition-all shadow-xl flex items-center justify-between gap-4"
+                className="group bg-zinc-900/50 p-6 rounded-2xl border border-zinc-800/50 hover:border-zinc-700/50 transition-all shadow-xl flex items-center justify-between gap-4"
               >
                 <div className="flex items-center gap-5">
                   <div className="w-14 h-14 rounded-2xl bg-zinc-800 flex flex-col items-center justify-center border border-zinc-700 shadow-inner">

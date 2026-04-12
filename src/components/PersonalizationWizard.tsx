@@ -228,7 +228,7 @@ export default function PersonalizationWizard({ user, onComplete, onClose }: Per
         initial={{ opacity: 0, scale: 0.9, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.9, y: 20 }}
-        className="relative w-full max-w-xl bg-zinc-900 border border-zinc-800 rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col"
+        className="relative w-full max-w-xl bg-zinc-900 border border-zinc-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col"
       >
         {/* Progress Bar */}
         <div className="absolute top-0 left-0 right-0 h-1 bg-zinc-800">
@@ -385,7 +385,7 @@ export default function PersonalizationWizard({ user, onComplete, onClose }: Per
                                   }
                                 };
                               })}
-                              className={`px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-wider border transition-all ${ selected ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-zinc-900 border-zinc-700 text-zinc-400 hover:border-zinc-500' }`}
+                              className={`px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-widest border transition-all ${ selected ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-zinc-900 border-zinc-700 text-zinc-400 hover:border-zinc-500' }`}
                             >
                               {item}
                             </button>

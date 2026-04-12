@@ -46,7 +46,7 @@ export const InsightCard: React.FC<InsightCardProps> = ({ insight, tier = 'Basic
       className={`border-l-4 ${borderGlow} ${basicStyles} p-5 transition-all duration-300`}
     >
       <div className="flex items-start gap-4">
-        <div className="p-2 rounded-lg bg-white/5 text-zinc-400">
+        <div className="p-2 rounded-xl bg-white/5 text-zinc-400">
           <Icon size={20} />
         </div>
         <div className="flex-1 space-y-1">

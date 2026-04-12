@@ -110,7 +110,7 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
       description: 'Progress bar for data calibration',
       path: '/src/components/Dashboard.tsx',
       children: [
-        { id: 'maturity-tracker', name: 'Data Maturity Tracker', tag: 'comp', description: 'Progress bar for data calibration', path: '/src/components/DataMaturityTracker.tsx' },
+        { id: 'maturity-tracker', name: 'Data Maturity Tracker', tag: 'comp', description: 'Multi-bar roadmap for data calibration', path: '/src/components/DataMaturityTracker.tsx' },
       ]
     },
   ],
@@ -120,12 +120,12 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
       name: 'Date Selector Bar',
       tag: 'section',
       description: 'Date navigation and context',
-      path: '/src/pages/Log.tsx',
+      path: '/src/App.tsx',
       children: [
-        { id: 'log-date-prev', name: 'Previous Date Button', tag: 'btn', description: 'Navigates to previous day', path: '/src/pages/Log.tsx' },
-        { id: 'log-date-heading', name: 'Date Heading', tag: 'comp', description: 'Displays current date', path: '/src/pages/Log.tsx' },
-        { id: 'log-date-label', name: 'Date Label', tag: 'comp', description: 'Contextual date label', path: '/src/pages/Log.tsx' },
-        { id: 'log-date-next', name: 'Next Date Button', tag: 'btn', description: 'Navigates to next day', path: '/src/pages/Log.tsx' },
+        { id: 'log-date-prev', name: 'Previous Date Button', tag: 'btn', description: 'Navigates to previous day', path: '/src/App.tsx' },
+        { id: 'log-date-heading', name: 'Date Heading', tag: 'comp', description: 'Displays current date', path: '/src/App.tsx' },
+        { id: 'log-date-label', name: 'Date Label', tag: 'comp', description: 'Contextual date label', path: '/src/App.tsx' },
+        { id: 'log-date-next', name: 'Next Date Button', tag: 'btn', description: 'Navigates to next day', path: '/src/App.tsx' },
       ]
     },
     {
@@ -133,23 +133,23 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
       name: 'Timeline Section',
       tag: 'section',
       description: 'SIA learning, edit controls, sleep window grid',
-      path: '/src/pages/Log.tsx',
+      path: '/src/App.tsx',
       children: [
-        { id: 'log-timeline-anchor', name: 'Timeline Anchor', tag: 'comp', description: 'Container for routine, learning, and controls', path: '/src/pages/Log.tsx', children: [
-          { id: 'log-sia-routine-btn', name: 'SIA Routine Button', tag: 'btn', description: 'Toggles routine mode. Requires historyCount >= 3.', path: '/src/pages/Log.tsx' },
-          { id: 'log-sia-learning-label', name: 'SIA Learning Label', tag: 'comp', description: 'Status indicator', path: '/src/pages/Log.tsx' },
-          { id: 'log-edit-controls', name: 'Edit Controls', tag: 'comp', description: 'Undo/Cancel/Save buttons. Hidden unless isEditing is true.', path: '/src/pages/Log.tsx' },
+        { id: 'log-timeline-anchor', name: 'Timeline Anchor', tag: 'comp', description: 'Container for routine, learning, and controls', path: '/src/App.tsx', children: [
+          { id: 'log-sia-routine-btn', name: 'SIA Routine Button', tag: 'btn', description: 'Toggles routine mode. Requires historyCount >= 3.', path: '/src/App.tsx' },
+          { id: 'log-sia-learning-label', name: 'SIA Learning Label', tag: 'comp', description: 'Status indicator', path: '/src/App.tsx' },
+          { id: 'log-edit-controls', name: 'Edit Controls', tag: 'comp', description: 'Undo/Cancel/Save buttons. Hidden unless isEditing is true.', path: '/src/App.tsx' },
         ]},
-        { id: 'log-state-selectors', name: 'State Selectors', tag: 'comp', description: 'Awake/Sleep state toggle. Hidden unless isEditing is true.', path: '/src/pages/Log.tsx', children: [
-          { id: 'awake-btn', name: 'Awake Button', tag: 'btn', description: 'Set state to awake', path: '/src/pages/Log.tsx' },
-          { id: 'sleep-btn', name: 'Sleep Button', tag: 'btn', description: 'Set state to sleep', path: '/src/pages/Log.tsx' },
+        { id: 'log-state-selectors', name: 'State Selectors', tag: 'comp', description: 'Awake/Sleep state toggle. Hidden unless isEditing is true.', path: '/src/App.tsx', children: [
+          { id: 'awake-btn', name: 'Awake Button', tag: 'btn', description: 'Set state to awake', path: '/src/App.tsx' },
+          { id: 'sleep-btn', name: 'Sleep Button', tag: 'btn', description: 'Set state to sleep', path: '/src/App.tsx' },
         ]},
-        { id: 'log-sleep-window-container', name: 'Sleep Window Container', tag: 'comp', description: 'Container for sleep window grid', path: '/src/pages/Log.tsx', children: [
-          { id: 'log-has-data-overlay', name: 'Data Overlay', tag: 'overlay', description: 'Shown when log view is loaded', path: '/src/pages/Log.tsx' },
+        { id: 'log-sleep-window-container', name: 'Sleep Window Container', tag: 'comp', description: 'Container for sleep window grid', path: '/src/App.tsx', children: [
+          { id: 'log-has-data-overlay', name: 'Data Overlay', tag: 'overlay', description: 'Shown when log view is loaded', path: '/src/App.tsx' },
           { id: 'log-grid', name: 'Sleep Window Grid', tag: 'comp', description: 'SleepWindow component', path: '/src/components/SleepWindow.tsx' },
-          { id: 'log-scroll-hint', name: 'Scroll Hint', tag: 'comp', description: 'Visual scroll indicator', path: '/src/pages/Log.tsx' },
+          { id: 'log-scroll-hint', name: 'Scroll Hint', tag: 'comp', description: 'Visual scroll indicator', path: '/src/App.tsx' },
         ]},
-        { id: 'log-stats-footer', name: 'Stats Footer', tag: 'comp', description: 'Summary statistics', path: '/src/pages/Log.tsx' },
+        { id: 'log-stats-footer', name: 'Stats Footer', tag: 'comp', description: 'Summary statistics', path: '/src/App.tsx' },
       ]
     },
     {
@@ -157,14 +157,24 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
       name: 'Daily Factors & Disturbances Section',
       tag: 'section',
       description: 'Toggle rows for caffeine, alcohol, etc.',
-      path: '/src/pages/Log.tsx',
+      path: '/src/App.tsx',
       children: [
-        { id: 'factor-caffeine', name: 'Caffeine Toggle', tag: 'comp', description: 'Toggle row', path: '/src/pages/Log.tsx', children: [
-          { id: 'caffeine-count-input', name: 'Caffeine Count', tag: 'input', description: 'Sub-input. Visible only when factor-caffeine is toggled.', path: '/src/pages/Log.tsx' },
-          { id: 'caffeine-time-input', name: 'Caffeine Time', tag: 'input', description: 'Sub-input. Visible only when factor-caffeine is toggled.', path: '/src/pages/Log.tsx' },
+        { id: 'factor-caffeine', name: 'Caffeine Toggle', tag: 'comp', description: 'Toggle row', path: '/src/App.tsx', children: [
+          { id: 'caffeine-count-input', name: 'Caffeine Count', tag: 'input', description: 'Sub-input. Visible only when factor-caffeine is toggled.', path: '/src/App.tsx' },
+          { id: 'caffeine-time-input', name: 'Caffeine Time', tag: 'input', description: 'Sub-input. Visible only when factor-caffeine is toggled.', path: '/src/App.tsx' },
         ]},
-        { id: 'factor-alcohol', name: 'Alcohol Toggle', tag: 'comp', description: 'Toggle row', path: '/src/pages/Log.tsx' },
-        { id: 'factor-medication', name: 'Medication Toggle', tag: 'comp', description: 'Toggle row', path: '/src/pages/Log.tsx' },
+        { id: 'factor-alcohol', name: 'Alcohol Toggle', tag: 'comp', description: 'Toggle row', path: '/src/App.tsx', children: [
+          { id: 'alcohol-drinks-input', name: 'Alcohol Drinks', tag: 'input', description: 'Sub-input. Visible only when factor-alcohol is toggled.', path: '/src/App.tsx' },
+          { id: 'alcohol-time-input', name: 'Alcohol Time', tag: 'input', description: 'Sub-input. Visible only when factor-alcohol is toggled.', path: '/src/App.tsx' },
+        ]},
+        { id: 'factor-medication', name: 'Medication Toggle', tag: 'comp', description: 'Toggle row', path: '/src/App.tsx', children: [
+          { id: 'medication-type-input', name: 'Medication Type', tag: 'input', description: 'Sub-input. Visible only when factor-medication is toggled.', path: '/src/App.tsx' },
+          { id: 'medication-time-input', name: 'Medication Time', tag: 'input', description: 'Sub-input. Visible only when factor-medication is toggled.', path: '/src/App.tsx' },
+        ]},
+        { id: 'factor-screens-in-bed', name: 'Screens in Bed Toggle', tag: 'comp', description: 'Toggle row', path: '/src/App.tsx' },
+        { id: 'factor-stress-level', name: 'Stress Level Slider', tag: 'input', description: 'Stress level slider input', path: '/src/App.tsx' },
+        { id: 'factor-natural-wake', name: 'Natural Wake Toggle', tag: 'comp', description: 'Toggle row', path: '/src/App.tsx' },
+        { id: 'factor-morning-mood', name: 'Morning Mood Slider', tag: 'input', description: 'Morning mood slider input', path: '/src/App.tsx' },
       ]
     },
     {
@@ -172,13 +182,29 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
       name: 'Sleep Support Tools Section',
       tag: 'section',
       description: 'Collapsible interventions, passive aids, tracking',
-      path: '/src/pages/Log.tsx',
+      path: '/src/App.tsx',
       children: [
-        { id: 'support-toggle-btn', name: 'Support Tools Toggle', tag: 'btn', description: 'Collapsible toggle button', path: '/src/pages/Log.tsx' },
-        { id: 'interventions-grid', name: 'Interventions Grid', tag: 'comp', description: 'Grid of intervention gadgets', path: '/src/pages/Log.tsx' },
-        { id: 'passive-aids-grid', name: 'Passive Aids Grid', tag: 'comp', description: 'Grid of passive aid gadgets', path: '/src/pages/Log.tsx' },
-        { id: 'tracking-grid', name: 'Tracking Grid', tag: 'comp', description: 'Grid of tracking gadgets', path: '/src/pages/Log.tsx' },
-        { id: 'gadget-toggle-btn', name: 'Gadget Toggle', tag: 'btn', description: 'Toggle for individual gadget', path: '/src/pages/Log.tsx' },
+        { id: 'support-toggle-btn', name: 'Support Tools Toggle', tag: 'btn', description: 'Collapsible toggle button', path: '/src/App.tsx' },
+        { id: 'interventions-grid', name: 'Interventions Grid', tag: 'comp', description: 'Grid of intervention gadgets', path: '/src/App.tsx', children: [
+          { id: 'gadget-light-therapy', name: 'Light Therapy Toggle', tag: 'comp', description: 'Toggle row', path: '/src/App.tsx' },
+          { id: 'gadget-breathing-trainer', name: 'Breathing Trainer Toggle', tag: 'comp', description: 'Toggle row', path: '/src/App.tsx' },
+          { id: 'gadget-pre-sleep-heating', name: 'Pre-sleep Heating Toggle', tag: 'comp', description: 'Toggle row', path: '/src/App.tsx' },
+          { id: 'gadget-aromatherapy', name: 'Aromatherapy Toggle', tag: 'comp', description: 'Toggle row', path: '/src/App.tsx' },
+          { id: 'gadget-meditation-app', name: 'Meditation App Toggle', tag: 'comp', description: 'Toggle row', path: '/src/App.tsx' },
+        ]},
+        { id: 'passive-aids-grid', name: 'Passive Aids Grid', tag: 'comp', description: 'Grid of passive aid gadgets', path: '/src/App.tsx', children: [
+          { id: 'gadget-cooling-pad', name: 'Cooling Pad Toggle', tag: 'comp', description: 'Toggle row', path: '/src/App.tsx' },
+          { id: 'gadget-white-noise', name: 'White Noise Toggle', tag: 'comp', description: 'Toggle row', path: '/src/App.tsx' },
+          { id: 'gadget-sleep-mask', name: 'Sleep Mask Toggle', tag: 'comp', description: 'Toggle row', path: '/src/App.tsx' },
+          { id: 'gadget-earplugs', name: 'Earplugs Toggle', tag: 'comp', description: 'Toggle row', path: '/src/App.tsx' },
+          { id: 'gadget-weighted-blanket', name: 'Weighted Blanket Toggle', tag: 'comp', description: 'Toggle row', path: '/src/App.tsx' },
+        ]},
+        { id: 'tracking-grid', name: 'Tracking Grid', tag: 'comp', description: 'Grid of tracking gadgets', path: '/src/App.tsx', children: [
+          { id: 'gadget-smart-ring', name: 'Smart Ring Toggle', tag: 'comp', description: 'Toggle row', path: '/src/App.tsx' },
+          { id: 'gadget-smartwatch', name: 'Smartwatch Toggle', tag: 'comp', description: 'Toggle row', path: '/src/App.tsx' },
+          { id: 'gadget-fitness-band', name: 'Fitness Band Toggle', tag: 'comp', description: 'Toggle row', path: '/src/App.tsx' },
+          { id: 'gadget-phone-app', name: 'Phone App Toggle', tag: 'comp', description: 'Toggle row', path: '/src/App.tsx' },
+        ]},
       ]
     },
     {
@@ -186,9 +212,19 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
       name: 'Remarks Section',
       tag: 'section',
       description: 'Daily remarks textarea',
-      path: '/src/pages/Log.tsx',
+      path: '/src/App.tsx',
       children: [
-        { id: 'log-remarks-textarea', name: 'Remarks Textarea', tag: 'input', description: 'Textarea for daily notes', path: '/src/pages/Log.tsx' },
+        { id: 'log-remarks-textarea', name: 'Remarks Textarea', tag: 'input', description: 'Textarea for daily notes', path: '/src/App.tsx' },
+      ]
+    },
+    {
+      id: 'log-data-importer',
+      name: 'Data Importer Section',
+      tag: 'section',
+      description: 'Import external data',
+      path: '/src/App.tsx',
+      children: [
+        { id: 'data-importer-comp', name: 'Data Importer', tag: 'comp', description: 'DataImporter component', path: '/src/components/DataImporter.tsx' },
       ]
     },
   ],
@@ -348,16 +384,12 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
           { id: 'acc-back-btn', name: 'Back Button', tag: 'btn', description: 'Navigates back to Dashboard.', path: '/src/pages/Account.tsx' },
         ]},
         { id: 'acc-tier-section', name: 'Intelligence Tier Section', tag: 'section', description: 'Display and upgrade for SIA tiers', path: '/src/pages/Account.tsx', children: [
-          { id: 'tier-container', name: 'Tier Container', tag: 'section', description: 'Container for tier cards', path: '/src/pages/Account.tsx', children: [
-            { id: 'tier-card-basic', name: 'Basic Tier Card', tag: 'card', description: 'Basic tier details. Border: Green.', path: '/src/pages/Account.tsx' },
-            { id: 'tier-card-enhanced', name: 'Enhanced Tier Card', tag: 'card', description: 'Enhanced tier details. Border: Indigo.', path: '/src/pages/Account.tsx' },
-            { id: 'tier-card-pro', name: 'Pro Tier Card', tag: 'card', description: 'Pro tier details. Border: Violet.', path: '/src/pages/Account.tsx' },
-          ]},
-          { id: 'acc-upgrade-btn', name: 'Upgrade Button', tag: 'btn', description: 'Triggers onModifyAssessment(). Links to PersonalizationWizard global overlay.', path: '/src/pages/Account.tsx' },
+          { id: 'tier-option-basic', name: 'Basic Tier Option', tag: 'comp', description: 'Basic tier details and activation.', path: '/src/pages/Account.tsx' },
+          { id: 'tier-option-enhanced', name: 'Enhanced Tier Option', tag: 'comp', description: 'Enhanced tier details and activation.', path: '/src/pages/Account.tsx' },
+          { id: 'tier-option-pro', name: 'Pro Tier Option', tag: 'comp', description: 'Pro tier details and activation.', path: '/src/pages/Account.tsx' },
         ]},
-        { id: 'acc-maturity-tracker', name: 'Data Maturity Tracker', tag: 'comp', description: 'Progress bar for data calibration. Source is Firestore count.', path: '/src/components/DataMaturityTracker.tsx' },
         { id: 'acc-data-overview', name: 'Data Overview Section', tag: 'section', description: 'Sleep goals and demographics', path: '/src/pages/Account.tsx', children: [
-          { id: 'acc-import-credit-label', name: 'Imported Data Credit Label', tag: 'comp', description: 'Displays imported log count', path: '/src/pages/Account.tsx' },
+          { id: 'acc-maturity-tracker', name: 'Data Maturity Tracker', tag: 'comp', description: 'Multi-bar roadmap for data calibration. Source is Firestore count.', path: '/src/components/DataMaturityTracker.tsx' },
           { id: 'acc-goals-list', name: 'Goals List', tag: 'comp', description: 'List of sleep goals', path: '/src/pages/Account.tsx' },
           { id: 'acc-health-tags', name: 'Health Tags', tag: 'comp', description: 'Health tags', path: '/src/pages/Account.tsx' },
           { id: 'acc-demographics-row', name: 'Demographics Row', tag: 'comp', description: 'Age, Sex, Work, etc.', path: '/src/pages/Account.tsx' },

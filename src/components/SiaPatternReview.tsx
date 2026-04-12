@@ -151,13 +151,13 @@ export const SiaPatternReview: React.FC<SiaPatternReviewProps> = ({ isOpen, onCl
             <div className="flex gap-3 mt-6">
               <button
                 onClick={onClose}
-                className="flex-1 py-3 rounded-xl border border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-600 transition-all font-bold text-xs uppercase tracking-widest"
+                className="flex-1 py-3 rounded-xl border border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-600 transition-all font-black text-xs uppercase tracking-widest"
               >
                 Cancel
               </button>
               <button
                 onClick={onConfirm}
-                className="flex-1 py-3 rounded-xl bg-indigo-600 text-white hover:bg-indigo-500 transition-all font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2"
+                className="flex-1 py-3 rounded-xl bg-indigo-600 text-white hover:bg-indigo-500 transition-all font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2"
               >
                 <Check size={14} />
                 Apply Routine

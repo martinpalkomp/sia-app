@@ -462,7 +462,7 @@ export default function Dashboard({
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[60] bg-clinical-bg/60 backdrop-blur-sm flex items-center justify-center"
           >
-            <div className="bg-zinc-900/90 border border-indigo-500/30 p-8 rounded-[2.5rem] flex flex-col items-center gap-4 shadow-2xl">
+            <div className="bg-zinc-900/90 border border-indigo-500/30 p-8 rounded-3xl flex flex-col items-center gap-4 shadow-2xl">
               <Loader2 className="animate-spin text-indigo-500" size={40} />
               <div className="text-center">
                 <p className="text-white font-bold">Syncing SIA Intelligence...</p>
@@ -532,7 +532,7 @@ export default function Dashboard({
               <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
               <span className="text-[8px] md:text-[10px] text-zinc-300 uppercase tracking-widest font-bold">Status Report</span>
             </div>
-            <p className="text-zinc-400 text-[10px] md:text-sm font-medium leading-relaxed">
+            <p className="text-zinc-400 text-[10px] md:text-sm font-bold leading-relaxed tracking-widest">
               {maturity && maturity.count >= 7
                 ? "I've analyzed your sleep intelligence for the last 7 days."
                 : `Log more nights to unlock your weekly trend analysis (${maturity?.count || 0}/7)`}
@@ -631,7 +631,7 @@ export default function Dashboard({
               </div>
               <div>
                 <h2 className="text-lg font-bold text-white">SIA QUICK INSIGHT</h2>
-                <p className="text-xs text-indigo-300/70 font-medium uppercase tracking-widest">Personalized Pattern Analysis</p>
+                <p className="text-xs text-indigo-300/70 font-bold uppercase tracking-widest">Personalized Pattern Analysis</p>
               </div>
             </div>
             
@@ -645,20 +645,21 @@ export default function Dashboard({
               {!isAiLoading && (
                 userProfile?.tier === 'Basic' ? (
                   /* Styled Lock Box for Basic Users */
-                  <div className="flex items-center justify-between pt-3 border-t border-zinc-800/50 mt-3 bg-zinc-900/30 -mx-1 px-2 py-2 rounded-b-lg">
-                    <div className="flex flex-col gap-0.5">
-                      <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-1">
-                        <Lock size={8} /> Deep Analysis
-                      </p>
-                      <p className="text-[9px] text-zinc-600 font-medium">90 days + Enhanced or Pro required</p>
+                    <div className="mt-4 p-4 bg-zinc-950/50 border border-zinc-800 rounded-xl flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Lock size={16} className="text-zinc-600" />
+                        <div>
+                          <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Deep Analysis</p>
+                          <p className="text-[9px] text-zinc-600 font-medium">90 days + Enhanced or Pro required</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onViewChange('account'); }}
+                        className="text-[10px] font-black text-indigo-400 uppercase tracking-widest hover:text-indigo-300 transition-colors bg-indigo-500/10 px-3 py-1.5 rounded-lg"
+                      >
+                        Upgrade →
+                      </button>
                     </div>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); onViewChange('account'); }}
-                      className="text-[10px] font-black text-indigo-500 uppercase tracking-widest hover:text-indigo-400 transition-colors bg-indigo-500/10 px-2 py-1 rounded"
-                    >
-                      Upgrade →
-                    </button>
-                  </div>
                 ) : !isDeepAnalysis && aiInsight && (
                   /* Maturity-Locked Pro Button */
                   <button
@@ -688,33 +689,12 @@ export default function Dashboard({
         <section className="space-y-4">
           <h3 className="text-[10px] font-black text-zinc-300 uppercase tracking-[0.2em]">Clinical Insights</h3>
           {userProfile?.tier === 'Basic' || dataDepth.count < 15 ? (
-            <Card className="bg-zinc-900/30 border-zinc-800/50 p-6 space-y-4">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-10 h-10 bg-zinc-800 rounded-xl flex items-center justify-center text-zinc-400 border border-zinc-700">
-                  <Brain size={20} />
-                </div>
-                <div>
-                  <h3 className="text-sm font-black text-zinc-300 uppercase tracking-widest">Clinical Insights Feed</h3>
-                  <p className="text-[10px] text-zinc-500 font-bold uppercase">Advanced Diagnostic Monitoring</p>
-                </div>
-              </div>
-
-              <div className="space-y-2 opacity-60">
-                {DEMO_INSIGHTS.map(insight => (
-                  <div key={insight.id} className="bg-zinc-950/50 border border-zinc-800 rounded-lg p-3 flex items-center gap-3">
-                    <div className="w-2 h-2 rounded-full bg-zinc-700" />
-                    <p className="text-xs text-zinc-400 font-medium">{insight.summary.split(':')[0]}</p>
-                  </div>
-                ))}
-              </div>
-
-              <button 
-                onClick={() => onViewChange('account')}
-                className="w-full mt-2 py-2 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2"
-              >
-                <Sparkles size={12} /> Unlock with Enhanced or Pro
-              </button>
-            </Card>
+            <LockedFeatureCard
+              title="Clinical Insights Feed"
+              description="Advanced Diagnostic Monitoring"
+              icon={<Brain size={20} />}
+              onUpgrade={() => onViewChange('account')}
+            />
           ) : insights.length > 0 ? (
             insights.map(insight => (
               <InsightCard key={insight.id} insight={insight} />
@@ -838,7 +818,7 @@ export default function Dashboard({
                     </div>
                   </div>
 
-                  {dataMaturity.level < 3 ? (
+                  {dataMaturity.level < 4 ? (
                     <div className="py-12 text-center space-y-3">
                       <div className="w-12 h-12 bg-zinc-900 rounded-2xl flex items-center justify-center text-zinc-700 mx-auto border border-zinc-800">
                         <Brain size={24} />
@@ -878,13 +858,15 @@ export default function Dashboard({
                         </div>
                       </div>
 
-                      <div className="mt-6 flex items-center justify-center">
-                        <div className="px-4 py-2 bg-violet-500/5 border border-violet-500/10 rounded-full">
-                          <p className="text-[9px] font-black text-violet-300 uppercase tracking-[0.3em] animate-pulse">
-                            Scanning for biological anomalies...
-                          </p>
+                      {isAiLoading && (
+                        <div className="mt-6 flex items-center justify-center">
+                          <div className="px-4 py-2 bg-violet-500/5 border border-violet-500/10 rounded-full">
+                            <p className="text-[9px] font-black text-violet-300 uppercase tracking-[0.3em] animate-pulse">
+                              Scanning for biological anomalies...
+                            </p>
+                          </div>
                         </div>
-                      </div>
+                      )}
                     </>
                   )}
                 </div>

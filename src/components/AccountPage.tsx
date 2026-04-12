@@ -225,76 +225,52 @@ export default function AccountPage({ onModifyAssessment, onRefresh }: { onModif
       </div>
 
       {/* Intelligence Tier Section */}
-      <div className={`space-y-4 transition-all duration-1000 ${highlightTier ? 'ring-4 ring-indigo-500/50 rounded-3xl p-2 -m-2 shadow-[0_0_50px_rgba(99,102,241,0.3)]' : ''}`}>
+      <div className={`space-y-4 transition-all duration-500 ${highlightTier ? 'ring-2 ring-indigo-500/50 rounded-3xl p-2 shadow-[0_0_20px_rgba(99,102,241,0.2)]' : ''}`}>
         <div className="flex items-center justify-between px-1">
           <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">My Intelligence Tier</h3>
           <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">Upgrade Your Sleep Intelligence</span>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* BASIC TIER */}
-          <div className={`p-4 rounded-2xl border transition-all ${derivedTier === 'Basic' ? 'bg-zinc-900 border-green-500 shadow-[0_0_15px_rgba(34,197,94,0.2)]' : 'bg-zinc-900/50 border-zinc-800 opacity-60'}`}>
-            <div className="flex justify-between items-start mb-3">
-              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${derivedTier === 'Basic' ? 'bg-green-500/20 text-green-400' : 'bg-zinc-800 text-zinc-400'}`}>
-                <Shield size={16} />
-              </div>
-              {derivedTier === 'Basic' && <span className="text-[8px] font-black bg-green-500 text-black px-1.5 py-0.5 rounded uppercase">Active</span>}
-            </div>
-            <h4 className="text-sm font-black text-white uppercase tracking-tight">Basic:</h4>
-            <p className="text-[10px] text-zinc-500 mt-1 leading-tight">Standard sleep tracking and baseline metrics.</p>
-          </div>
+        <div className="grid grid-cols-1 gap-4">
+          {['Basic', 'Enhanced', 'Pro'].map((tierOption) => {
+            const isActive = derivedTier === tierOption;
+            const config = {
+              Basic: { icon: Shield, label: 'Basic', desc: 'Standard sleep tracking and baseline metrics.', color: 'green' },
+              Enhanced: { icon: Sparkles, label: 'Enhanced', desc: 'Clinical-grade analysis and personalized insights.', color: 'indigo' },
+              Pro: { icon: Rocket, label: 'Pro', desc: 'Advanced predictive modeling and full SIA intelligence.', color: 'violet' },
+            }[tierOption as 'Basic' | 'Enhanced' | 'Pro'];
 
-          {/* ENHANCED TIER */}
-          <div className={`p-4 rounded-2xl border transition-all relative overflow-hidden ${derivedTier === 'Enhanced' ? 'bg-zinc-950 border-indigo-500 shadow-[0_0_20px_rgba(99,102,241,0.3)]' : 'bg-zinc-900/50 border-zinc-800 opacity-60'}`}>
-            <div className="flex justify-between items-start mb-3">
-              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${derivedTier === 'Enhanced' ? 'bg-indigo-500/20 text-indigo-400' : 'bg-zinc-800 text-zinc-400'}`}>
-                <Sparkles size={16} />
+            return (
+              <div key={tierOption} className={`p-4 rounded-2xl border transition-all flex items-center justify-between ${isActive ? `bg-zinc-900 border-${config.color}-500` : 'bg-zinc-900/50 border-zinc-800 opacity-60'}`}>
+                <div className="flex items-center gap-4">
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isActive ? `bg-${config.color}-500/20 text-${config.color}-400` : 'bg-zinc-800 text-zinc-400'}`}>
+                    <config.icon size={20} />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-black text-white uppercase tracking-tight">{config.label}</h4>
+                    <p className="text-[10px] text-zinc-500 leading-tight">{config.desc}</p>
+                  </div>
+                </div>
+                {isActive ? (
+                  <span className={`text-[8px] font-black bg-${config.color}-500 text-black px-2 py-1 rounded uppercase`}>Active</span>
+                ) : (
+                  <button 
+                    onClick={() => handleTierChange(tierOption)}
+                    className="py-2 px-4 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
+                  >
+                    Activate
+                  </button>
+                )}
               </div>
-              {derivedTier === 'Enhanced' && <span className="text-[8px] font-black bg-indigo-500 text-white px-1.5 py-0.5 rounded uppercase">Active</span>}
-            </div>
-            <h4 className="text-sm font-black text-white uppercase tracking-tight">Enhanced:</h4>
-            <p className="text-[10px] text-zinc-500 mt-1 leading-tight">Clinical-grade analysis and personalized insights.</p>
-            {derivedTier === 'Basic' && (
-              <button 
-                onClick={onModifyAssessment}
-                className="mt-3 w-full py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
-              >
-                Unlock ENHANCED
-              </button>
-            )}
-          </div>
-
-          {/* PRO TIER */}
-          <div className={`p-4 rounded-2xl border transition-all ${derivedTier === 'Pro' ? 'bg-zinc-950 border-violet-500 shadow-[0_0_25px_rgba(139,92,246,0.4)]' : 'bg-zinc-900/50 border-zinc-800 opacity-60'}`}>
-            <div className="flex justify-between items-start mb-3">
-              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${derivedTier === 'Pro' ? 'bg-violet-500/20 text-violet-400' : 'bg-zinc-800 text-zinc-400'}`}>
-                <Rocket size={16} />
-              </div>
-              {derivedTier === 'Pro' && <span className="text-[8px] font-black bg-violet-500 text-white px-1.5 py-0.5 rounded uppercase">Active</span>}
-            </div>
-            <h4 className="text-sm font-black text-white uppercase tracking-tight">Pro:</h4>
-            <p className="text-[10px] text-zinc-500 mt-1 leading-tight">Advanced predictive modeling and full SIA intelligence.</p>
-            {derivedTier !== 'Pro' && (
-              <button 
-                className="mt-3 w-full py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
-              >
-                Activate PRO Intelligence
-              </button>
-            )}
-          </div>
+            );
+          })}
         </div>
       </div>
 
-      {/* Data Maturity Tracker */}
-      {maturity && <DataMaturityTracker maturity={maturity} />}
-
       {/* Data Overview */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="md:col-span-2 bg-zinc-900/50 border border-zinc-800 p-4 rounded-2xl flex justify-between items-center">
-          <span className="text-xs font-black uppercase tracking-widest text-zinc-400">Imported Data Credit</span>
-          <span className="text-sm font-black text-white" id="acc-import-credit-label">
-            {userProfile?.importedLogCount || 0} Days
-          </span>
+        <div className="md:col-span-2">
+          <DataMaturityTracker maturity={maturity || { count: 0, level: 1, nextThreshold: 7 }} />
         </div>
         <div className="md:col-span-2">
           <EthicalDataPledge 
@@ -312,8 +288,8 @@ export default function AccountPage({ onModifyAssessment, onRefresh }: { onModif
           {personalizationProfile?.goals && personalizationProfile.goals.length > 0 ? (
             <div className="flex flex-wrap gap-2">
               {personalizationProfile.goals.map(goal => (
-                <span key={goal} className="px-3 py-1.5 bg-zinc-800 border border-zinc-700 rounded-lg text-xs font-bold text-zinc-300 capitalize">
-                  {goal.replace('-', ' ')}
+                <span key={goal} className="px-3 py-1.5 bg-zinc-800 border border-zinc-700 rounded-xl text-[9px] font-bold text-zinc-300 uppercase tracking-widest">
+                  {goal.replace(/-/g, ' ')}
                 </span>
               ))}
             </div>

@@ -158,7 +158,7 @@ ${generateASCIIRibbonHeader()}
   const isExportDisabled = viewMode === 'custom' && activeDates.length === 0;
 
   return (
-    <Card className="bg-zinc-900/50 border-zinc-800 rounded-3xl p-6 space-y-6">
+    <Card className="bg-zinc-900/50 border-zinc-800 p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 mb-2">
           <div className="w-1.5 h-1.5 rounded-full bg-indigo-500" />

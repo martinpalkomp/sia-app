@@ -24,7 +24,7 @@ const DISCLAIMER = "SIA provides lifestyle recommendations based on patterns. Th
 export interface MaturityInfo {
   level: 1 | 2 | 3 | 4;
   count: number;
-  label: string;
+  label?: string;
   nextThreshold: number;
 }
 

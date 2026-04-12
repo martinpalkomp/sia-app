@@ -13,7 +13,8 @@ import {
   Loader2,
   FileSpreadsheet,
   Send,
-  ChevronDown
+  ChevronDown,
+  Info
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -567,7 +568,7 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
         setErrorMessage("Standard Template Detected: Fast-track import complete!");
       } else {
         // AI Restructuring
-        if (userProfile?.tier !== 'PRO' && (userProfile?.aiImportsCurrentMonth || 0) >= (userProfile?.tier === 'Basic' ? 5 : 10)) {
+        if (userProfile?.tier !== 'PRO' && (userProfile?.aiImportsCurrentMonth || 0) >= (userProfile?.tier === 'Basic' ? 5 : 5)) {
           setUploadStatus('error');
           setErrorMessage("Monthly AI Limit Reached. Please use the standard SIA Template for unlimited free imports or upgrade to PRO.");
           return;
@@ -1184,11 +1185,8 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
           </div>
           <div>
             <h3 className="text-sm font-bold text-white flex items-center gap-2">
-              📂 Import External Data (CSV, Sleep Lab, Text)
+              IMPORT EXTERNAL DATA
             </h3>
-            <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold mt-0.5">
-              Upload your sleep lab results or wearable data to enhance SIA's intelligence.
-            </p>
           </div>
         </div>
         <motion.div
@@ -1212,13 +1210,19 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
             <div className="p-6 pt-0 space-y-6 border-t border-zinc-800/50 mt-4">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pt-4">
                 <div className="space-y-1 text-left">
-                  <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
+                  <h3 className="text-xs font-black text-zinc-400 uppercase tracking-widest">
                     Importer Tools
                   </h3>
                   <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">CSV or Excel • Max 5MB</p>
                   {userProfile?.tier !== 'PRO' && (
-                    <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">
-                      AI Restructure Credits: {(userProfile?.tier === 'Basic' ? 5 : 10) - (userProfile?.aiImportsCurrentMonth || 0)} / {userProfile?.tier === 'Basic' ? 5 : 10} remaining
+                    <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold flex items-center gap-1">
+                      AI Restructure Credits: {(userProfile?.tier === 'Basic' ? 5 : 5) - (userProfile?.aiImportsCurrentMonth || 0)} / {userProfile?.tier === 'Basic' ? 5 : 5} remaining
+                      <span className="relative group cursor-help">
+                        <Info size={10} />
+                        <span className="absolute left-full ml-2 w-48 p-2 bg-zinc-800 text-zinc-300 text-[9px] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                          AI Restructure automatically cleans, formats, and maps non-standard data files to SIA's high-precision sleep log format.
+                        </span>
+                      </span>
                     </p>
                   )}
                 </div>
@@ -1233,13 +1237,6 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
                   >
                     <FileText size={14} />
                     Paste from Spreadsheet
-                  </button>
-                  <button 
-                    onClick={downloadTemplate}
-                    className="flex items-center justify-center gap-2 px-3 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-xl text-[10px] font-bold uppercase tracking-widest text-zinc-400 transition-all"
-                  >
-                    <Download size={14} />
-                    Template
                   </button>
                 </div>
               </div>
@@ -1532,7 +1529,16 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
               </form>
 
               <div className="bg-zinc-900/80 rounded-2xl p-4 border border-zinc-800">
-                <h4 className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold mb-2">Import Guidelines</h4>
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">Import Guidelines</h4>
+                  <button 
+                    onClick={downloadTemplate}
+                    className="flex items-center justify-center gap-2 px-3 py-1 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-lg text-[9px] font-bold uppercase tracking-widest text-zinc-400 transition-all"
+                  >
+                    <Download size={12} />
+                    Download Template
+                  </button>
+                </div>
                 <ul className="text-[10px] text-zinc-400 space-y-1 list-disc list-inside">
                   <li>Date format must be <code className="text-indigo-400">YYYY-MM-DD</code></li>
                   <li>Each row = one sleep event. Use multiple rows per date for nights with wake-ups (set Status_Code to AWAKE-IN).</li>

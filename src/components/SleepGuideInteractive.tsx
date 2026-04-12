@@ -137,7 +137,7 @@ export default function SleepGuideInteractive({ onClose, onOpenPersonalization }
         <div className="flex items-center justify-between p-3">
           <div className="flex items-center gap-2">
             <Sparkles size={16} className="text-indigo-400" />
-            <span className="text-xs font-bold uppercase tracking-wider">Sleep Mastery</span>
+            <span className="text-xs font-black uppercase tracking-widest">Sleep Mastery</span>
           </div>
           <div className="flex items-center gap-2">
             <button 
