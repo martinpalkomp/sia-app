@@ -59,6 +59,7 @@ import { Header } from './Header';
 import { InsightCard } from './InsightCard';
 import { LockedFeatureCard } from './LockedFeatureCard';
 import DataMaturityTracker from './DataMaturityTracker';
+import { DevSwitchboardMini } from './DevSwitchboardMini';
 import { format } from 'date-fns';
 
 interface DashboardProps {
@@ -431,7 +432,8 @@ export default function Dashboard({
 
   const DISCLAIMER = "SIA provides lifestyle recommendations based on patterns. This is not a medical diagnosis. Consult a professional for clinical concerns.";
 
-  const isEnhanced = !!personalizationProfile;
+  const isEnhanced = userProfile?.tier === 'Enhanced' || userProfile?.tier === 'Pro';
+  const isPro = userProfile?.tier === 'Pro';
 
   const FEATURE_FLAGS = {
     showClinicalInsights: true,
@@ -475,6 +477,7 @@ export default function Dashboard({
 
       {/* Header Section */}
       <Header user={user} greeting={greeting} />
+      <DevSwitchboardMini className="fixed top-4 right-4 z-[9999]" />
 
       {/* Daily Brief Section */}
       <motion.div
@@ -533,9 +536,9 @@ export default function Dashboard({
               <span className="text-[8px] md:text-[10px] text-zinc-300 uppercase tracking-widest font-bold">Status Report</span>
             </div>
             <p className="text-zinc-400 text-[10px] md:text-sm font-bold leading-relaxed tracking-widest">
-              {maturity && maturity.count >= 7
+              {dataMaturity && dataMaturity.count >= 7
                 ? "I've analyzed your sleep intelligence for the last 7 days."
-                : `Log more nights to unlock your weekly trend analysis (${maturity?.count || 0}/7)`}
+                : `Log more nights to unlock your weekly trend analysis (${dataMaturity?.count || 0}/7)`}
             </p>
           </Card>
 
@@ -636,7 +639,7 @@ export default function Dashboard({
             
             <div className="space-y-4">
               <p className="text-zinc-200 leading-relaxed text-sm font-medium">
-                {isAiLoading ? (isDeepAnalysis ? "Analyzing long-term trends..." : "Scanning recent logs...") : (aiInsight ? aiInsight : `Log more nights to unlock personalized pattern analysis (${dataDepth.count}/7)`)}
+                {isAiLoading ? (isDeepAnalysis ? "Analyzing long-term trends..." : "Scanning recent logs...") : (aiInsight ? aiInsight : `Log more nights to unlock personalized pattern analysis (${dataDepth.count}/14)`)}
               </p>
               {!isAiLoading && aiInsight && (
                 <p className="text-[10px] text-zinc-500 italic leading-tight">{DISCLAIMER}</p>
@@ -662,19 +665,19 @@ export default function Dashboard({
                 ) : !isDeepAnalysis && aiInsight && (
                   /* Maturity-Locked Pro Button */
                   <button
-                    onClick={(e) => { e.stopPropagation(); if (maturity?.level === 4) handleDeepAnalysis(); }}
+                    onClick={(e) => { e.stopPropagation(); if (dataDepth.level >= 3 && isEnhanced) handleDeepAnalysis(); }}
                     className={`mt-3 w-full py-2 border text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-2 rounded transition-all ${
-                      maturity?.level === 4 
+                      dataDepth.level >= 3 && isEnhanced 
                         ? 'bg-zinc-800/50 hover:bg-zinc-700/50 border-zinc-800 text-indigo-400'
                         : 'bg-zinc-900/50 border-zinc-800 text-zinc-600 cursor-not-allowed'
                     }`}
                   >
                     <Sparkles size={10} />
-                    {maturity?.level === 4 ? (
+                    {dataDepth.level >= 3 && isEnhanced ? (
                       `Run Deep Analysis (${personalizationProfile ? '180' : '30'} Days)`
                     ) : (
                       <>
-                        <Lock size={8} /> Locked (Unlocks at Level 4)
+                        <Lock size={8} /> Locked (Unlocks at Level 3)
                       </>
                     )}
                   </button>
@@ -687,7 +690,7 @@ export default function Dashboard({
         {/* Insights Feed */}
         <section className="space-y-4">
           <h3 className="text-[10px] font-black text-zinc-300 uppercase tracking-[0.2em]">Clinical Insights</h3>
-          {userProfile?.tier === 'Basic' || dataDepth.count < 15 ? (
+          {userProfile?.tier === 'Basic' || dataDepth.level < 3 ? (
             <LockedFeatureCard
               title="Clinical Insights Feed"
               description="Advanced Diagnostic Monitoring"
@@ -700,8 +703,8 @@ export default function Dashboard({
             ))
           ) : (
             <p className="text-zinc-500 text-xs italic">
-              {dataDepth.count < 15 
-                ? `Log ${15 - dataDepth.count} more nights to unlock clinical insights.`
+              {dataDepth.level < 3 
+                ? `Log ${Math.max(0, 14 - dataDepth.count)} more nights to unlock clinical insights.`
                 : "No insights available yet."}
             </p>
           )}
@@ -798,7 +801,7 @@ export default function Dashboard({
         
         <div className="grid grid-cols-1 gap-6">
           {FEATURE_FLAGS.showSiaIntelligence && (
-            isEnhanced ? (
+            isEnhanced && dataDepth.level >= 3 ? (
               <Card 
                 className="bg-zinc-950 border-zinc-800 relative overflow-hidden group p-0"
               >
@@ -915,6 +918,7 @@ export default function Dashboard({
           proMessage={userProfile?.tier === 'Pro' && dataMaturity.level < 3 ? "Pro Member: Your analysis will automatically deepen as data matures" : undefined} 
         />
       </section>
+      
     </div>
   );
 }

@@ -38,28 +38,35 @@ export class AIService {
   private static apiKey = process.env.GEMINI_API_KEY || "";
 
   static getModelForTier(tier: UserTier): string {
-    return "gemini-2.0-flash";
+    return "gemini-3-flash-preview";
   }
 
   static async getUserDataMaturity(userId: string): Promise<MaturityInfo> {
-    const userSnap = await getDoc(doc(db!, 'users', userId));
-    const userData = userSnap.data();
-    if (userData?.levelOverride) {
-      const level = userData.levelOverride;
-      if (level === 4) return { level: 4, count: 90, label: 'Advanced Diagnostic', nextThreshold: 90 };
-      if (level === 3) return { level: 3, count: 14, label: 'Deep Analysis', nextThreshold: 90 };
-      if (level === 2) return { level: 2, count: 7, label: 'Trends', nextThreshold: 14 };
+    try {
+      if (!db) throw new Error('Firestore not initialized');
+      const userSnap = await getDoc(doc(db, 'users', userId));
+      const userData = userSnap.data();
+      if (userData?.levelOverride) {
+        const level = userData.levelOverride;
+        if (level === 4) return { level: 4, count: 90, label: 'Advanced Diagnostic', nextThreshold: 90 };
+        if (level === 3) return { level: 3, count: 14, label: 'Deep Analysis', nextThreshold: 90 };
+        if (level === 2) return { level: 2, count: 7, label: 'Trends', nextThreshold: 14 };
+        return { level: 1, count: 0, label: 'Baseline', nextThreshold: 7 };
+      }
+
+      const logsRef = collection(db, 'users', userId, 'sleep_logs');
+      const snapshot = await getDocs(query(logsRef));
+      const count = snapshot.size;
+
+      if (count >= 90) return { level: 4, count, label: 'Advanced Diagnostic', nextThreshold: 90 };
+      if (count >= 14) return { level: 3, count, label: 'Deep Analysis', nextThreshold: 90 };
+      if (count >= 7) return { level: 2, count, label: 'Trends', nextThreshold: 14 };
+      return { level: 1, count, label: 'Baseline', nextThreshold: 7 };
+    } catch (error) {
+      console.error('Error fetching maturity:', error);
+      // Fallback to Baseline if Firebase fails
       return { level: 1, count: 0, label: 'Baseline', nextThreshold: 7 };
     }
-
-    const logsRef = collection(db!, 'users', userId, 'sleep_logs');
-    const snapshot = await getDocs(query(logsRef));
-    const count = snapshot.size;
-
-    if (count >= 90) return { level: 4, count, label: 'Advanced Diagnostic', nextThreshold: 90 };
-    if (count >= 14) return { level: 3, count, label: 'Deep Analysis', nextThreshold: 90 };
-    if (count >= 7) return { level: 2, count, label: 'Trends', nextThreshold: 14 };
-    return { level: 1, count, label: 'Baseline', nextThreshold: 7 };
   }
 
   static async checkAndResetQuota(userId: string, tier: UserTier): Promise<UserQuota> {
@@ -158,17 +165,7 @@ export class AIService {
     };
 
     try {
-      let response;
-      try {
-        response = await callModel(modelName);
-      } catch (error: any) {
-        if (error.status === 404) {
-          console.warn(`Model ${modelName} not found, falling back to gemini-3-flash-preview`);
-          response = await callModel("gemini-2.0-flash");
-        } else {
-          throw error;
-        }
-      }
+      const response = await callModel(modelName);
       const content = response.text || "Unable to generate brief.";
       
       // Check for partial logs
@@ -227,17 +224,7 @@ export class AIService {
     };
 
     try {
-      let response;
-      try {
-        response = await callModel(modelName);
-      } catch (error: any) {
-        if (error.status === 404) {
-          console.warn(`Model ${modelName} not found, falling back to gemini-3-flash-preview`);
-          response = await callModel("gemini-2.0-flash");
-        } else {
-          throw error;
-        }
-      }
+      const response = await callModel(modelName);
 
       const content = response.text || "Unable to generate analysis.";
       const finalContent = `${content}\n\n***\n\n${DISCLAIMER}`;
@@ -283,17 +270,7 @@ export class AIService {
     };
 
     try {
-      let response;
-      try {
-        response = await callModel(modelName);
-      } catch (error: any) {
-        if (error.status === 404) {
-          console.warn(`Model ${modelName} not found, falling back to gemini-3-flash-preview`);
-          response = await callModel("gemini-2.0-flash");
-        } else {
-          throw error;
-        }
-      }
+      const response = await callModel(modelName);
 
       const content = response.text || "Unable to generate insight.";
       const finalContent = `${content}\n\n***\n\n${DISCLAIMER}`;

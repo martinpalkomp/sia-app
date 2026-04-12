@@ -24,7 +24,7 @@ import {
 import { Card, AvatarFrame } from './UI';
 import DataMaturityTracker from './DataMaturityTracker';
 import EthicalDataPledge from './EthicalDataPledge';
-import { seedTestData, purgeUserData } from '../utils/devTools';
+import { purgeUserData } from '../utils/devTools';
 import DataManager from './DataManager';
 import FeedbackForm from './FeedbackForm';
 import AdminFeedback from './AdminFeedback';
@@ -33,7 +33,7 @@ import { AIService } from '../services/aiService';
 import { exportDailySummary, exportDeepEventLog } from '../utils/exportUtils';
 
 export default function AccountPage({ onModifyAssessment, onRefresh }: { onModifyAssessment: () => void; onRefresh?: () => void; }) {
-  const { user, personalizationProfile, logs, maturity, highlightTier, tier, userProfile } = useUser();
+  const { user, personalizationProfile, logs, maturity, highlightTier, tier, userProfile, setMockLogs } = useUser();
   const [view, setView] = React.useState<'main' | 'data-ledger' | 'feedback' | 'admin-feedback'>('main');
   const [userData, setUserData] = React.useState<any>(null);
   const [modal, setModal] = React.useState<{ isOpen: boolean; message: string; onConfirm: () => void; onCancel?: () => void }>({
@@ -78,30 +78,6 @@ export default function AccountPage({ onModifyAssessment, onRefresh }: { onModif
     } catch (error) {
       console.error('Error updating sharing preference:', error);
     }
-  };
-
-  const handleSeed = async (days: number) => {
-    setModal({
-      isOpen: true,
-      message: `This will populate ${days} days of logs. Continue?`,
-      onConfirm: async () => {
-        setModal({ ...modal, isOpen: false });
-        try {
-          await seedTestData(days, user!.uid, async () => {
-            await AIService.getUserDataMaturity(user!.uid);
-            onRefresh?.();
-          });
-        } catch (error) {
-          console.error("Seeding error:", error);
-          setModal({
-            isOpen: true,
-            message: "Failed to seed data.",
-            onConfirm: () => setModal({ ...modal, isOpen: false }),
-          });
-        }
-      },
-      onCancel: () => setModal({ ...modal, isOpen: false }),
-    });
   };
 
   const handlePurgeData = async () => {
@@ -473,32 +449,15 @@ export default function AccountPage({ onModifyAssessment, onRefresh }: { onModif
             <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 ml-1">Developer Tools</h3>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="flex gap-2">
-              <button 
-                onClick={() => handleSeed(7)}
-                className="flex-1 p-4 bg-indigo-600/10 hover:bg-indigo-600/20 border border-indigo-500/30 rounded-2xl flex items-center justify-center gap-3 group transition-all"
-              >
-                <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">7d</span>
-              </button>
-              <button 
-                onClick={() => handleSeed(60)}
-                className="flex-1 p-4 bg-indigo-600/10 hover:bg-indigo-600/20 border border-indigo-500/30 rounded-2xl flex items-center justify-center gap-3 group transition-all"
-              >
-                <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">60d</span>
-              </button>
-              <button 
-                onClick={() => handleSeed(90)}
-                className="flex-1 p-4 bg-indigo-600/10 hover:bg-indigo-600/20 border border-indigo-500/30 rounded-2xl flex items-center justify-center gap-3 group transition-all"
-              >
-                <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">90d</span>
-              </button>
-            </div>
             <button 
-              onClick={handlePurgeData}
-              className="w-full p-4 bg-red-600/10 hover:bg-red-600/20 border border-red-500/30 rounded-2xl flex items-center justify-center gap-3 group transition-all"
+              onClick={() => {
+                localStorage.removeItem('mockLogs');
+                onRefresh?.();
+              }}
+              className="w-full p-3 bg-red-600/10 hover:bg-red-600/20 border border-red-500/30 rounded-xl flex items-center justify-center gap-2 transition-all"
             >
-              <Trash2 size={18} className="text-red-400" />
-              <span className="text-sm font-black text-red-400 uppercase tracking-widest">PURGE ALL DATA</span>
+              <Trash2 size={14} className="text-red-400" />
+              <span className="text-[9px] font-black text-red-400 uppercase tracking-widest">Clear All Local Data</span>
             </button>
             <button 
               onClick={() => window.location.hash = '/dev/map'}
@@ -507,6 +466,38 @@ export default function AccountPage({ onModifyAssessment, onRefresh }: { onModif
               <Layers size={18} className="text-indigo-400" />
               <span className="text-sm font-black text-indigo-400 uppercase tracking-widest">OPEN ELEMENT MAP</span>
             </button>
+          </div>
+
+          {/* DEV SWITCHBOARD */}
+          <div className="mt-8 p-4 border-2 border-amber-500 rounded-2xl bg-amber-950/10">
+            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-500 mb-4">DEV SWITCHBOARD</h4>
+            
+            <div className="space-y-4">
+              <div>
+                <p className="text-[9px] font-bold text-amber-400 uppercase tracking-widest mb-2">User Tier</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {['Basic', 'Enhanced', 'Pro'].map(t => (
+                    <button key={t} onClick={() => { localStorage.setItem('dev_tier', t); window.location.reload(); }} className="p-2 bg-zinc-800 hover:bg-zinc-700 rounded text-[10px] font-bold text-white uppercase">{t}</button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <p className="text-[9px] font-bold text-amber-400 uppercase tracking-widest mb-2">Maturity Level</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {['Baseline', 'Trends', 'Deep', 'Advanced'].map(m => (
+                    <button key={m} onClick={() => { localStorage.setItem('dev_maturity', m); window.location.reload(); }} className="p-2 bg-zinc-800 hover:bg-zinc-700 rounded text-[10px] font-bold text-white uppercase">{m}</button>
+                  ))}
+                </div>
+              </div>
+
+              <button 
+                onClick={() => { localStorage.removeItem('dev_tier'); localStorage.removeItem('dev_maturity'); window.location.reload(); }}
+                className="w-full p-2 bg-red-900/20 hover:bg-red-900/40 text-red-400 rounded text-[10px] font-bold uppercase tracking-widest"
+              >
+                Reset to Real Data
+              </button>
+            </div>
           </div>
           <div className="mt-4 grid grid-cols-3 gap-2">
             {['Basic', 'Enhanced', 'Pro'].map((tier) => (
@@ -518,20 +509,6 @@ export default function AccountPage({ onModifyAssessment, onRefresh }: { onModif
                 {tier}
               </button>
             ))}
-          </div>
-          <div className="mt-4">
-            <input
-              type="number"
-              id="dev-maturity-input"
-              placeholder="Override Maturity Days"
-              className="w-full p-2 bg-zinc-800 border border-zinc-700 rounded-lg text-xs text-white"
-              onChange={(e) => {
-                const val = e.target.value;
-                if (val) localStorage.setItem('devOverrideMaturity', val);
-                else localStorage.removeItem('devOverrideMaturity');
-                onRefresh?.();
-              }}
-            />
           </div>
         </div>
       )}

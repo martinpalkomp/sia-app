@@ -107,6 +107,7 @@ import {
 import { calculateSafeAverage } from './utils/statsEngine';
 
 import Legal from './components/Legal';
+import { DevSwitchboardMini } from './components/DevSwitchboardMini';
 import CorrectionHub from './components/CorrectionHub';
 import DevElementMap from './components/DevElementMap';
 const AIInsightsAgent = lazy(() => import('./components/AIInsightsAgent'));
@@ -1066,7 +1067,7 @@ export default function App() {
     const start = activeDates[0];
     const end = activeDates[activeDates.length - 1];
 
-    if (!start || !end) return;
+    if (!start || !end || !db) return;
 
     const q = query(
       collection(db, 'users', user.uid, 'sleep_logs'),
@@ -1076,6 +1077,7 @@ export default function App() {
     );
     
     const unsubscribe = onSnapshot(q, (snapshot) => {
+      console.log('onSnapshot triggered, logs fetched:', snapshot.size);
       // Disable Persistence Sync during import to prevent network/CORS timeouts
       if (isImporting) return;
 
@@ -1099,6 +1101,8 @@ export default function App() {
         });
         return fetchedLogs;
       });
+    }, (error) => {
+      console.error('onSnapshot error:', error);
     });
 
     return () => unsubscribe();
@@ -2449,6 +2453,7 @@ export default function App() {
                   Reset Day
                 </button>
               </div>
+              <DevSwitchboardMini key="log-switchboard" />
             </motion.div>
           </AnimatePresence>
         </motion.div>
@@ -2467,6 +2472,7 @@ export default function App() {
               <Suspense fallback={<div className="flex items-center justify-center h-64"><div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"/></div>}>
                 <AIInsightsAgent />
               </Suspense>
+              <DevSwitchboardMini key="ai-switchboard" />
             </motion.div>
           ) : view === 'legal' ? (
             <Legal onBack={() => setView('dashboard')} />
@@ -2511,23 +2517,25 @@ export default function App() {
                       </button>
                     ))}
                   </div>
-                  {userProfile?.tier === 'Basic' ? (
-                    <button
-                      onClick={() => setView('account')}
-                      className="flex items-center gap-2 px-3 py-1.5 bg-zinc-900 border border-indigo-500/20 text-indigo-400 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-900/20 transition-all"
-                    >
-                      <Sparkles size={12} />
-                      Clinical Report — Enhanced+
-                    </button>
-                  ) : (
-                    <button
-                      onClick={handlePrint}
-                      disabled={!averageStats}
-                      className="flex items-center gap-2 px-3 py-1.5 bg-zinc-900 border border-zinc-700 text-zinc-300 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-zinc-800 transition-all disabled:opacity-40"
-                    >
-                      <Stethoscope size={12} />
-                      Clinical Report
-                    </button>
+                  {view === 'dashboard' && (
+                    userProfile?.tier === 'Basic' ? (
+                      <button
+                        onClick={() => setView('account')}
+                        className="flex items-center gap-2 px-3 py-1.5 bg-zinc-900 border border-indigo-500/20 text-indigo-400 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-900/20 transition-all"
+                      >
+                        <Sparkles size={12} />
+                        Clinical Report — Enhanced+
+                      </button>
+                    ) : (
+                      <button
+                        onClick={handlePrint}
+                        disabled={!averageStats}
+                        className="flex items-center gap-2 px-3 py-1.5 bg-zinc-900 border border-zinc-700 text-zinc-300 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-zinc-800 transition-all disabled:opacity-40"
+                      >
+                        <Stethoscope size={12} />
+                        Clinical Report
+                      </button>
+                    )
                   )}
 
 
@@ -2674,6 +2682,7 @@ export default function App() {
                   onViewChange={handleViewChange}
                 />
               </section>
+              <DevSwitchboardMini key="insights-switchboard" />
             </motion.div>
           )}
         </AnimatePresence>

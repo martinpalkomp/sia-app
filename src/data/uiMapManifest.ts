@@ -23,6 +23,7 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
         { id: 'greeting-subtext', name: 'Greeting Subtext', tag: 'comp', description: 'Context line', path: '/src/components/Dashboard.tsx' },
       ]
     },
+    { id: 'dev-switchboard-mini', name: 'Dev Switchboard Mini', tag: 'comp', description: 'Collapsible dev switchboard.', path: '/src/components/DevSwitchboardMini.tsx' },
     {
       id: 'db-daily-brief',
       name: 'Weekly Brief Section',
@@ -116,6 +117,7 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
     },
   ],
   Log: [
+    { id: 'dev-switchboard-mini', name: 'Dev Switchboard Mini', tag: 'comp', description: 'Collapsible dev switchboard.', path: '/src/components/DevSwitchboardMini.tsx' },
     {
       id: 'log-date-selector',
       name: 'Date Selector Bar',
@@ -244,6 +246,7 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
     },
   ],
   Insights: [
+    { id: 'dev-switchboard-mini', name: 'Dev Switchboard Mini', tag: 'comp', description: 'Collapsible dev switchboard.', path: '/src/components/DevSwitchboardMini.tsx' },
     {
       id: 'ins-header',
       name: 'Insights Header',
@@ -316,6 +319,7 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
     },
   ],
   AI: [
+    { id: 'dev-switchboard-mini', name: 'Dev Switchboard Mini', tag: 'comp', description: 'Collapsible dev switchboard.', path: '/src/components/DevSwitchboardMini.tsx' },
     {
       id: 'ai-view',
       name: 'AI Analysis View',
@@ -417,10 +421,14 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
           { id: 'acc-delete-account-btn', name: 'Delete Account Button', tag: 'btn', description: 'Delete account', path: '/src/components/AccountPage.tsx' },
         ]},
         { id: 'acc-dev-tools', name: 'Developer Tools Section', tag: 'section', description: 'Admin-only debugging and data management', path: '/src/components/AccountPage.tsx', children: [
-          { id: 'dev-maturity-input', name: 'Maturity Override Input', tag: 'input', description: 'Dev Environment Only / Admin only.', path: '/src/components/AccountPage.tsx' },
-          { id: 'dev-tier-switcher', name: 'Tier Switcher', tag: 'input', description: 'Dev Environment Only / Admin only.', path: '/src/components/AccountPage.tsx' },
           { id: 'dev-open-map-btn', name: 'Open Map Button', tag: 'btn', description: 'Navigates to /dev/map. Dev Environment Only / Admin only.', path: '/src/components/AccountPage.tsx' },
-        ]}
+          { id: 'dev-clear-local', name: 'Clear All Local Data Button', tag: 'btn', description: 'Wipes localStorage.', path: '/src/components/AccountPage.tsx' },
+          { id: 'dev-switchboard-container', name: 'Dev Switchboard', tag: 'section', description: 'Dev Environment Only / Admin only.', path: '/src/components/AccountPage.tsx', children: [
+            { id: 'dev-tier-buttons', name: 'Tier Toggle Buttons', tag: 'btn', description: 'Dev Environment Only.', path: '/src/components/AccountPage.tsx' },
+            { id: 'dev-maturity-buttons', name: 'Maturity Toggle Buttons', tag: 'btn', description: 'Dev Environment Only.', path: '/src/components/AccountPage.tsx' },
+            { id: 'dev-reset-btn', name: 'Reset Button', tag: 'btn', description: 'Clears dev overrides.', path: '/src/components/AccountPage.tsx' },
+          ]},
+        ]},
       ]
     },
   ],
