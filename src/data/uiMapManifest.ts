@@ -42,9 +42,10 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
       id: 'db-status-report',
       name: 'Status Report Section',
       tag: 'section',
-      description: '5-card grid of metrics',
+      description: '6-card grid of metrics',
       path: '/src/components/Dashboard.tsx',
       children: [
+        { id: 'status-report-card', name: 'Status Report Card', tag: 'card', description: 'Maturity status card', path: '/src/components/Dashboard.tsx' },
         { id: 'avg-quality', name: 'Avg Quality Card', tag: 'card', description: '7-day average SQ score', path: '/src/components/Dashboard.tsx' },
         { id: 'avg-restedness', name: 'Avg Restedness Card', tag: 'card', description: '7-day average R score', path: '/src/components/Dashboard.tsx' },
         { id: 'avg-energy', name: 'Avg Energy Card', tag: 'card', description: '7-day average L score', path: '/src/components/Dashboard.tsx' },
@@ -153,6 +154,20 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
       ]
     },
     {
+      id: 'log-metrics',
+      name: 'Daily Metrics Section',
+      tag: 'section',
+      description: 'Slider inputs for sleep quality, restedness, and energy',
+      path: '/src/App.tsx',
+      children: [
+        { id: 'log-info-quality', name: 'Sleep Quality Info', tag: 'comp', description: 'Interactive label and info icon for sleep quality', path: '/src/App.tsx' },
+        { id: 'log-info-restedness', name: 'Restedness Info', tag: 'comp', description: 'Interactive label and info icon for restedness', path: '/src/App.tsx' },
+        { id: 'log-info-energy', name: 'Energy Level Info', tag: 'comp', description: 'Interactive label and info icon for energy level', path: '/src/App.tsx' },
+        { id: 'log-info-stress', name: 'Stress Level Info', tag: 'comp', description: 'Interactive label and info icon for stress level', path: '/src/App.tsx' },
+        { id: 'log-info-mood', name: 'Morning Mood Info', tag: 'comp', description: 'Interactive label and info icon for morning mood', path: '/src/App.tsx' },
+      ]
+    },
+    {
       id: 'log-factors',
       name: 'Daily Factors & Disturbances Section',
       tag: 'section',
@@ -234,18 +249,18 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
       name: 'Insights Header',
       tag: 'section',
       description: 'View title, date range, tab bar, clinical report button',
-      path: '/src/pages/Insights.tsx',
+      path: '/src/App.tsx',
       children: [
-        { id: 'ins-view-title', name: 'View Title', tag: 'comp', description: 'Insights title', path: '/src/pages/Insights.tsx' },
-        { id: 'ins-date-range-label', name: 'Date Range Label', tag: 'comp', description: 'Selected date range', path: '/src/pages/Insights.tsx' },
-        { id: 'ins-tab-bar', name: 'Tab Bar', tag: 'section', description: 'Date range navigation', path: '/src/pages/Insights.tsx', children: [
-          { id: 'ins-tab-7d', name: '7-Day Tab', tag: 'btn', description: 'Select 7-day range. Triggers 7d view state.', path: '/src/pages/Insights.tsx' },
-          { id: 'ins-tab-30d', name: '30-Day Tab', tag: 'btn', description: 'Select 30-day range. Triggers 30d view state.', path: '/src/pages/Insights.tsx' },
-          { id: 'ins-tab-custom', name: 'Custom Tab', tag: 'btn', description: 'Select custom range. Triggers custom view state.', path: '/src/pages/Insights.tsx' },
+        { id: 'ins-view-title', name: 'View Title', tag: 'comp', description: 'Insights title', path: '/src/App.tsx' },
+        { id: 'ins-date-range-label', name: 'Date Range Label', tag: 'comp', description: 'Selected date range', path: '/src/App.tsx' },
+        { id: 'ins-tab-bar', name: 'Tab Bar', tag: 'section', description: 'Date range navigation', path: '/src/App.tsx', children: [
+          { id: 'ins-tab-7d', name: '7-Day Tab', tag: 'btn', description: 'Select 7-day range. Triggers 7d view state.', path: '/src/App.tsx' },
+          { id: 'ins-tab-30d', name: '30-Day Tab', tag: 'btn', description: 'Select 30-day range. Triggers 30d view state.', path: '/src/App.tsx' },
+          { id: 'ins-tab-custom', name: 'Custom Tab', tag: 'btn', description: 'Select custom range. Triggers custom view state.', path: '/src/App.tsx' },
         ]},
-        { id: 'ins-custom-pickers', name: 'Custom Date Pickers', tag: 'section', description: 'Visible only when view === custom', path: '/src/pages/Insights.tsx', children: [
-          { id: 'ins-picker-start', name: 'Start Date Picker', tag: 'input', description: 'Start date selection', path: '/src/pages/Insights.tsx' },
-          { id: 'ins-picker-end', name: 'End Date Picker', tag: 'input', description: 'End date selection', path: '/src/pages/Insights.tsx' },
+        { id: 'ins-custom-pickers', name: 'Custom Date Pickers', tag: 'section', description: 'Visible only when view === custom', path: '/src/App.tsx', children: [
+          { id: 'ins-picker-start', name: 'Start Date Picker', tag: 'input', description: 'Start date selection', path: '/src/App.tsx' },
+          { id: 'ins-picker-end', name: 'End Date Picker', tag: 'input', description: 'End date selection', path: '/src/App.tsx' },
         ]},
       ]
     },
@@ -254,13 +269,13 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
       name: 'Averages Grid',
       tag: 'section',
       description: '5 MetricDisplay components. Read-only visual components.',
-      path: '/src/pages/Insights.tsx',
+      path: '/src/App.tsx',
       children: [
-        { id: 'ins-avg-quality', name: 'Avg Quality', tag: 'comp', description: 'MetricDisplay component. Read-only visual component.', path: '/src/pages/Insights.tsx' },
-        { id: 'ins-avg-restedness', name: 'Avg Restedness', tag: 'comp', description: 'MetricDisplay component. Read-only visual component.', path: '/src/pages/Insights.tsx' },
-        { id: 'ins-avg-energy', name: 'Avg Energy', tag: 'comp', description: 'MetricDisplay component. Read-only visual component.', path: '/src/pages/Insights.tsx' },
-        { id: 'ins-avg-duration', name: 'Avg Duration', tag: 'comp', description: 'MetricDisplay component. Read-only visual component.', path: '/src/pages/Insights.tsx' },
-        { id: 'ins-avg-efficiency', name: 'Avg Efficiency', tag: 'comp', description: 'MetricDisplay component. Read-only visual component.', path: '/src/pages/Insights.tsx' },
+        { id: 'ins-avg-quality', name: 'Avg Quality', tag: 'comp', description: 'MetricDisplay component. Read-only visual component.', path: '/src/App.tsx' },
+        { id: 'ins-avg-restedness', name: 'Avg Restedness', tag: 'comp', description: 'MetricDisplay component. Read-only visual component.', path: '/src/App.tsx' },
+        { id: 'ins-avg-energy', name: 'Avg Energy', tag: 'comp', description: 'MetricDisplay component. Read-only visual component.', path: '/src/App.tsx' },
+        { id: 'ins-avg-duration', name: 'Avg Duration', tag: 'comp', description: 'MetricDisplay component. Read-only visual component.', path: '/src/App.tsx' },
+        { id: 'ins-avg-efficiency', name: 'Avg Efficiency', tag: 'comp', description: 'MetricDisplay component. Read-only visual component.', path: '/src/App.tsx' },
       ]
     },
     {
@@ -268,10 +283,10 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
       name: 'Breakdown List',
       tag: 'section',
       description: 'Daily breakdown rows with SleepRibbon',
-      path: '/src/pages/Insights.tsx',
+      path: '/src/App.tsx',
       children: [
-        { id: 'ins-breakdown-container', name: 'Breakdown Container', tag: 'comp', description: 'Container for daily rows', path: '/src/pages/Insights.tsx', children: [
-          { id: 'ins-daily-row', name: 'Daily Row', tag: 'comp', description: 'Single day breakdown row', path: '/src/pages/Insights.tsx', children: [
+        { id: 'ins-breakdown-container', name: 'Breakdown Container', tag: 'comp', description: 'Container for daily rows', path: '/src/App.tsx', children: [
+          { id: 'ins-daily-row', name: 'Daily Row', tag: 'comp', description: 'Single day breakdown row', path: '/src/App.tsx', children: [
             { id: 'ins-sleep-ribbon', name: 'Sleep Ribbon', tag: 'comp', description: 'SleepRibbon component. Read-only visual component.', path: '/src/components/SleepRibbon.tsx' },
           ]},
         ]},
@@ -378,33 +393,33 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
       name: 'Account View', 
       tag: 'view', 
       description: 'User account and subscription management', 
-      path: '/src/pages/Account.tsx',
+      path: '/src/components/AccountPage.tsx',
       children: [
-        { id: 'acc-header', name: 'Header Section', tag: 'section', description: 'User avatar and profile info', path: '/src/pages/Account.tsx', children: [
-          { id: 'acc-back-btn', name: 'Back Button', tag: 'btn', description: 'Navigates back to Dashboard.', path: '/src/pages/Account.tsx' },
+        { id: 'acc-header', name: 'Header Section', tag: 'section', description: 'User avatar and profile info', path: '/src/components/AccountPage.tsx', children: [
+          { id: 'acc-back-btn', name: 'Back Button', tag: 'btn', description: 'Navigates back to Dashboard.', path: '/src/components/AccountPage.tsx' },
         ]},
-        { id: 'acc-tier-section', name: 'Intelligence Tier Section', tag: 'section', description: 'Display and upgrade for SIA tiers', path: '/src/pages/Account.tsx', children: [
-          { id: 'tier-option-basic', name: 'Basic Tier Option', tag: 'comp', description: 'Basic tier details and activation.', path: '/src/pages/Account.tsx' },
-          { id: 'tier-option-enhanced', name: 'Enhanced Tier Option', tag: 'comp', description: 'Enhanced tier details and activation.', path: '/src/pages/Account.tsx' },
-          { id: 'tier-option-pro', name: 'Pro Tier Option', tag: 'comp', description: 'Pro tier details and activation.', path: '/src/pages/Account.tsx' },
+        { id: 'acc-tier-section', name: 'Intelligence Tier Section', tag: 'section', description: 'Display and upgrade for SIA tiers', path: '/src/components/AccountPage.tsx', children: [
+          { id: 'tier-option-basic', name: 'Basic Tier Option', tag: 'comp', description: 'Basic tier details and activation.', path: '/src/components/AccountPage.tsx' },
+          { id: 'tier-option-enhanced', name: 'Enhanced Tier Option', tag: 'comp', description: 'Enhanced tier details and activation.', path: '/src/components/AccountPage.tsx' },
+          { id: 'tier-option-pro', name: 'Pro Tier Option', tag: 'comp', description: 'Pro tier details and activation.', path: '/src/components/AccountPage.tsx' },
         ]},
-        { id: 'acc-data-overview', name: 'Data Overview Section', tag: 'section', description: 'Sleep goals and demographics', path: '/src/pages/Account.tsx', children: [
+        { id: 'acc-data-overview', name: 'Data Overview Section', tag: 'section', description: 'Sleep goals and demographics', path: '/src/components/AccountPage.tsx', children: [
           { id: 'acc-maturity-tracker', name: 'Data Maturity Tracker', tag: 'comp', description: 'Multi-bar roadmap for data calibration. Source is Firestore count.', path: '/src/components/DataMaturityTracker.tsx' },
-          { id: 'acc-goals-list', name: 'Goals List', tag: 'comp', description: 'List of sleep goals', path: '/src/pages/Account.tsx' },
-          { id: 'acc-health-tags', name: 'Health Tags', tag: 'comp', description: 'Health tags', path: '/src/pages/Account.tsx' },
-          { id: 'acc-demographics-row', name: 'Demographics Row', tag: 'comp', description: 'Age, Sex, Work, etc.', path: '/src/pages/Account.tsx' },
-          { id: 'acc-anonymized-toggle', name: 'Anonymized Sharing Toggle', tag: 'input', description: 'Writes to personalizationProfile.allowsAnonymizedSharing.', path: '/src/pages/Account.tsx' },
+          { id: 'acc-goals-list', name: 'Goals List', tag: 'comp', description: 'List of sleep goals', path: '/src/components/AccountPage.tsx' },
+          { id: 'acc-health-tags', name: 'Health Tags', tag: 'comp', description: 'Health tags', path: '/src/components/AccountPage.tsx' },
+          { id: 'acc-demographics-row', name: 'Demographics Row', tag: 'comp', description: 'Age, Sex, Work, etc.', path: '/src/components/AccountPage.tsx' },
+          { id: 'acc-anonymized-toggle', name: 'Anonymized Sharing Toggle', tag: 'input', description: 'Writes to personalizationProfile.allowsAnonymizedSharing.', path: '/src/components/AccountPage.tsx' },
         ]},
-        { id: 'acc-actions', name: 'Actions Section', tag: 'section', description: 'Ledger, Assessment, Logout, Feedback', path: '/src/pages/Account.tsx', children: [
-          { id: 'acc-modify-assessment-btn', name: 'Modify Assessment Button', tag: 'btn', description: 'Modify assessment', path: '/src/pages/Account.tsx' },
-          { id: 'acc-export-summary-btn', name: 'Export Summary Button', tag: 'btn', description: 'Downloads daily_trends_summary.csv.', path: '/src/pages/Account.tsx' },
-          { id: 'acc-export-deep-btn', name: 'Export Deep Architecture Button', tag: 'btn', description: 'Downloads deep_architecture.csv. Disabled for Basic tier.', path: '/src/pages/Account.tsx' },
-          { id: 'acc-delete-account-btn', name: 'Delete Account Button', tag: 'btn', description: 'Delete account', path: '/src/pages/Account.tsx' },
+        { id: 'acc-actions', name: 'Actions Section', tag: 'section', description: 'Ledger, Assessment, Logout, Feedback', path: '/src/components/AccountPage.tsx', children: [
+          { id: 'acc-modify-assessment-btn', name: 'Modify Assessment Button', tag: 'btn', description: 'Modify assessment', path: '/src/components/AccountPage.tsx' },
+          { id: 'acc-export-summary-btn', name: 'Export Summary Button', tag: 'btn', description: 'Downloads daily_trends_summary.csv.', path: '/src/components/AccountPage.tsx' },
+          { id: 'acc-export-deep-btn', name: 'Export Deep Architecture Button', tag: 'btn', description: 'Downloads deep_architecture.csv. Disabled for Basic tier.', path: '/src/components/AccountPage.tsx' },
+          { id: 'acc-delete-account-btn', name: 'Delete Account Button', tag: 'btn', description: 'Delete account', path: '/src/components/AccountPage.tsx' },
         ]},
-        { id: 'acc-dev-tools', name: 'Developer Tools Section', tag: 'section', description: 'Admin-only debugging and data management', path: '/src/pages/Account.tsx', children: [
-          { id: 'dev-maturity-input', name: 'Maturity Override Input', tag: 'input', description: 'Dev Environment Only / Admin only.', path: '/src/pages/Account.tsx' },
-          { id: 'dev-tier-switcher', name: 'Tier Switcher', tag: 'input', description: 'Dev Environment Only / Admin only.', path: '/src/pages/Account.tsx' },
-          { id: 'dev-open-map-btn', name: 'Open Map Button', tag: 'btn', description: 'Navigates to /dev/map. Dev Environment Only / Admin only.', path: '/src/pages/Account.tsx' },
+        { id: 'acc-dev-tools', name: 'Developer Tools Section', tag: 'section', description: 'Admin-only debugging and data management', path: '/src/components/AccountPage.tsx', children: [
+          { id: 'dev-maturity-input', name: 'Maturity Override Input', tag: 'input', description: 'Dev Environment Only / Admin only.', path: '/src/components/AccountPage.tsx' },
+          { id: 'dev-tier-switcher', name: 'Tier Switcher', tag: 'input', description: 'Dev Environment Only / Admin only.', path: '/src/components/AccountPage.tsx' },
+          { id: 'dev-open-map-btn', name: 'Open Map Button', tag: 'btn', description: 'Navigates to /dev/map. Dev Environment Only / Admin only.', path: '/src/components/AccountPage.tsx' },
         ]}
       ]
     },

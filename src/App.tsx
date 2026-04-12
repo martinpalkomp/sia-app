@@ -166,7 +166,8 @@ const SliderInput = ({
   min = 0, 
   max = 10, 
   icon: Icon,
-  info
+  info,
+  id
 }: { 
   label: string; 
   value: number; 
@@ -175,38 +176,49 @@ const SliderInput = ({
   max?: number;
   icon?: any;
   info?: string;
-}) => (
-  <div className="space-y-2">
-    <div className="flex justify-between items-center">
-      <label className="text-sm font-medium text-zinc-400 flex items-center gap-2">
-        {Icon && <Icon size={16} className="text-indigo-400" />}
-        {label}
-        {info && (
-          <div className="group relative">
-            <Info size={14} className="text-zinc-500 cursor-help" />
-            <div className="absolute left-full ml-2 top-0 w-48 p-2 bg-zinc-800 text-zinc-300 text-[10px] rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity z-50 pointer-events-none">
-              {info}
+  id: string;
+}) => {
+  const [showInfo, setShowInfo] = useState(false);
+  return (
+    <div className="space-y-2">
+      <div className="flex justify-between items-center">
+        <button 
+          id={id}
+          onClick={() => setShowInfo(!showInfo)}
+          className="text-sm font-medium text-zinc-400 flex items-center gap-2 cursor-pointer active:opacity-70"
+          aria-label={`Show info for ${label}`}
+        >
+          {Icon && <Icon size={16} className="text-indigo-400" />}
+          {label}
+          {info && (
+            <div className="relative">
+              <Info size={14} className="text-zinc-500" />
+              {showInfo && (
+                <div className="absolute left-full ml-2 top-0 w-48 p-2 bg-zinc-800 text-zinc-300 text-[10px] rounded shadow-lg z-50">
+                  {info}
+                </div>
+              )}
             </div>
-          </div>
-        )}
-      </label>
-      <span className="text-lg font-bold text-white">{value}</span>
+          )}
+        </button>
+        <span className="text-lg font-bold text-white">{value}</span>
+      </div>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step="1"
+        value={value}
+        onChange={(e) => onChange(parseInt(e.target.value))}
+        className="w-full h-2 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-indigo-500"
+      />
+      <div className="flex justify-between text-[10px] text-zinc-600 uppercase tracking-widest">
+        <span>Low</span>
+        <span>High</span>
+      </div>
     </div>
-    <input
-      type="range"
-      min={min}
-      max={max}
-      step="1"
-      value={value}
-      onChange={(e) => onChange(parseInt(e.target.value))}
-      className="w-full h-2 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-indigo-500"
-    />
-    <div className="flex justify-between text-[10px] text-zinc-600 uppercase tracking-widest">
-      <span>Low</span>
-      <span>High</span>
-    </div>
-  </div>
-);
+  );
+};
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -1767,13 +1779,16 @@ export default function App() {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="absolute inset-0 z-20 flex flex-col items-center justify-center group touch-manipulation pointer-events-none bg-black/20 backdrop-blur-[2px]"
+                        className="absolute inset-0 z-20 flex flex-col items-center justify-center group touch-pan-y pointer-events-none bg-black/20 backdrop-blur-[2px]"
                       >
                         <>
-                          <div className="bg-zinc-900/90 border border-zinc-700 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest text-zinc-300 group-hover:text-white transition-colors flex items-center gap-2">
+                          <button
+                            onClick={() => setIsEditing(true)}
+                            className="bg-zinc-900/90 border border-zinc-700 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest text-zinc-300 hover:text-white transition-colors flex items-center gap-2"
+                          >
                             <Plus size={14} />
                             Tap to edit sleep window
-                          </div>
+                          </button>
                           
                           {/* Scroll Hint */}
                           <div className="absolute bottom-4 flex flex-col items-center gap-1 opacity-40 group-hover:opacity-100 transition-opacity">
@@ -1822,6 +1837,7 @@ export default function App() {
                 <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-300 mb-4">Daily Metrics</h2>
                 <div className="grid gap-8">
                   <SliderInput 
+                    id="log-info-quality"
                     label="Sleep Quality (SQ)" 
                     value={currentLog.sleep_quality} 
                     onChange={(val) => updateLog({ sleep_quality: val })}
@@ -1829,6 +1845,7 @@ export default function App() {
                     info="Measures how restorative and uninterrupted your sleep felt throughout the night."
                   />
                   <SliderInput 
+                    id="log-info-restedness"
                     label="Restedness after Awakening (R)" 
                     value={currentLog.morning_alertness} 
                     onChange={(val) => updateLog({ morning_alertness: val })}
@@ -1836,6 +1853,7 @@ export default function App() {
                     info="Reflects how refreshed and ready for the day you felt immediately upon waking."
                   />
                   <SliderInput 
+                    id="log-info-energy"
                     label="Energy Level in the Morning (L)" 
                     value={currentLog.daytime_energy} 
                     onChange={(val) => updateLog({ daytime_energy: val })}
@@ -2037,6 +2055,7 @@ export default function App() {
 
                   {/* Stress Level */}
                   <SliderInput 
+                    id="log-info-stress"
                     label="Stress Level" 
                     value={currentLog.factors.stressLevel} 
                     onChange={(val) => updateFactors({ stressLevel: val })} 
@@ -2047,6 +2066,7 @@ export default function App() {
 
                   {/* Morning Mood */}
                   <SliderInput 
+                    id="log-info-mood"
                     label="Morning Mood" 
                     value={currentLog.factors.moodScore || 3} 
                     onChange={(val) => updateFactors({ moodScore: val })} 

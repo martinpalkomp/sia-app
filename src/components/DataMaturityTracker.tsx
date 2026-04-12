@@ -11,16 +11,19 @@ interface DataMaturityTrackerProps {
 }
 
 export default function DataMaturityTracker({ maturity, showTimeline = false, proMessage }: DataMaturityTrackerProps) {
+  const clamp = (val: number, min: number, max: number) => Math.min(Math.max(val, min), max);
   const d = maturity.count;
-  const p1 = Math.min(1, d / 7) * 100;
-  const p2 = Math.min(1, Math.max(0, d - 7) / 7) * 100;
-  const p3 = Math.min(1, Math.max(0, d - 14) / 76) * 100;
+  const p1 = clamp((d / 6) * 100, 0, 100);
+  const p2 = clamp(((d - 7) / 6) * 100, 0, 100);
+  const p3 = clamp(((d - 14) / 75) * 100, 0, 100);
   const p4 = d >= 90 ? 100 : 0;
 
+  const nextMilestone = d < 7 ? 7 : d < 14 ? 14 : d < 90 ? 90 : 90;
+
   const steps = [
-    { label: 'Baseline', sub: '0+ Days', progress: p1, color: 'bg-zinc-500', icon: Square },
-    { label: 'Trends', sub: '7+ Days', progress: p2, color: 'bg-amber-500', icon: Waves },
-    { label: 'Deep Analysis', sub: '14+ Days', progress: p3, color: 'bg-blue-500', icon: Network },
+    { label: 'Baseline', sub: '0-6 Days', progress: p1, color: 'bg-zinc-500', icon: Square },
+    { label: 'Trends', sub: '7-13 Days', progress: p2, color: 'bg-amber-500', icon: Waves },
+    { label: 'Deep Analysis', sub: '14-89 Days', progress: p3, color: 'bg-blue-600', icon: Network },
     { label: 'Advanced', sub: '90+ Days', progress: p4, color: 'bg-emerald-500', icon: Brain },
   ];
 
@@ -37,7 +40,7 @@ export default function DataMaturityTracker({ maturity, showTimeline = false, pr
           <div>
             <p className="text-xs font-black text-zinc-400 uppercase tracking-widest">Data Fidelity Roadmap</p>
             <p className="text-[10px] text-zinc-600 uppercase tracking-widest mt-1">
-              {maturity.level === 4 ? "Maximum diagnostic level reached" : `Next milestone: ${maturity.nextThreshold} days`}
+              {maturity.level === 4 ? "Maximum diagnostic level reached" : `Next milestone: ${nextMilestone} days`}
             </p>
           </div>
           <div className="text-right">
@@ -59,13 +62,13 @@ export default function DataMaturityTracker({ maturity, showTimeline = false, pr
             return (
               <div key={step.label} className="relative flex items-center gap-4">
                 {/* Node */}
-                <div className={`relative z-10 w-7 h-7 rounded-full flex items-center justify-center border-2 ${isCompleted ? 'bg-zinc-900 border-emerald-500 text-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.3)]' : isActive ? 'bg-zinc-900 border-indigo-500 text-indigo-500 shadow-[0_0_10px_rgba(99,102,241,0.3)] animate-pulse' : 'bg-zinc-900 border-zinc-700 text-zinc-700'}`}>
+                <div className={`relative z-10 w-7 h-7 rounded-full flex items-center justify-center border-2 transition-all duration-700 ${isCompleted ? 'bg-zinc-900 border-emerald-500 text-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.3)]' : isActive ? 'bg-zinc-900 border-indigo-500 text-indigo-500 shadow-[0_0_10px_rgba(99,102,241,0.3)] animate-pulse' : 'bg-zinc-900 border-zinc-700 text-zinc-700'}`}>
                   {isCompleted ? <Check size={14} /> : <Icon size={14} />}
                 </div>
 
                 <div className="flex-1">
                   <div className="flex justify-between text-[10px] font-black uppercase tracking-widest mb-2">
-                    <span className={isCompleted ? 'text-white' : isActive ? 'text-indigo-400' : 'text-zinc-600'}>{step.label}</span>
+                    <span className={`transition-all duration-700 ${isCompleted ? 'text-white' : isActive ? 'text-indigo-400' : 'text-zinc-600'}`}>{step.label}</span>
                     <span className="text-zinc-500">{step.sub}</span>
                   </div>
                   {/* Thicker Progress Bar */}
@@ -73,7 +76,8 @@ export default function DataMaturityTracker({ maturity, showTimeline = false, pr
                     <motion.div 
                       initial={{ width: 0 }}
                       animate={{ width: `${step.progress}%` }}
-                      className={`h-full transition-all duration-1000 bg-gradient-to-r ${step.color.replace('bg-', 'from-')}/50 to-${step.color.replace('bg-', '')}`}
+                      transition={{ duration: 0.7, ease: "easeOut" }}
+                      className={`h-full bg-gradient-to-r ${step.color.replace('bg-', 'from-')}/50 to-${step.color.replace('bg-', '')}`}
                     />
                   </div>
                 </div>

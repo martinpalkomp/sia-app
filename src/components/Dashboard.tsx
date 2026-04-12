@@ -615,7 +615,6 @@ export default function Dashboard({
         </div>
       </section>
 
-      {/* Section: SIA Quick Insight */}
       <section className="grid grid-cols-1 gap-4">
         <Card 
           className="bg-zinc-900/50 border-indigo-500/30 relative overflow-hidden group hover:bg-zinc-900/80 cursor-pointer" 

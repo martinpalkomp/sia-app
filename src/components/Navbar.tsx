@@ -63,7 +63,7 @@ export const Navbar: React.FC<NavbarProps> = ({ user, view, setView, handleLogou
                 </span>
               )}
             </div>
-            <span className="text-[9px] font-bold text-zinc-400 tracking-widest uppercase -mt-1">Sleep Intelligence Agent</span>
+            <span className="text-[9px] font-bold text-zinc-400 tracking-widest uppercase mt-0.5">Sleep Intelligence Agent</span>
           </h1>
         </button>
 
