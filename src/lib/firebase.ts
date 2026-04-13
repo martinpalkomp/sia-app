@@ -33,6 +33,7 @@ export {
   writeBatch,
   runTransaction,
   deleteField,
+  increment,
   type Firestore
 } from "firebase/firestore";
 export { 

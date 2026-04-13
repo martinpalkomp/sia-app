@@ -714,7 +714,7 @@ export default function App() {
   useEffect(() => {
     if (!user) return;
     AIService.getUserDataMaturity(user.uid).then(setMaturity);
-  }, [user?.uid]);
+  }, [user?.uid, refreshKey]);
 
   // Load Personalization Profile
   useEffect(() => {

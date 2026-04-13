@@ -27,7 +27,8 @@ import {
   addDoc, 
   collection,
   deleteField,
-  updateDoc
+  updateDoc,
+  increment
 } from '../lib/firebase';
 import { DailyLog, SleepState, SleepEvent } from '../types';
 import { TOTAL_SLOTS } from '../constants';
@@ -618,7 +619,8 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
         const userRef = doc(db, 'users', user.uid);
         await updateDoc(userRef, {
           aiImportsCurrentMonth: (userProfile?.aiImportsCurrentMonth || 0) + 1,
-          lastImportDate: serverTimestamp()
+          lastImportDate: serverTimestamp(),
+          importedLogCount: increment(validRows.length)
         });
       }
 

@@ -59,14 +59,15 @@ export const UserProvider: React.FC<{
       return maturityMap[devMaturity] || { level: 1, label: 'Baseline', nextThreshold: 7, count: 0 };
     }
 
-    const importedLogCount = userProfile?.importedLogCount || 0;
-    const count = importedLogCount + Object.keys(activeLogs).length;
+    const firestoreCount = maturity?.count ?? 0;
+    const localCount = Object.keys(activeLogs).length;
+    const count = Math.max(firestoreCount, localCount);
     
     if (count >= 90) return { level: 4, label: 'Advanced Diagnostic', nextThreshold: 90, count };
     if (count >= 14) return { level: 3, label: 'Deep Analysis', nextThreshold: 90, count };
     if (count >= 7) return { level: 2, label: 'Trends', nextThreshold: 14, count };
     return { level: 1, label: 'Baseline', nextThreshold: 7, count };
-  }, [activeLogs, userProfile?.importedLogCount]);
+  }, [activeLogs, userProfile?.importedLogCount, maturity]);
 
   const activeTier = useMemo(() => {
     const params = new URLSearchParams(window.location.search);

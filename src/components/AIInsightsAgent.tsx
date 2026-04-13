@@ -469,7 +469,7 @@ export default function AIInsightsAgent() {
           <div className="flex flex-wrap gap-2 pb-2">
             <p className="text-[9px] text-zinc-600 uppercase tracking-widest font-bold mb-2 px-1">
               {dataDepth.level === 1 ? 'Starter questions — log 14 nights to unlock patterns' :
-               dataDepth.level === 2 ? 'Pattern questions — 90 nights unlocks advanced analysis' :
+               dataDepth.level === 2 ? 'Pattern questions — log 14 nights to unlock deep analysis' :
                tier === 'Basic' ? 'Deep questions — upgrade for full clinical set' :
                'Full clinical set'}
             </p>

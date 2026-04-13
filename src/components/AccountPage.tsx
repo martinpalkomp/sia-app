@@ -63,7 +63,7 @@ export default function AccountPage({ onModifyAssessment, onRefresh }: { onModif
     }
   };
 
-  const isEnhanced = !!personalizationProfile;
+  const isEnhanced = tier === 'Enhanced' || tier === 'Pro';
 
   const derivedTier = tier; // Using tier from context
 
