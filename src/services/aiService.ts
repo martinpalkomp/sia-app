@@ -55,7 +55,7 @@ export class AIService {
       }
 
       const logsRef = collection(db, 'users', userId, 'sleep_logs');
-      const snapshot = await getDocs(query(logsRef));
+      const snapshot = await getDocs(query(logsRef, where('type', '==', 'log')));
       const count = snapshot.size;
 
       if (count >= 90) return { level: 4, count, label: 'Advanced Diagnostic', nextThreshold: 90 };

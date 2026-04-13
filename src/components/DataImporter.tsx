@@ -619,8 +619,7 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
         const userRef = doc(db, 'users', user.uid);
         await updateDoc(userRef, {
           aiImportsCurrentMonth: (userProfile?.aiImportsCurrentMonth || 0) + 1,
-          lastImportDate: serverTimestamp(),
-          importedLogCount: increment(validRows.length)
+          lastImportDate: serverTimestamp()
         });
       }
 
@@ -875,6 +874,10 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
               }
             });
             success = true;
+            const userRef = doc(db, 'users', user.uid);
+            await updateDoc(userRef, {
+              importedLogCount: increment(sleepDays.length)
+            });
           } catch (txError: any) {
             console.error(`Transaction failed for ${chunkLabel} (Attempt ${retryCount + 1}):`, txError);
             retryCount++;

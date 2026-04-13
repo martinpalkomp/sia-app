@@ -13,8 +13,8 @@ interface DataMaturityTrackerProps {
 export default function DataMaturityTracker({ maturity, showTimeline = false, proMessage }: DataMaturityTrackerProps) {
   const clamp = (val: number, min: number, max: number) => Math.min(Math.max(val, min), max);
   const d = maturity.count;
-  const p1 = clamp((d / 6) * 100, 0, 100);
-  const p2 = clamp(((d - 7) / 6) * 100, 0, 100);
+  const p1 = clamp((d / 7) * 100, 0, 100);
+  const p2 = clamp(((d - 7) / 7) * 100, 0, 100);
   const p3 = clamp(((d - 14) / 75) * 100, 0, 100);
   const p4 = d >= 90 ? 100 : 0;
 
