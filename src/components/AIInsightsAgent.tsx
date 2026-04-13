@@ -146,7 +146,7 @@ export default function AIInsightsAgent() {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const isEnhanced = !!personalizationProfile;
-  const daysCount = isEnhanced ? 180 : 30;
+  const daysCount = isEnhanced ? 90 : 30;
 
   const getAnalyzingLabel = (prompt: string): string => {
     if (/last\s+7\s+days?|past\s+week/i.test(prompt)) return 'ANALYZING 7 DAYS';
@@ -164,7 +164,7 @@ export default function AIInsightsAgent() {
     if (/last\s+90\s+days?/i.test(prompt)) return 90;
     const match = prompt.match(/last\s+(\d+)\s+days?/i);
     if (match) return parseInt(match[1]);
-    return 180; // default: full history
+    return 90; // default: full history
   };
 
   // Load chat history from Firestore
@@ -386,7 +386,11 @@ export default function AIInsightsAgent() {
           </div>
           <div>
             <h3 className="text-lg md:text-xl font-black text-white tracking-tight">Sleep Intelligence Agent</h3>
-            <p className={`text-[10px] ${theme.text} uppercase tracking-widest font-bold`}>Access Tier: {isEnhanced ? 'Enhanced Analysis' : 'Basic'}</p>
+            <div className="flex items-center gap-2 mt-1">
+              <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border ${isEnhanced ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400' : 'bg-zinc-800 border-zinc-700 text-zinc-400'}`}>
+                {isEnhanced ? 'Enhanced Analysis' : 'Basic'}
+              </span>
+            </div>
           </div>
         </div>
         {isAnalyzing && (

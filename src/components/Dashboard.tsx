@@ -376,7 +376,7 @@ export default function Dashboard({
     setIsAiLoading(true);
     setIsDeepAnalysis(true);
     try {
-      const daysCount = personalizationProfile ? 180 : 30;
+      const daysCount = personalizationProfile ? 90 : 30;
       const logsRef = collection(db!, 'users', user.uid, 'sleep_logs');
       
       let querySnapshot = await getDocs(query(logsRef, where('type', '==', 'log'), orderBy('date', 'desc'), limit(daysCount)));
@@ -658,19 +658,19 @@ export default function Dashboard({
                 ) : !isDeepAnalysis && aiInsight && (
                   /* Maturity-Locked Pro Button */
                   <button
-                    onClick={(e) => { e.stopPropagation(); if (dataMaturity.level >= 3 && isEnhanced) handleDeepAnalysis(); }}
+                    onClick={(e) => { e.stopPropagation(); if (dataMaturity.level >= 4 && isEnhanced) handleDeepAnalysis(); }}
                     className={`mt-3 w-full py-2 border text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-2 rounded transition-all ${
-                      dataMaturity.level >= 3 && isEnhanced 
+                      dataMaturity.level >= 4 && isEnhanced 
                         ? 'bg-zinc-800/50 hover:bg-zinc-700/50 border-zinc-800 text-indigo-400'
                         : 'bg-zinc-900/50 border-zinc-800 text-zinc-600 cursor-not-allowed'
                     }`}
                   >
                     <Sparkles size={10} />
-                    {dataMaturity.level >= 3 && isEnhanced ? (
-                      `Run Deep Analysis (${personalizationProfile ? '180' : '30'} Days)`
+                    {dataMaturity.level >= 4 && isEnhanced ? (
+                      `Run Deep Analysis (${personalizationProfile ? '90' : '30'} Days)`
                     ) : (
                       <>
-                        <Lock size={8} /> Locked (Unlocks at Level 3)
+                        <Lock size={8} /> Locked <span className="hidden group-hover:inline"> (Unlocks at Advanced Maturity (90+ Days Logged))</span>
                       </>
                     )}
                   </button>
@@ -681,8 +681,13 @@ export default function Dashboard({
         </Card>
 
         {/* Insights Feed */}
-        <section className="space-y-4">
-          <h3 className="text-[10px] font-black text-zinc-300 uppercase tracking-[0.2em]">Clinical Insights</h3>
+        <section className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h3 className="text-[10px] font-black text-zinc-300 uppercase tracking-[0.2em]">Clinical Insights</h3>
+            <span className="text-[9px] font-black text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-full uppercase tracking-widest border border-indigo-500/20">
+              {userProfile?.tier} Intelligence
+            </span>
+          </div>
           {userProfile?.tier === 'Basic' || dataMaturity.level < 3 ? (
             <LockedFeatureCard
               title="Clinical Insights Feed"
@@ -692,7 +697,7 @@ export default function Dashboard({
             />
           ) : insights.length > 0 ? (
             insights.map(insight => (
-              <InsightCard key={insight.id} insight={insight} />
+              <InsightCard key={insight.id} insight={insight} tier={userProfile?.tier as 'Basic' | 'Enhanced' | 'Pro'} />
             ))
           ) : (
             <p className="text-zinc-500 text-xs italic">
@@ -737,30 +742,33 @@ export default function Dashboard({
 
           {/* Deep Analysis Card (Placeholder/Locked or Active) */}
           {userProfile?.tier === 'Basic' ? (
-            <Card 
-              onClick={() => onViewChange('account')}
-              className="bg-zinc-900 border border-indigo-500/30 p-4 flex items-center justify-between group cursor-pointer hover:border-indigo-500/50 transition-all min-h-[120px]"
-            >
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-zinc-800 rounded-xl flex items-center justify-center text-indigo-400">
-                  <Sparkles size={24} />
+            <div className="relative w-full group">
+              <div className="absolute inset-0 bg-gradient-to-r from-zinc-900 via-zinc-800 to-zinc-900 rounded-3xl opacity-50 blur-sm" />
+              <Card 
+                onClick={() => onViewChange('account')}
+                className="relative bg-zinc-950/80 border border-indigo-500/30 p-6 flex items-center justify-between cursor-pointer hover:border-indigo-500/50 transition-all min-h-[120px] rounded-3xl backdrop-blur-sm"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-indigo-500/10 rounded-2xl flex items-center justify-center text-indigo-400 border border-indigo-500/20">
+                    <Sparkles size={24} />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em]">Deep Analysis</p>
+                    <p className="text-xs text-zinc-400 font-medium mt-0.5">90 days of data + Enhanced/Pro required</p>
+                  </div>
                 </div>
-                <div className="text-left">
-                  <p className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em]">Deep Analysis</p>
-                  <p className="text-xs text-zinc-400 font-medium mt-0.5">90 days of data + Enhanced/Pro required</p>
+                <div className="px-4 py-2 bg-indigo-500/10 text-indigo-400 text-[10px] font-black uppercase tracking-widest rounded-xl border border-indigo-500/20">
+                  Upgrade →
                 </div>
-              </div>
-              <div className="px-3 py-1 bg-indigo-500/10 text-indigo-400 text-[10px] font-bold uppercase tracking-widest rounded-lg border border-indigo-500/20">
-                Upgrade →
-              </div>
-            </Card>
+              </Card>
+            </div>
           ) : (
             <Card 
               onClick={handleDeepAnalysis}
-              className="bg-zinc-900 border-zinc-800 hover:bg-zinc-800 flex items-center justify-between group cursor-pointer min-h-[120px]"
+              className="bg-gradient-to-br from-zinc-900 to-zinc-950 border border-zinc-800 hover:border-indigo-500/30 flex items-center justify-between group cursor-pointer min-h-[120px] rounded-3xl p-6 shadow-lg"
             >
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-zinc-800 rounded-xl flex items-center justify-center text-zinc-400 group-hover:text-indigo-400 transition-colors">
+                <div className="w-12 h-12 bg-zinc-800 rounded-2xl flex items-center justify-center text-zinc-400 group-hover:text-indigo-400 transition-colors">
                   <Sparkles size={24} />
                 </div>
                 <div className="text-left">
@@ -768,7 +776,7 @@ export default function Dashboard({
                   <p className="text-xl text-white font-black tracking-tight mt-0.5">AI Analysis</p>
                 </div>
               </div>
-              <ChevronRight size={24} className="text-zinc-300 group-hover:text-white group-hover:translate-x-1 transition-transform" />
+              <ChevronRight size={24} className="text-zinc-600 group-hover:text-white group-hover:translate-x-1 transition-transform" />
             </Card>
           )}
         </div>
@@ -794,7 +802,7 @@ export default function Dashboard({
         
         <div className="grid grid-cols-1 gap-6">
           {FEATURE_FLAGS.showSiaIntelligence && (
-            isEnhanced && dataMaturity.level >= 3 ? (
+            isEnhanced ? (
               <Card 
                 className="bg-zinc-950 border-zinc-800 relative overflow-hidden group p-0"
               >

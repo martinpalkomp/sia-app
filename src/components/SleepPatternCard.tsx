@@ -8,7 +8,7 @@ import {
 } from '../utils/diagnosticEngine';
 import { Card } from './UI';
 import { LockedFeatureCard } from './LockedFeatureCard';
-import { ClipboardCheck, Share2, Info, Printer, FileText, Sparkles } from 'lucide-react';
+import { ClipboardCheck, Share2, Info, Printer, FileText, Sparkles, Lock } from 'lucide-react';
 import { formatDuration, getGridFromEvents, generateASCIIRibbon, generateASCIIRibbonHeader, calculateSleepEfficiency } from '../utils/sleepUtils';
 import { format, parseISO } from 'date-fns';
 import PrintableReport from './PrintableReport';
@@ -200,27 +200,31 @@ ${generateASCIIRibbonHeader()}
 
       <div className="pt-4 border-t border-zinc-800">
           {(!userProfile || userProfile.tier === 'Basic') ? (
-            <div className="relative w-full">
-              <div className="opacity-30 grayscale blur-sm">
+            <div className="relative w-full group">
+              <div className="absolute inset-0 bg-gradient-to-r from-zinc-900 via-zinc-800 to-zinc-900 rounded-2xl opacity-50 blur-sm" />
+              <div className="relative bg-zinc-950/80 border border-zinc-800 rounded-2xl p-4 flex items-center justify-between backdrop-blur-sm">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-zinc-900 rounded-xl text-zinc-600">
+                    <Lock size={16} />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Doctor PDF Export</p>
+                    <p className="text-[9px] text-zinc-500 font-medium">Enhanced or PRO tier required</p>
+                  </div>
+                </div>
                 <button
-                  className="w-full py-3 bg-zinc-800 border border-indigo-500/20 text-indigo-400 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] flex items-center justify-center gap-2"
+                  onClick={() => onViewChange('account')}
+                  className="text-[10px] font-black text-indigo-400 uppercase tracking-widest hover:text-indigo-300 transition-colors bg-indigo-500/10 px-3 py-1.5 rounded-lg border border-indigo-500/20"
                 >
-                  <Sparkles size={12} />
-                  PDF Export — Enhanced+
+                  Upgrade →
                 </button>
               </div>
-              <LockedFeatureCard 
-                title="Doctor PDF Export"
-                description="Unlock clinical-grade PDF reports with Enhanced or PRO tiers."
-                onUpgrade={() => onViewChange('account')}
-              />
             </div>
           ) : (
             <button 
               onClick={handleExportReport}
               disabled={isExportDisabled}
-              title={isExportDisabled ? 'Select a date range first' : ''}
-              className={`w-full py-3 ${isExportDisabled ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-500 text-white'} rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 border ${isExportDisabled ? 'border-zinc-700' : 'border-indigo-500'}`}
+              className={`w-full py-4 ${isExportDisabled ? 'bg-zinc-900 text-zinc-600' : 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-lg shadow-indigo-500/20'} rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 border ${isExportDisabled ? 'border-zinc-800' : 'border-indigo-500/30'}`}
             >
               <FileText size={14} />
               {buttonLabel}

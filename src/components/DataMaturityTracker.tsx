@@ -13,18 +13,18 @@ interface DataMaturityTrackerProps {
 export default function DataMaturityTracker({ maturity, showTimeline = false, proMessage }: DataMaturityTrackerProps) {
   const clamp = (val: number, min: number, max: number) => Math.min(Math.max(val, min), max);
   const d = maturity.count;
-  const p1 = clamp((d / 7) * 100, 0, 100);
-  const p2 = clamp(((d - 7) / 7) * 100, 0, 100);
-  const p3 = clamp(((d - 14) / 75) * 100, 0, 100);
+  const p1 = clamp((d / 6) * 100, 0, 100);
+  const p2 = d <= 6 ? 0 : clamp(((d - 6) / 7) * 100, 0, 100);
+  const p3 = d <= 13 ? 0 : clamp(((d - 13) / 76) * 100, 0, 100);
   const p4 = d >= 90 ? 100 : 0;
 
   const nextMilestone = d < 7 ? 7 : d < 14 ? 14 : d < 90 ? 90 : 90;
 
   const steps = [
-    { label: 'Baseline', sub: '0-6 Days', progress: p1, color: 'bg-zinc-500', icon: Square },
-    { label: 'Trends', sub: '7-13 Days', progress: p2, color: 'bg-amber-500', icon: Waves },
-    { label: 'Deep Analysis', sub: '14-89 Days', progress: p3, color: 'bg-blue-600', icon: Network },
-    { label: 'Advanced', sub: '90+ Days', progress: p4, color: 'bg-emerald-500', icon: Brain },
+    { label: 'Baseline', sub: '0-6 Days', progress: p1, color: 'bg-zinc-500', shadow: 'shadow-zinc-500/50', icon: Square },
+    { label: 'Trends', sub: '7-13 Days', progress: p2, color: 'bg-amber-500', shadow: 'shadow-amber-500/50', icon: Waves },
+    { label: 'Deep Analysis', sub: '14-89 Days', progress: p3, color: 'bg-blue-600', shadow: 'shadow-blue-600/50', icon: Network },
+    { label: 'Advanced', sub: '90+ Days', progress: p4, color: 'bg-emerald-500', shadow: 'shadow-emerald-500/50', icon: Brain },
   ];
 
   return (
@@ -72,12 +72,12 @@ export default function DataMaturityTracker({ maturity, showTimeline = false, pr
                     <span className="text-zinc-500">{step.sub}</span>
                   </div>
                   {/* Thicker Progress Bar */}
-                  <div className="w-full h-2 bg-zinc-900 rounded-full overflow-hidden border border-zinc-800">
+                  <div className="w-full h-2 bg-zinc-800/50 rounded-full overflow-hidden border border-zinc-800">
                     <motion.div 
                       initial={{ width: 0 }}
                       animate={{ width: `${step.progress}%` }}
                       transition={{ duration: 0.7, ease: "easeOut" }}
-                      className={`h-full bg-gradient-to-r ${step.color.replace('bg-', 'from-')}/50 to-${step.color.replace('bg-', '')}`}
+                      className={`h-full ${step.color} ${step.shadow} shadow-lg`}
                     />
                   </div>
                 </div>

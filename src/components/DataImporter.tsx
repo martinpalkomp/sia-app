@@ -1220,15 +1220,28 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
                   </h3>
                   <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">CSV or Excel • Max 5MB</p>
                   {userProfile?.tier !== 'PRO' && (
-                    <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold flex items-center gap-1">
-                      AI Restructure Credits: {(userProfile?.tier === 'Basic' ? 5 : 5) - (userProfile?.aiImportsCurrentMonth || 0)} / {userProfile?.tier === 'Basic' ? 5 : 5} remaining
-                      <span className="relative group cursor-help">
-                        <Info size={10} />
-                        <span className="absolute left-full ml-2 w-48 p-2 bg-zinc-800 text-zinc-300 text-[9px] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                    <div className="mt-4 p-4 bg-zinc-950/50 border border-zinc-800 rounded-2xl flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">AI Restructure Credits</p>
+                        <div className="flex items-center gap-2">
+                          <div className="w-24 h-1.5 bg-zinc-900 rounded-full overflow-hidden">
+                            <div 
+                              className="h-full bg-indigo-500 rounded-full" 
+                              style={{ width: `${(((userProfile?.tier === 'Basic' ? 5 : 5) - (userProfile?.aiImportsCurrentMonth || 0)) / (userProfile?.tier === 'Basic' ? 5 : 5)) * 100}%` }}
+                            />
+                          </div>
+                          <p className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest">
+                            {(userProfile?.tier === 'Basic' ? 5 : 5) - (userProfile?.aiImportsCurrentMonth || 0)} / {userProfile?.tier === 'Basic' ? 5 : 5}
+                          </p>
+                        </div>
+                      </div>
+                      <span className="relative group cursor-help text-zinc-600">
+                        <Info size={12} />
+                        <span className="absolute right-0 mt-2 w-48 p-3 bg-zinc-800 text-zinc-300 text-[10px] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 border border-zinc-700 shadow-xl">
                           AI Restructure automatically cleans, formats, and maps non-standard data files to SIA's high-precision sleep log format.
                         </span>
                       </span>
-                    </p>
+                    </div>
                   )}
                 </div>
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full md:w-auto">

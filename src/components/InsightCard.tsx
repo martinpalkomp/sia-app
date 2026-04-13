@@ -37,25 +37,31 @@ export const InsightCard: React.FC<InsightCardProps> = ({ insight, tier = 'Basic
   const [isHovered, setIsHovered] = useState(false);
   const { label, icon: Icon } = getCategoryInfo(insight);
   
-  const borderGlow = tier === 'Pro' ? 'border-l-violet-500' : tier === 'Enhanced' ? 'border-l-indigo-500' : 'border-l-zinc-700';
+  const tierStyles = {
+    Pro: 'from-violet-900/20 to-zinc-950/50 border-violet-500/30 shadow-violet-500/10',
+    Enhanced: 'from-indigo-900/20 to-zinc-950/50 border-indigo-500/30 shadow-indigo-500/10',
+    Basic: 'from-zinc-900/20 to-zinc-950/50 border-zinc-800 shadow-zinc-500/5'
+  };
+
+  const activeStyle = tierStyles[tier] || tierStyles.Basic;
 
   return (
     <Card
       onClick={() => setIsHovered(!isHovered)}
-      className={`relative overflow-hidden bg-zinc-950/50 border border-zinc-800 border-l-4 ${borderGlow} p-5 transition-all duration-300 rounded-3xl`}
+      className={`relative overflow-hidden bg-gradient-to-br ${activeStyle} border backdrop-blur-sm p-6 transition-all duration-500 rounded-3xl shadow-lg hover:border-opacity-50`}
     >
-      {/* Background Texture/Glow */}
-      <div className="absolute inset-0 opacity-10 pointer-events-none">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-indigo-900/20 via-transparent to-transparent" />
+      {/* Background Texture */}
+      <div className="absolute inset-0 opacity-20 pointer-events-none">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-indigo-500/10 via-transparent to-transparent" />
       </div>
       
       <div className="relative z-10 flex items-start gap-4">
-        <div className="p-2 rounded-xl bg-white/5 text-zinc-400">
-          <Icon size={20} />
+        <div className={`p-3 rounded-2xl bg-white/5 ${tier === 'Pro' ? 'text-violet-400' : tier === 'Enhanced' ? 'text-indigo-400' : 'text-zinc-400'}`}>
+          <Icon size={24} />
         </div>
-        <div className="flex-1 space-y-1">
+        <div className="flex-1 space-y-1.5">
           <div className="flex justify-between items-center">
-            <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">{label}</span>
+            <span className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em]">{label}</span>
             {isHovered && (
               <motion.div 
                 initial={{ opacity: 0, scale: 0.8 }}
@@ -66,9 +72,9 @@ export const InsightCard: React.FC<InsightCardProps> = ({ insight, tier = 'Basic
               </motion.div>
             )}
           </div>
-          <p className="text-sm font-bold text-zinc-100">{insight.summary}</p>
+          <p className="text-sm font-bold text-white leading-snug">{insight.summary}</p>
           {insight.details && (
-            <p className="text-xs text-zinc-400">{insight.details}</p>
+            <p className="text-xs text-zinc-400 font-medium leading-relaxed">{insight.details}</p>
           )}
         </div>
       </div>

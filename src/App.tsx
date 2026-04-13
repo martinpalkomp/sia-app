@@ -299,6 +299,7 @@ export default function App() {
     }
 
     if (userProfile?.tier === 'Pro') return 'Pro';
+    if (userProfile?.tier === 'Enhanced') return 'Enhanced';
     if (personalizationProfile) return 'Enhanced';
     return 'Basic';
   }, [userProfile, personalizationProfile]);
