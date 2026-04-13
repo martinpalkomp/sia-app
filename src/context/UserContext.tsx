@@ -67,7 +67,7 @@ export const UserProvider: React.FC<{
     if (count >= 14) return { level: 3, label: 'Deep Analysis', nextThreshold: 90, count };
     if (count >= 7) return { level: 2, label: 'Trends', nextThreshold: 14, count };
     return { level: 1, label: 'Baseline', nextThreshold: 7, count };
-  }, [activeLogs, userProfile?.importedLogCount, maturity]);
+  }, [activeLogs, maturity]);
 
   const activeTier = useMemo(() => {
     const params = new URLSearchParams(window.location.search);

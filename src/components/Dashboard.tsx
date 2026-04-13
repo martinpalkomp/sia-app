@@ -130,7 +130,7 @@ export default function Dashboard({
   isRefreshing,
   maturity: externalMaturity
 }: DashboardProps) {
-  const { dataDepth } = useUser();
+  const { dataDepth, maturity: contextMaturity } = useUser();
   const [aiInsight, setAiInsight] = useState<string | null>(null);
   const [dailyBrief, setDailyBrief] = useState<string | null>(null);
   const [insights, setInsights] = useState<Insight[]>([]);
@@ -139,18 +139,11 @@ export default function Dashboard({
   const [isDeepAnalysis, setIsDeepAnalysis] = useState(false);
   const [isFirstVisit, setIsFirstVisit] = useState(false);
   const [showUnlockEnhanced, setShowUnlockEnhanced] = useState(false);
-  const [maturity, setMaturity] = useState<MaturityInfo | null>(null);
 
   const correctionsCount = useMemo(() => {
     const trackingStartDate = format(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd');
     return getPendingCorrections(logs, trackingStartDate).length;
   }, [logs]);
-
-  // Fetch maturity info
-  useEffect(() => {
-    if (!user) return;
-    AIService.getUserDataMaturity(user.uid).then(setMaturity);
-  }, [user?.uid]);
 
   const rephraseGuardrailMessage = (reason: string): string => {
     if (reason.includes("Already generated today")) {
@@ -168,7 +161,7 @@ export default function Dashboard({
   // Fetch/Generate Daily Brief
   const today = getTodayDate();
   useEffect(() => {
-    if (!user || !userProfile || !logs || Object.keys(logs).length === 0 || !maturity) return;
+    if (!user || !userProfile || !logs || Object.keys(logs).length === 0 || !contextMaturity) return;
     const fetchBrief = async () => {
       setIsBriefLoading(true);
       try {
@@ -176,7 +169,7 @@ export default function Dashboard({
           user.uid, 
           Object.values(logs), 
           userProfile.tier,
-          maturity
+          contextMaturity
         );
         if (response.status === 'success') {
           setDailyBrief(response.content);
@@ -191,7 +184,7 @@ export default function Dashboard({
     };
 
     fetchBrief();
-  }, [user?.uid, userProfile?.tier, today, maturity]);
+  }, [user?.uid, userProfile?.tier, today, contextMaturity]);
 
   const getTierColors = (tier: string) => {
     switch (tier) {
@@ -341,7 +334,7 @@ export default function Dashboard({
   const lastInsightKeyRef = useRef<string>('');
 
   const generateQuickInsight = async () => {
-    if (!logs || Object.keys(logs).length < 1 || !user || !userProfile || !maturity || aiInsight) return;
+    if (!logs || Object.keys(logs).length < 1 || !user || !userProfile || !contextMaturity || aiInsight) return;
     
     setIsAiLoading(true);
     try {
@@ -349,7 +342,7 @@ export default function Dashboard({
         user.uid,
         Object.values(logs),
         userProfile.tier,
-        maturity,
+        contextMaturity,
         null // Need to fetch lastGeneratedDate if needed
       );
       
@@ -375,10 +368,10 @@ export default function Dashboard({
       await generateQuickInsight();
     }, 2000);
     return () => { if (insightDebounceRef.current) clearTimeout(insightDebounceRef.current); };
-  }, [logs, user, userProfile, maturity]);
+  }, [logs, user, userProfile, contextMaturity]);
 
   const handleDeepAnalysis = async () => {
-    if (!user || !userProfile || isAiLoading || !maturity) return;
+    if (!user || !userProfile || isAiLoading || !contextMaturity) return;
     
     setIsAiLoading(true);
     setIsDeepAnalysis(true);
@@ -403,7 +396,7 @@ export default function Dashboard({
         user.uid,
         historicalLogs,
         userProfile.tier,
-        maturity,
+        contextMaturity,
         null // Need to fetch lastGeneratedDate if needed
       );
 
@@ -422,13 +415,13 @@ export default function Dashboard({
 
   const dataMaturity = useMemo(() => {
     // externalMaturity comes from App.tsx via a full Firestore count (not view-filtered)
-    // maturity is the internal fetch — also full count but may lag on load
+    // contextMaturity is the internal fetch — also full count but may lag on load
     // Never fall back to Object.keys(logs).length — logs is view-filtered (7 or 30 days)
-    const source = externalMaturity || maturity;
+    const source = externalMaturity || contextMaturity;
     if (source) return source;
     // Still loading — show 0 rather than a misleading view-filtered count
     return { level: 1, count: 0, label: 'Baseline', nextThreshold: 7 };
-  }, [externalMaturity, maturity]);
+  }, [externalMaturity, contextMaturity]);
 
   const DISCLAIMER = "SIA provides lifestyle recommendations based on patterns. This is not a medical diagnosis. Consult a professional for clinical concerns.";
 

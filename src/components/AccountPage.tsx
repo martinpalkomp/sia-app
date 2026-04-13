@@ -53,7 +53,7 @@ export default function AccountPage({ onModifyAssessment, onRefresh }: { onModif
     return () => unsubscribe();
   }, [user]);
 
-  const isAdmin = userData?.role === 'admin' || (process.env.NODE_ENV !== 'production' && user?.email === 'martinpalko.mp@gmail.com');
+  const isAdmin = userData?.role === 'admin';
 
   const handleLogout = async () => {
     try {
