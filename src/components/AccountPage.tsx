@@ -181,7 +181,7 @@ export default function AccountPage({ onModifyAssessment, onRefresh }: { onModif
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
-        className="flex justify-center items-center min-h-[400px]"
+        className="flex justify-center items-center min-h-[50svh]"
       >
         <FeedbackForm 
           user={user} 
@@ -216,16 +216,16 @@ export default function AccountPage({ onModifyAssessment, onRefresh }: { onModif
           className="shadow-2xl shadow-clinical-primary/20 border-clinical-primary/30"
         />
         <div>
-          <h2 className="text-2xl md:text-4xl font-black tracking-tighter text-white leading-[0.95]">{user.displayName}</h2>
-          <p className="text-zinc-300 font-bold uppercase tracking-widest text-[9px] mt-1.5">{user.email}</p>
+          <h2 className="text-3xl md:text-5xl font-bold text-zinc-50 tracking-tight leading-[0.95]">{user.displayName}</h2>
+          <p className="text-zinc-400 text-xs font-medium tracking-wide mt-1.5">{user.email}</p>
         </div>
       </div>
 
       {/* Intelligence Tier Section */}
       <div className={`space-y-4 transition-all duration-500 ${highlightTier ? 'ring-2 ring-indigo-500/50 rounded-3xl p-2 shadow-[0_0_20px_rgba(99,102,241,0.2)]' : ''}`}>
         <div className="flex items-center justify-between px-1">
-          <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">My Intelligence Tier</h3>
-          <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">Upgrade Your Sleep Intelligence</span>
+          <h3 className="text-[10px] font-medium uppercase tracking-wide text-slate-400">My Intelligence Tier</h3>
+          <span className="text-[10px] font-semibold text-indigo-400 uppercase tracking-wide">Upgrade Your Sleep Intelligence</span>
         </div>
         
         <div className="grid grid-cols-1 gap-4">
@@ -244,16 +244,16 @@ export default function AccountPage({ onModifyAssessment, onRefresh }: { onModif
                     <config.icon size={20} />
                   </div>
                   <div>
-                    <h4 className="text-sm font-black text-white uppercase tracking-tight">{config.label}</h4>
-                    <p className="text-[10px] text-zinc-500 leading-tight">{config.desc}</p>
+                    <h4 className="text-sm font-bold text-zinc-50 tracking-tight">{config.label}</h4>
+                    <p className="text-xs text-zinc-400 leading-relaxed">{config.desc}</p>
                   </div>
                 </div>
                 {isActive ? (
-                  <span className={`text-[8px] font-black bg-${config.color}-500 text-black px-2 py-1 rounded uppercase`}>Active</span>
+                  <span className={`text-[10px] font-semibold bg-${config.color}-500 text-black px-2 py-1 rounded uppercase tracking-wide`}>Active</span>
                 ) : (
                   <button 
                     onClick={() => handleTierChange(tierOption)}
-                    className="py-2 px-4 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
+                    className="py-2 px-4 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-[10px] font-semibold uppercase tracking-wide transition-all"
                   >
                     Activate
                   </button>
@@ -280,7 +280,7 @@ export default function AccountPage({ onModifyAssessment, onRefresh }: { onModif
         <Card className="bg-zinc-900/50 border-zinc-800">
           <div className="flex items-center gap-3 mb-6">
             <Target className="text-clinical-primary" size={20} />
-            <h3 className="text-sm font-black uppercase tracking-widest text-zinc-400">Sleep Goals</h3>
+            <h3 className="text-[10px] font-medium uppercase tracking-wide text-slate-400">Sleep Goals</h3>
           </div>
           {personalizationProfile?.goals && personalizationProfile.goals.length > 0 ? (
             <div className="flex flex-wrap gap-2">
@@ -298,32 +298,32 @@ export default function AccountPage({ onModifyAssessment, onRefresh }: { onModif
         <Card className="bg-zinc-900/50 border-zinc-800">
           <div className="flex items-center gap-3 mb-6">
             <Calendar className="text-clinical-primary" size={20} />
-            <h3 className="text-sm font-black uppercase tracking-widest text-zinc-400">Demographics</h3>
+            <h3 className="text-[10px] font-medium uppercase tracking-wide text-slate-400">Demographics</h3>
           </div>
           <div className="space-y-4">
             <div className="flex justify-between items-center">
-              <span className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Age</span>
-              <span className="text-sm font-black text-white">
+              <span className="text-xs font-medium text-zinc-400">Age</span>
+              <span className="text-sm font-normal text-zinc-300">
                 {personalizationProfile?.demographics?.dateOfBirth 
                   ? getAgeDecade(personalizationProfile.demographics.dateOfBirth) 
                   : 'Not set'}
               </span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Country</span>
-              <span className="text-sm font-black text-white">{personalizationProfile?.demographics?.country || 'Not set'}</span>
+              <span className="text-xs font-medium text-zinc-400">Country</span>
+              <span className="text-sm font-normal text-zinc-300">{personalizationProfile?.demographics?.country || 'Not set'}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Biological Sex</span>
-              <span className="text-sm font-black text-white">{personalizationProfile?.demographics?.sex || 'Not set'}</span>
+              <span className="text-xs font-medium text-zinc-400">Biological Sex</span>
+              <span className="text-sm font-normal text-zinc-300">{personalizationProfile?.demographics?.sex || 'Not set'}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Work Schedule</span>
-              <span className="text-sm font-black text-white">{personalizationProfile?.demographics?.workSchedule || 'Not set'}</span>
+              <span className="text-xs font-medium text-zinc-400">Work Schedule</span>
+              <span className="text-sm font-normal text-zinc-300">{personalizationProfile?.demographics?.workSchedule || 'Not set'}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Environment</span>
-              <span className="text-sm font-black text-white text-right max-w-[150px]">{personalizationProfile?.demographics?.environmentType || 'Not set'}</span>
+              <span className="text-xs font-medium text-zinc-400">Environment</span>
+              <span className="text-sm font-normal text-zinc-300 text-right max-w-[150px]">{personalizationProfile?.demographics?.environmentType || 'Not set'}</span>
             </div>
           </div>
         </Card>

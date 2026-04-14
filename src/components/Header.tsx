@@ -27,15 +27,15 @@ export const Header: React.FC<HeaderProps> = ({ user, greeting }) => {
       </motion.div>
 
       <div className="flex flex-col items-start space-y-0.5 min-w-0 flex-1">
-        <span className="bg-clinical-primary text-[8px] px-2 py-0.5 rounded-full uppercase tracking-widest font-bold text-white shrink-0">Sleep Intelligence Agent</span>
+        <span className="bg-indigo-600 text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wide font-semibold text-zinc-50 shrink-0">Sleep Intelligence Agent</span>
         <motion.h1 
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
-          className="text-xl md:text-2xl font-bold text-white leading-tight"
+          className="text-2xl md:text-3xl font-bold text-zinc-50 tracking-tight"
         >
           {greeting.prefix}{user?.displayName ? `, ${user.displayName.split(' ')[0]}` : ''}
         </motion.h1>
-        <div className="text-xs text-zinc-400 leading-relaxed flex items-center gap-2">
+        <div className="text-sm text-zinc-300 leading-relaxed flex items-center gap-2">
           {greeting.suffix}
           {greeting.showLogLink && (
             <button 

@@ -1573,7 +1573,7 @@ export default function App() {
               <section className="space-y-4">
                 {/* Anchor Container for SIA Learning & Editing Controls */}
                 {(isEditing || (activeSuggestion && !prefillUsed) || (!isEditing && !activeSuggestion)) && (
-                  <div className="h-[140px] flex items-center justify-center bg-zinc-900/50 border border-zinc-800 rounded-2xl overflow-hidden relative">
+                  <div className="min-h-[15svh] flex items-center justify-center bg-zinc-900/50 border border-zinc-800 rounded-2xl overflow-hidden relative">
                     <AnimatePresence mode="wait">
                       {isEditing ? (
                         <motion.div

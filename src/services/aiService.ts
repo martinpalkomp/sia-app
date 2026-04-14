@@ -295,7 +295,11 @@ export class AIService {
       clinicalBrief: string;
       personalizationProfile: any;
       history: any[];
-    }
+      logsCount: number;
+      logsInLastMonthCount: number;
+    },
+    maturity: MaturityInfo,
+    dailyBriefContent: string | null
   ): Promise<{ answer: string; newInsights?: any[]; error?: string; limitReached?: boolean }> {
     
     // 1. Check Quota
@@ -306,29 +310,8 @@ export class AIService {
       return { answer: "", limitReached: true };
     }
 
-    // 2. Check Maturity
-    const maturity = await this.getUserDataMaturity(userId);
-
     // 3. Check ClinicalInsights Guardrail
-    const logsRef = collection(db!, 'users', userId, 'sleep_logs');
-    const totalCountSnap = await getCountFromServer(
-      query(logsRef, where('type', '==', 'log'))
-    );
-    const logsCount = totalCountSnap.data().count;
-
-    const oneMonthAgo = new Date();
-    oneMonthAgo.setDate(oneMonthAgo.getDate() - 30);
-    const monthStr = oneMonthAgo.toISOString().split('T')[0];
-    const monthCountSnap = await getCountFromServer(
-      query(logsRef, where('type', '==', 'log'), where('date', '>=', monthStr))
-    );
-    const logsInLastMonthCount = monthCountSnap.data().count;
-
-    const clinicalGuardrail = shouldTriggerAI(tier, maturity.level, logsCount, logsInLastMonthCount, 'ClinicalInsights', null);
-
-    // 4. Get Cached Brief for context
-    const today = format(new Date(), 'yyyy-MM-dd');
-    const cachedBrief = await this.getCachedDailyBrief(userId, today);
+    const clinicalGuardrail = shouldTriggerAI(tier, maturity.level, context.logsCount, context.logsInLastMonthCount, 'ClinicalInsights', null);
 
     const modelName = this.getModelForTier(tier);
     const ai = new GoogleGenAI({ apiKey: this.apiKey });
@@ -344,7 +327,7 @@ export class AIService {
       ${maturity.level === 3 ? "You have full clinical insight capabilities." : ""}
 
       DAILY BRIEF CONTEXT:
-      ${cachedBrief ? cachedBrief.content : "No daily brief available yet."}
+      ${dailyBriefContent ? dailyBriefContent : "No daily brief available yet."}
 
       USER CONTEXT:
       - Personalization: ${JSON.stringify(context.personalizationProfile)}

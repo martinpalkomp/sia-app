@@ -45,7 +45,6 @@ import {
   query, 
   where, 
   orderBy, 
-  onSnapshot,
   limit, 
   getDocs,
   doc,
@@ -213,18 +212,21 @@ export default function Dashboard({
   // Fetch insights from Firestore
   useEffect(() => {
     if (!user) return;
-    const q = query(
-      collection(db, 'users', user.uid, 'insights'),
-      orderBy('createdAt', 'desc'),
-      limit(6)
-    );
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const fetched: Insight[] = [];
-      snapshot.forEach(doc => fetched.push({ id: doc.id, ...doc.data() } as Insight));
-      setInsights(fetched);
-    });
-    return () => unsubscribe();
-  }, [user]);
+    const fetchInsights = async () => {
+      try {
+        const q = query(
+          collection(db, 'users', user.uid, 'insights'),
+          orderBy('createdAt', 'desc'),
+          limit(6)
+        );
+        const snapshot = await getDocs(q);
+        const fetched: Insight[] = [];
+        snapshot.forEach(doc => fetched.push({ id: doc.id, ...doc.data() } as Insight));
+        setInsights(fetched);
+      } catch (e) { console.error('Insights fetch error:', e); }
+    };
+    fetchInsights();
+  }, [user?.uid]);
 
   // Check for first visit
   useEffect(() => {
@@ -308,42 +310,46 @@ export default function Dashboard({
   }, [logs]);
 
     const greeting = useMemo(() => {
-    if (isFirstVisit) {
-      return {
-        prefix: "Hello! I am SIA, your Sleep Intelligence Assistant.",
-        suffix: "Ready to evaluate your sleep patterns and track your progress?"
-      };
-    }
+      const isNewUser = Object.keys(logs).length === 0;
+      const todayStr = format(new Date(), 'yyyy-MM-dd');
+      const hasLoggedToday = !!logs[todayStr];
+      const hour = new Date().getHours();
 
-    const hour = new Date().getHours();
-    let prefix = "";
-    let suffix = "";
-    let showLogLink = false;
+      let prefix = "";
+      let suffix = "";
+      let showLogLink = false;
 
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = yesterday.toISOString().split('T')[0];
-    const hasYesterdayLog = !!logs[yesterdayStr];
-
-    if (hour >= 5 && hour < 12) {
-      prefix = "Good morning! SIA is here";
-      if (hasYesterdayLog) {
-        suffix = "You've logged your sleep! Ready to see your analysis?";
-        showLogLink = false;
-      } else {
-        suffix = "Did you have a nice night? Log it in.";
-        showLogLink = true;
+      if (isNewUser) {
+        return {
+          prefix: "Welcome",
+          suffix: "I am SIA. Let's begin establishing your sleep baseline."
+        };
       }
-    } else if (hour >= 12 && hour < 18) {
-      prefix = "Good afternoon! SIA is here";
-      suffix = "Ready to evaluate your sleep patterns and adjust in accordance with the analysis?";
-    } else {
-      prefix = "Good evening! SIA is here";
-      suffix = `Based on your schedule, you usually head to bed around ${averageBedtime}. Ready to wind down?`;
-    }
 
-    return { prefix, suffix, showLogLink, onLogClick };
-  }, [isFirstVisit, averageBedtime, logs, onLogClick]);
+      if (hour >= 0 && hour < 5) {
+        prefix = "The midnight hour";
+        suffix = "Recovery is active. Your cognitive architecture requires deep rest to consolidate today’s data.";
+      } else if (hour >= 5 && hour < 12) {
+        prefix = "Morning";
+        if (hasLoggedToday) {
+          suffix = "Data ingested. Your sleep metrics are ready for analysis. Let's optimize your biological potential.";
+        } else {
+          suffix = "A new cycle has begun. Please capture your sleep metrics while the data fidelity is at its peak.";
+          showLogLink = true;
+        }
+      } else if (hour >= 12 && hour < 17) {
+        prefix = "Good afternoon";
+        suffix = "Your circadian rhythm is stable. We are monitoring your energy flux for optimal performance.";
+      } else if (hour >= 17 && hour < 21) {
+        prefix = "Evening";
+        suffix = "Your sleep gate is projected for " + averageBedtime + ". Prepare your environment for optimal transition.";
+      } else {
+        prefix = "Wind down";
+        suffix = "Consistency is the key to architecture. Aim for your " + averageBedtime + " target to maintain your baseline.";
+      }
+
+      return { prefix, suffix, showLogLink, onLogClick };
+    }, [logs, user, averageBedtime, onLogClick]);
 
   const insightDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -415,12 +421,7 @@ export default function Dashboard({
       const daysCount = personalizationProfile ? 90 : 30;
       const logsRef = collection(db!, 'users', user.uid, 'sleep_logs');
       
-      let querySnapshot = await getDocs(query(logsRef, where('type', '==', 'log'), orderBy('date', 'desc'), limit(daysCount)));
-      
-      if (querySnapshot.size < 3) {
-        // Fallback: fetch without type filter to catch imported logs missing the field
-        querySnapshot = await getDocs(query(logsRef, orderBy('date', 'desc'), limit(daysCount)));
-      }
+      const querySnapshot = await getDocs(query(logsRef, where('type', '==', 'log'), orderBy('date', 'desc'), limit(daysCount)));
       
       const historicalLogs: DailyLog[] = [];
       querySnapshot.forEach(doc => {
@@ -524,7 +525,7 @@ export default function Dashboard({
               <Sparkles className="text-indigo-400" size={20} />
             </div>
             <div>
-              <h2 className="text-lg font-black uppercase tracking-widest text-white">SIA WEEKLY BRIEF</h2>
+              <h2 className="text-lg font-medium uppercase tracking-wide text-slate-400">SIA WEEKLY BRIEF</h2>
               <p className="text-xs text-indigo-300/70 font-medium uppercase tracking-widest">Personalized Weekly Summary</p>
             </div>
           </div>
@@ -559,7 +560,7 @@ export default function Dashboard({
       {/* Section: Status Report */}
       <section className="space-y-4">
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
-          <Card className="col-span-2 md:col-span-1 flex flex-col justify-center border-zinc-800/50 bg-zinc-900/30 p-3 md:p-4 min-h-[140px] md:min-h-[160px] hover:border-zinc-700/50 transition-colors">
+          <Card className="col-span-2 md:col-span-1 flex flex-col justify-center border-zinc-800/50 bg-zinc-900/30 p-3 md:p-4 min-h-[18svh] hover:border-zinc-700/50 transition-colors">
             <div className="flex items-center gap-2 mb-2">
               <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
               <span className="text-[8px] md:text-[10px] text-zinc-300 uppercase tracking-widest font-bold">Status Report</span>
@@ -571,7 +572,7 @@ export default function Dashboard({
             </p>
           </Card>
 
-          <Card className={`flex flex-col justify-between hover:border-indigo-400 group hover:-translate-y-1 hover:shadow-indigo-500/20 transition-all duration-300 min-h-[140px] md:min-h-[160px] animate-sia-pulse ${isEnhanced ? 'bg-gradient-to-br from-zinc-900 to-indigo-900/20 border-indigo-500/30' : 'border-zinc-800'}`}>
+          <Card className={`flex flex-col justify-between hover:border-indigo-400 group hover:-translate-y-1 hover:shadow-indigo-500/20 transition-all duration-300 min-h-[18svh] animate-sia-pulse ${isEnhanced ? 'bg-gradient-to-br from-zinc-900 to-indigo-900/20 border-indigo-500/30' : 'border-zinc-800'}`}>
             <div className="flex justify-between items-start">
               <div className="w-8 h-8 md:w-10 md:h-10 bg-indigo-500/20 rounded-lg md:rounded-xl flex items-center justify-center text-indigo-300 border border-indigo-500/30">
                 <Activity size={18} className="md:w-5 md:h-5" />
@@ -586,7 +587,7 @@ export default function Dashboard({
             />
           </Card>
 
-          <Card className={`flex flex-col justify-between hover:border-amber-400 group hover:-translate-y-1 hover:shadow-amber-500/20 transition-all duration-300 min-h-[140px] md:min-h-[160px] animate-sia-pulse ${isEnhanced ? 'bg-gradient-to-br from-zinc-900 to-amber-900/20 border-amber-500/30' : 'border-zinc-800'}`}>
+          <Card className={`flex flex-col justify-between hover:border-amber-400 group hover:-translate-y-1 hover:shadow-amber-500/20 transition-all duration-300 min-h-[18svh] animate-sia-pulse ${isEnhanced ? 'bg-gradient-to-br from-zinc-900 to-amber-900/20 border-amber-500/30' : 'border-zinc-800'}`}>
             <div className="flex justify-between items-start">
               <div className="w-8 h-8 md:w-10 md:h-10 bg-amber-500/20 rounded-lg md:rounded-xl flex items-center justify-center text-amber-300 border border-amber-500/30">
                 <Sun size={18} className="md:w-5 md:h-5" />
@@ -601,7 +602,7 @@ export default function Dashboard({
             />
           </Card>
 
-          <Card className={`flex flex-col justify-between hover:border-emerald-400 group hover:-translate-y-1 hover:shadow-emerald-500/20 transition-all duration-300 min-h-[140px] md:min-h-[160px] animate-sia-pulse ${isEnhanced ? 'bg-gradient-to-br from-zinc-900 to-emerald-900/20 border-emerald-500/30' : 'border-zinc-800'}`}>
+          <Card className={`flex flex-col justify-between hover:border-emerald-400 group hover:-translate-y-1 hover:shadow-emerald-500/20 transition-all duration-300 min-h-[18svh] animate-sia-pulse ${isEnhanced ? 'bg-gradient-to-br from-zinc-900 to-emerald-900/20 border-emerald-500/30' : 'border-zinc-800'}`}>
             <div className="flex justify-between items-start">
               <div className="w-8 h-8 md:w-10 md:h-10 bg-emerald-500/20 rounded-lg md:rounded-xl flex items-center justify-center text-emerald-300 border border-emerald-500/30">
                 <Zap size={18} className="md:w-5 md:h-5" />
@@ -616,7 +617,7 @@ export default function Dashboard({
             />
           </Card>
 
-          <Card className={`flex flex-col justify-between hover:border-indigo-400 group hover:-translate-y-1 hover:shadow-indigo-500/20 transition-all duration-300 min-h-[140px] md:min-h-[160px] animate-sia-pulse ${isEnhanced ? 'bg-gradient-to-br from-zinc-900 to-indigo-900/20 border-indigo-500/30' : 'border-zinc-800'}`}>
+          <Card className={`flex flex-col justify-between hover:border-indigo-400 group hover:-translate-y-1 hover:shadow-indigo-500/20 transition-all duration-300 min-h-[18svh] animate-sia-pulse ${isEnhanced ? 'bg-gradient-to-br from-zinc-900 to-indigo-900/20 border-indigo-500/30' : 'border-zinc-800'}`}>
             <div className="flex justify-between items-start">
               <div className="w-8 h-8 md:w-10 md:h-10 bg-indigo-500/20 rounded-lg md:rounded-xl flex items-center justify-center text-indigo-300 border border-indigo-500/30">
                 <Clock size={18} className="md:w-5 md:h-5" />
@@ -630,7 +631,7 @@ export default function Dashboard({
             />
           </Card>
 
-          <Card className={`flex flex-col justify-between hover:border-violet-400 group hover:-translate-y-1 hover:shadow-violet-500/20 transition-all duration-300 min-h-[140px] md:min-h-[160px] animate-sia-pulse ${isEnhanced ? 'bg-gradient-to-br from-zinc-900 to-violet-900/20 border-violet-500/30' : 'border-zinc-800'}`}>
+          <Card className={`flex flex-col justify-between hover:border-violet-400 group hover:-translate-y-1 hover:shadow-violet-500/20 transition-all duration-300 min-h-[18svh] animate-sia-pulse ${isEnhanced ? 'bg-gradient-to-br from-zinc-900 to-violet-900/20 border-violet-500/30' : 'border-zinc-800'}`}>
             <div className="flex justify-between items-start">
               <div className="w-8 h-8 md:w-10 md:h-10 bg-violet-500/20 rounded-lg md:rounded-xl flex items-center justify-center text-violet-300 border border-violet-500/30">
                 <BarChart3 size={18} className="md:w-5 md:h-5" />
@@ -661,7 +662,7 @@ export default function Dashboard({
                 <Sparkles className="text-indigo-400" size={20} />
               </div>
               <div>
-                <h2 className="text-lg font-bold text-white">SIA QUICK INSIGHT</h2>
+                <h2 className="text-lg font-medium uppercase tracking-wide text-slate-400">SIA QUICK INSIGHT</h2>
                 <p className="text-xs text-indigo-300/70 font-bold uppercase tracking-widest">Personalized Pattern Analysis</p>
               </div>
             </div>
@@ -688,7 +689,7 @@ export default function Dashboard({
         {/* Insights Feed */}
         <section className="space-y-6">
           <div className="flex items-center justify-between">
-            <h3 className="text-[10px] font-black text-zinc-300 uppercase tracking-[0.2em]">Clinical Insights</h3>
+            <h3 className="text-[10px] font-medium uppercase tracking-wide text-slate-400">Clinical Insights</h3>
             <span className="text-[9px] font-black text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-full uppercase tracking-widest border border-indigo-500/20">
               {userProfile?.tier} Intelligence
             </span>
@@ -720,7 +721,7 @@ export default function Dashboard({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Card 
             onClick={onLogClick}
-            className="bg-indigo-600 border-none hover:bg-indigo-500 flex items-center justify-between group shadow-lg shadow-indigo-600/20 min-h-[120px]"
+            className="bg-indigo-600 border-none hover:bg-indigo-500 flex items-center justify-between group shadow-lg shadow-indigo-600/20 min-h-[15svh]"
           >
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center text-white">
@@ -751,7 +752,7 @@ export default function Dashboard({
               <div className="absolute inset-0 bg-gradient-to-r from-zinc-900 via-zinc-800 to-zinc-900 rounded-3xl opacity-50 blur-sm" />
               <Card 
                 onClick={() => onViewChange('account')}
-                className="relative bg-zinc-950/80 border border-indigo-500/30 p-6 flex items-center justify-between cursor-pointer hover:border-indigo-500/50 transition-all min-h-[120px] rounded-3xl backdrop-blur-sm"
+                className="relative bg-zinc-950/80 border border-indigo-500/30 p-6 flex items-center justify-between cursor-pointer hover:border-indigo-500/50 transition-all min-h-[15svh] rounded-3xl backdrop-blur-sm"
               >
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 bg-indigo-500/10 rounded-2xl flex items-center justify-center text-indigo-400 border border-indigo-500/20">
@@ -770,7 +771,7 @@ export default function Dashboard({
           ) : (
             <Card 
               onClick={handleDeepAnalysis}
-              className="bg-gradient-to-br from-zinc-900 to-zinc-950 border border-zinc-800 hover:border-indigo-500/30 flex items-center justify-between group cursor-pointer min-h-[120px] rounded-3xl p-6 shadow-lg"
+              className="bg-gradient-to-br from-zinc-900 to-zinc-950 border border-zinc-800 hover:border-indigo-500/30 flex items-center justify-between group cursor-pointer min-h-[15svh] rounded-3xl p-6 shadow-lg"
             >
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 bg-zinc-800 rounded-2xl flex items-center justify-center text-zinc-400 group-hover:text-indigo-400 transition-colors">
@@ -790,7 +791,7 @@ export default function Dashboard({
       {/* Section 4: The Growth Hub */}
       <section className="space-y-6 pt-6 border-t border-zinc-800">
         <div className="flex items-center justify-between">
-          <h3 className="text-[10px] font-black text-zinc-300 uppercase tracking-[0.2em]">Growth Hub</h3>
+          <h3 className="text-[10px] font-medium uppercase tracking-wide text-slate-400">Growth Hub</h3>
         </div>
         
         <div className="grid grid-cols-1 gap-6">
@@ -802,7 +803,7 @@ export default function Dashboard({
       {/* Section: SIA Intelligence Feed */}
       <section className="space-y-6 pt-6 border-t border-zinc-800">
         <div className="flex items-center justify-between">
-          <h3 className="text-[10px] font-black text-zinc-300 uppercase tracking-[0.2em]">SIA Intelligence Feed</h3>
+          <h3 className="text-[10px] font-medium uppercase tracking-wide text-slate-400">SIA Intelligence Feed</h3>
         </div>
         
         <div className="grid grid-cols-1 gap-6">
@@ -821,7 +822,7 @@ export default function Dashboard({
                       <Brain size={20} />
                     </div>
                     <div>
-                      <h3 className="text-sm font-black text-white uppercase tracking-widest">SIA Intelligence Feed</h3>
+                      <h3 className="text-sm font-bold text-zinc-50 tracking-tight">Sia Intelligence Feed</h3>
                       <p className="text-[10px] text-zinc-400 font-bold">Advanced Diagnostic Monitoring</p>
                     </div>
                   </div>
@@ -916,7 +917,7 @@ export default function Dashboard({
       {/* Section: Data Maturity Progress */}
       <section className="space-y-6 pt-6 border-t border-zinc-800">
         <div className="flex items-center justify-between">
-          <h3 className="text-[10px] font-black text-zinc-300 uppercase tracking-[0.2em]">Data Maturity</h3>
+          <h3 className="text-[10px] font-medium uppercase tracking-wide text-slate-400">Data Maturity</h3>
         </div>
         <DataMaturityTracker 
           maturity={dataMaturity as MaturityInfo} 

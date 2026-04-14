@@ -61,7 +61,7 @@ export const InsightCard: React.FC<InsightCardProps> = ({ insight, tier = 'Basic
         </div>
         <div className="flex-1 space-y-1.5">
           <div className="flex justify-between items-center">
-            <span className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em]">{label}</span>
+            <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wide">{label}</span>
             {isHovered && (
               <motion.div 
                 initial={{ opacity: 0, scale: 0.8 }}
@@ -72,9 +72,9 @@ export const InsightCard: React.FC<InsightCardProps> = ({ insight, tier = 'Basic
               </motion.div>
             )}
           </div>
-          <p className="text-sm font-bold text-white leading-snug">{insight.summary}</p>
+          <p className="text-sm font-normal text-zinc-300 leading-snug">{insight.summary}</p>
           {insight.details && (
-            <p className="text-xs text-zinc-400 font-medium leading-relaxed">{insight.details}</p>
+            <p className="text-sm text-zinc-300 font-normal leading-relaxed">{insight.details}</p>
           )}
         </div>
       </div>

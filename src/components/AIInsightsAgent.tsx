@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { subDays, parseISO } from 'date-fns';
+import { subDays, parseISO, format } from 'date-fns';
 import { GoogleGenAI } from "@google/genai";
 import { 
   Sparkles, 
@@ -144,6 +144,9 @@ export default function AIInsightsAgent() {
   const [isExpanded, setIsExpanded] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const cachedLogsRef = useRef<DailyLog[] | null>(null);
+  const cachedProfileRef = useRef<any | null>(null);
+  const cachedUnstructuredRef = useRef<UnstructuredData[] | null>(null);
 
   const isEnhanced = !!personalizationProfile;
   const daysCount = isEnhanced ? 90 : 30;
@@ -239,36 +242,39 @@ export default function AIInsightsAgent() {
       setInput('');
 
       // Fetch tiered historical context
-      const logsRef = collection(db, 'users', user.uid, 'sleep_logs');
-      const logsQuery = query(
-        logsRef,
-        orderBy('date', 'desc'),
-        limit(14)
-      );
-      
-      const [logsSnap, profileSnap, unstructuredSnap] = await Promise.all([
-        getDocs(logsQuery),
-        getDoc(doc(db, 'users', user.uid, 'personalization', 'profile')),
-        getDocs(query(collection(db, 'users', user.uid, 'unstructured_data'), orderBy('uploadDate', 'desc'), limit(10)))
-      ]);
-
-      const recentLogs: DailyLog[] = [];
-      logsSnap.forEach(doc => {
-        recentLogs.push(doc.data() as DailyLog);
-      });
-
-      const unstructuredData: UnstructuredData[] = [];
-      unstructuredSnap.forEach(doc => {
-        unstructuredData.push({ id: doc.id, ...doc.data() } as UnstructuredData);
-      });
+      // Use cached context if available — re-fetch only on first message per session
+      if (!cachedLogsRef.current || !cachedProfileRef.current) {
+        const logsRef = collection(db, 'users', user.uid, 'sleep_logs');
+        const [logsSnap, profileSnap, unstructuredSnap] = await Promise.all([
+          getDocs(query(logsRef, orderBy('date', 'desc'), limit(14))),
+          getDoc(doc(db, 'users', user.uid, 'personalization', 'profile')),
+          getDocs(query(collection(db, 'users', user.uid, 'unstructured_data'), orderBy('uploadDate', 'desc'), limit(10)))
+        ]);
+        const fetched: DailyLog[] = [];
+        logsSnap.forEach(d => fetched.push(d.data() as DailyLog));
+        cachedLogsRef.current = fetched;
+        cachedProfileRef.current = profileSnap.exists() ? profileSnap.data() : personalizationProfile;
+        const unstructured: UnstructuredData[] = [];
+        unstructuredSnap.forEach(d => unstructured.push({ id: d.id, ...d.data() } as UnstructuredData));
+        cachedUnstructuredRef.current = unstructured;
+      }
+      const recentLogs = cachedLogsRef.current;
+      const profile = cachedProfileRef.current;
+      const unstructuredData = cachedUnstructuredRef.current ?? [];
       
       const clinicalBrief = buildClinicalBrief(recentLogs, unstructuredData);
-      const profile = profileSnap.exists() ? profileSnap.data() : personalizationProfile;
 
       const history = messages.slice(-6).map(m => ({
         role: m.role === 'user' ? 'user' : 'model',
         parts: [{ text: m.content }]
       }));
+
+      const oneMonthAgo = new Date();
+      oneMonthAgo.setDate(oneMonthAgo.getDate() - 30);
+      const logsArray = Object.values(logs);
+      const logsCount = logsArray.length;
+      const logsInLastMonthCount = logsArray.filter(log => new Date(log.date) >= oneMonthAgo).length;
+      const today = format(new Date(), 'yyyy-MM-dd');
 
       const response = await AIService.chatWithSIA(
         user.uid,
@@ -277,8 +283,15 @@ export default function AIInsightsAgent() {
         {
           clinicalBrief,
           personalizationProfile: profile,
-          history
-        }
+          history,
+          logsCount,
+          logsInLastMonthCount
+        },
+        {
+          ...dataDepth,
+          level: dataDepth.level as 1 | 2 | 3 | 4
+        },
+        sessionStorage.getItem(`sia_brief_${user.uid}_${today}`) ?? null
       );
 
       if (response.limitReached) {
@@ -364,7 +377,7 @@ export default function AIInsightsAgent() {
 
   if (isProfileLoading || !user) {
     return (
-      <div className="flex flex-col h-[600px] bg-zinc-900/50 border border-zinc-800 rounded-3xl overflow-hidden items-center justify-center space-y-4">
+      <div className="flex flex-col h-[80svh] md:h-[80vh] bg-zinc-900/50 border border-zinc-800 rounded-3xl overflow-hidden items-center justify-center space-y-4">
         <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
         <p className="text-sm text-zinc-300 font-medium animate-pulse">Syncing Profile...</p>
       </div>
@@ -385,9 +398,9 @@ export default function AIInsightsAgent() {
             />
           </div>
           <div>
-            <h3 className="text-lg md:text-xl font-black text-white tracking-tight">Sleep Intelligence Agent</h3>
+            <h3 className="text-xl md:text-2xl font-bold text-zinc-50 tracking-tight">Sleep Intelligence Agent</h3>
             <div className="flex items-center gap-2 mt-1">
-              <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border ${isEnhanced ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400' : 'bg-zinc-800 border-zinc-700 text-zinc-400'}`}>
+              <span className={`text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full border ${isEnhanced ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400' : 'bg-zinc-800 border-zinc-700 text-zinc-400'}`}>
                 {isEnhanced ? 'Enhanced Analysis' : 'Basic'}
               </span>
             </div>
@@ -466,7 +479,7 @@ export default function AIInsightsAgent() {
           onClick={() => setIsExpanded(!isExpanded)}
           className="flex items-center justify-between mb-2 w-full text-left"
         >
-          <p className="text-[10px] text-zinc-300 uppercase tracking-widest font-bold ml-1">Quick Ask</p>
+          <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wide ml-1">Quick Ask</p>
           <ChevronDown size={12} className={`text-zinc-300 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />
         </button>
         {isExpanded && (
@@ -482,7 +495,7 @@ export default function AIInsightsAgent() {
                 key={i}
                 onClick={() => handleSend(qp.prompt)}
                 disabled={isLoading || isAnalyzing}
-                className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-indigo-500/40 rounded-2xl text-[10px] font-bold uppercase tracking-widest text-zinc-300 hover:text-white transition-all disabled:opacity-50"
+                className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-indigo-500/40 rounded-2xl text-[10px] font-medium uppercase tracking-wide text-zinc-300 hover:text-white transition-all disabled:opacity-50"
               >
                 {qp.label}
               </button>
@@ -497,7 +510,7 @@ export default function AIInsightsAgent() {
           <div className="mb-2 p-2 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-start gap-2">
             <AlertCircle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
             <div className="space-y-0.5">
-              <p className="text-[10px] font-bold text-amber-400 uppercase tracking-widest">Low Data Depth</p>
+              <p className="text-[10px] font-medium text-amber-400 uppercase tracking-wide">Low Data Depth</p>
               <p className="text-[9px] text-zinc-400 leading-relaxed">
                 SIA is in Initializing mode. Log 14 days for better correlations. (Progress: {dataDepth.count}/14)
               </p>
@@ -538,13 +551,13 @@ export default function AIInsightsAgent() {
                 className={`h-full ${isLimitReached ? 'bg-red-500' : 'bg-indigo-500'}`}
               />
             </div>
-            <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">
+            <span className="text-[10px] text-zinc-400 font-medium uppercase tracking-wide">
               {userProfile.quota.chatMessagesUsed} / {AIService.getQuotaLimit(userProfile.tier)} Messages
             </span>
           </div>
           
           {userProfile.tier === 'Basic' && (
-            <button className="text-[10px] text-indigo-400 font-bold uppercase tracking-widest hover:text-indigo-300 transition-colors">
+            <button className="text-[10px] text-indigo-400 font-semibold uppercase tracking-wide hover:text-indigo-300 transition-colors">
               Upgrade for More
             </button>
           )}
