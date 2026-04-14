@@ -39,7 +39,7 @@ export class AIService {
   private static apiKey = process.env.GEMINI_API_KEY || "";
 
   static getModelForTier(tier: UserTier): string {
-    return "gemini-2.0-flash";
+    return "gemini-1.5-flash";
   }
 
   static async getUserDataMaturity(userId: string): Promise<MaturityInfo> {
@@ -499,8 +499,8 @@ export class AIService {
         response = await callModel(modelName);
       } catch (error: any) {
         if (error.status === 404) {
-          console.warn(`Model ${modelName} not found, falling back to gemini-2.0-flash`);
-          response = await callModel("gemini-2.0-flash");
+          console.warn(`Model ${modelName} not found, falling back to gemini-1.5-flash`);
+          response = await callModel("gemini-1.5-flash");
         } else {
           throw error;
         }

@@ -46,6 +46,13 @@ export default function SleepGuideInteractive({ onClose, onOpenPersonalization }
     restDelta: 0.001
   });
 
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, []);
+
   const scrollToSection = (id: string) => {
     const element = document.getElementById(`guide-section-${id}`);
     if (element && scrollRef.current) {

@@ -109,7 +109,6 @@ import { calculateSafeAverage } from './utils/statsEngine';
 import Legal from './components/Legal';
 import { DevSwitchboardMini } from './components/DevSwitchboardMini';
 import CorrectionHub from './components/CorrectionHub';
-import DevElementMap from './components/DevElementMap';
 const AIInsightsAgent = lazy(() => import('./components/AIInsightsAgent'));
 const Dashboard = lazy(() => import('./components/Dashboard'));
 const PersonalizationWizard = lazy(() => import('./components/PersonalizationWizard'));
@@ -1447,15 +1446,6 @@ export default function App() {
                 </motion.div>
               </AnimatePresence>
             </motion.div>
-          ) : view === 'dev-map' ? (
-            <motion.div
-              key="dev-map"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-            >
-              <DevElementMap />
-            </motion.div>
           ) : view === 'corrections' ? (
             <motion.div
               key="corrections"
@@ -2520,7 +2510,7 @@ export default function App() {
                       </button>
                     ))}
                   </div>
-                  {view === 'dashboard' && (
+                  {(view as any) === 'dashboard' && (
                     userProfile?.tier === 'Basic' ? (
                       <button
                         onClick={() => setView('account')}

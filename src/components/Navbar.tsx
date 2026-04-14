@@ -15,6 +15,17 @@ interface NavbarProps {
 export const Navbar: React.FC<NavbarProps> = ({ user, view, setView, handleLogout, derivedTier }) => {
   const [isOpen, setIsOpen] = useState(false);
 
+  React.useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isOpen]);
+
   const navLinks = [
     { id: 'dashboard', label: 'DASHBOARD' },
     { id: 'log', label: 'LOG' },

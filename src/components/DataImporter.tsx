@@ -163,7 +163,7 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
       if (apiKey) {
         const ai = new GoogleGenAI({ apiKey });
         const aiPromise = ai.models.generateContent({
-          model: "gemini-2.0-flash",
+          model: "gemini-1.5-flash",
           config: {
             systemInstruction: "Extract sleep insights from this text. Return only valid JSON: { summary, estimatedDateRange, extractedInsights (string array), rawDataType }.",
             temperature: 0.4
@@ -1212,50 +1212,69 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
             transition={{ duration: 0.3, ease: 'easeInOut' }}
           >
             <div className="p-6 pt-0 space-y-6 border-t border-zinc-800/50 mt-4">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pt-4">
-                <div className="space-y-1 text-left">
-                  <h3 className="text-xs font-black text-zinc-400 uppercase tracking-widest">
-                    Importer Tools
-                  </h3>
-                  <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">CSV or Excel • Max 5MB</p>
-                  {userProfile?.tier !== 'PRO' && (
-                    <div className="mt-4 p-4 bg-zinc-950/50 border border-zinc-800 rounded-2xl flex items-center justify-between">
-                      <div className="space-y-0.5">
-                        <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">AI Restructure Credits</p>
-                        <div className="flex items-center gap-2">
-                          <div className="w-24 h-1.5 bg-zinc-900 rounded-full overflow-hidden">
-                            <div 
-                              className="h-full bg-indigo-500 rounded-full" 
-                              style={{ width: `${(((userProfile?.tier === 'Basic' ? 5 : 5) - (userProfile?.aiImportsCurrentMonth || 0)) / (userProfile?.tier === 'Basic' ? 5 : 5)) * 100}%` }}
-                            />
-                          </div>
-                          <p className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest">
-                            {(userProfile?.tier === 'Basic' ? 5 : 5) - (userProfile?.aiImportsCurrentMonth || 0)} / {userProfile?.tier === 'Basic' ? 5 : 5}
-                          </p>
-                        </div>
-                      </div>
-                      <span className="relative group cursor-help text-zinc-600">
-                        <Info size={12} />
-                        <span className="absolute right-0 mt-2 w-48 p-3 bg-zinc-800 text-zinc-300 text-[10px] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 border border-zinc-700 shadow-xl">
-                          AI Restructure automatically cleans, formats, and maps non-standard data files to SIA's high-precision sleep log format.
-                        </span>
-                      </span>
-                    </div>
-                  )}
+              {/* 1. Pre-Flight Check Bar */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-zinc-950/50 border border-zinc-800 rounded-3xl">
+                <div className="space-y-0.5">
+                  <h3 className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Constraints</h3>
+                  <p className="text-xs text-zinc-300 font-bold">CSV or Excel • Max 5MB</p>
                 </div>
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full md:w-auto">
+                
+                {userProfile?.tier !== 'PRO' && (
+                  <div className="space-y-0.5">
+                    <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">AI Restructure Credits</p>
+                    <div className="flex items-center gap-2">
+                      <div className="w-24 h-1.5 bg-zinc-900 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-indigo-500 rounded-full" 
+                          style={{ width: `${(((userProfile?.tier === 'Basic' ? 5 : 5) - (userProfile?.aiImportsCurrentMonth || 0)) / (userProfile?.tier === 'Basic' ? 5 : 5)) * 100}%` }}
+                        />
+                      </div>
+                      <p className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest">
+                        {(userProfile?.tier === 'Basic' ? 5 : 5) - (userProfile?.aiImportsCurrentMonth || 0)} / {userProfile?.tier === 'Basic' ? 5 : 5}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-end">
                   <button 
-                    onClick={() => setIsPasteOpen(!isPasteOpen)}
-                    className={`flex items-center justify-center gap-2 px-3 py-2 border rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${
-                      isPasteOpen 
-                        ? 'bg-indigo-500/10 border-indigo-500/50 text-indigo-400' 
-                        : 'bg-zinc-800 hover:bg-zinc-700 border-zinc-700 text-zinc-400'
-                    }`}
+                    onClick={downloadTemplate}
+                    className="flex items-center gap-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-xl text-[10px] font-bold uppercase tracking-widest text-zinc-300 transition-all"
                   >
-                    <FileText size={14} />
-                    Paste from Spreadsheet
+                    <Download size={12} />
+                    Download Template
                   </button>
                 </div>
+              </div>
+
+              {/* 2. Elevated Checklist */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {[
+                  { title: "Format", desc: "Date: YYYY-MM-DD" },
+                  { title: "Metrics", desc: "Quality/Alertness: 0-10" },
+                  { title: "Structure", desc: "One row per sleep event" }
+                ].map((item, i) => (
+                  <div key={i} className="p-4 bg-zinc-900 border border-zinc-800 rounded-3xl">
+                    <h4 className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1">{item.title}</h4>
+                    <p className="text-xs text-zinc-300 font-bold">{item.desc}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* 3. Unified Action Zone */}
+              <div className="flex items-center justify-between gap-4">
+                <h3 className="text-xs font-black text-zinc-400 uppercase tracking-widest">Data Entry</h3>
+                <button 
+                  onClick={() => setIsPasteOpen(!isPasteOpen)}
+                  className={`flex items-center gap-2 px-4 py-2 border rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${
+                    isPasteOpen 
+                      ? 'bg-indigo-500/10 border-indigo-500/50 text-indigo-400' 
+                      : 'bg-zinc-800 hover:bg-zinc-700 border-zinc-700 text-zinc-400'
+                  }`}
+                >
+                  <FileText size={14} />
+                  Paste from Spreadsheet
+                </button>
               </div>
 
               <AnimatePresence>
@@ -1545,27 +1564,7 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
                 </AnimatePresence>
               </form>
 
-              <div className="bg-zinc-900/80 rounded-2xl p-4 border border-zinc-800">
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">Import Guidelines</h4>
-                  <button 
-                    onClick={downloadTemplate}
-                    className="flex items-center justify-center gap-2 px-3 py-1 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-lg text-[9px] font-bold uppercase tracking-widest text-zinc-400 transition-all"
-                  >
-                    <Download size={12} />
-                    Download Template
-                  </button>
-                </div>
-                <ul className="text-[10px] text-zinc-400 space-y-1 list-disc list-inside">
-                  <li>Date format must be <code className="text-indigo-400">YYYY-MM-DD</code></li>
-                  <li>Each row = one sleep event. Use multiple rows per date for nights with wake-ups (set Status_Code to AWAKE-IN).</li>
-                  <li>Date = the night it starts (20:00 cycle). Bedtime 23:00, wake 07:00 → use that evening's date.</li>
-                  <li>Metrics (Quality, Morning Alertness, Daytime Energy) should be <code className="text-indigo-400">0-10</code></li>
-                  <li>Existing logs for the same date will be overwritten</li>
-                  <li>Empty rows and whitespace are automatically handled</li>
-                  <li>Unstructured data (e.g., raw text, journal entries) will be indexed for SIA's AI Analysis.</li>
-                </ul>
-              </div>
+              {/* Guidelines removed from here as they are now elevated */}
             </div>
           </motion.div>
         )}

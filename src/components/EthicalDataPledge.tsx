@@ -12,6 +12,17 @@ interface EthicalDataPledgeProps {
 export default function EthicalDataPledge({ agreed, onToggle, isEnhanced }: EthicalDataPledgeProps) {
   const [showModal, setShowModal] = useState(false);
 
+  React.useEffect(() => {
+    if (showModal) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [showModal]);
+
   return (
     <div className="space-y-4">
       <Card className="bg-indigo-900/10 border-indigo-500/20 p-4">
@@ -50,12 +61,12 @@ export default function EthicalDataPledge({ agreed, onToggle, isEnhanced }: Ethi
 
       <AnimatePresence>
         {showModal && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-8 bg-black/80 backdrop-blur-sm">
             <motion.div 
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full max-w-md bg-zinc-900 border border-zinc-800 rounded-3xl overflow-hidden shadow-2xl"
+              className="w-full max-w-md mx-auto my-auto bg-zinc-900 border border-zinc-800 rounded-3xl overflow-hidden shadow-2xl max-h-[90vh] overflow-y-auto"
             >
               <div className="p-6 border-b border-zinc-800 flex items-center justify-between bg-zinc-900">
                 <div className="flex items-center gap-3">

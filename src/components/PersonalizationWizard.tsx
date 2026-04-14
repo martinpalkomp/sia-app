@@ -91,6 +91,13 @@ export default function PersonalizationWizard({ user, onComplete, onClose }: Per
   });
   const [isSaving, setIsSaving] = useState(false);
 
+  React.useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, []);
+
   const totalSteps = 7;
 
   const handleGoalToggle = (goalId: string) => {
@@ -215,7 +222,7 @@ export default function PersonalizationWizard({ user, onComplete, onClose }: Per
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-8">
       <motion.div 
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -228,7 +235,7 @@ export default function PersonalizationWizard({ user, onComplete, onClose }: Per
         initial={{ opacity: 0, scale: 0.9, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.9, y: 20 }}
-        className="relative w-full max-w-xl bg-zinc-900 border border-zinc-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col"
+        className="relative w-full max-w-xl mx-auto my-auto bg-zinc-900 border border-zinc-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
       >
         {/* Progress Bar */}
         <div className="absolute top-0 left-0 right-0 h-1 bg-zinc-800">
@@ -250,7 +257,7 @@ export default function PersonalizationWizard({ user, onComplete, onClose }: Per
             </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto min-h-[450px] pr-2 scrollbar-hide">
+          <div className="flex-1 overflow-y-auto min-h-[60vh] pr-2 scrollbar-hide">
             <AnimatePresence mode="wait">
               {step === 0 && (
                 <motion.div

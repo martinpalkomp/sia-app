@@ -666,53 +666,22 @@ export default function Dashboard({
               </div>
             </div>
             
-            <div className="space-y-4">
-              <p className="text-zinc-200 leading-relaxed text-sm font-medium">
-                {isAiLoading ? (isDeepAnalysis ? "Analyzing long-term trends..." : "Scanning recent logs...") : (aiInsight ? aiInsight : `Log more nights to unlock personalized pattern analysis (${dataMaturity.count}/14)`)}
-              </p>
-              {!isAiLoading && aiInsight && (
-                <p className="text-[10px] text-zinc-500 italic leading-tight">{DISCLAIMER}</p>
-              )}
-              {!isAiLoading && (
-                userProfile?.tier === 'Basic' ? (
-                  /* Styled Lock Box for Basic Users */
-                    <div className="mt-4 p-4 bg-zinc-950/50 border border-zinc-800 rounded-xl flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <Lock size={16} className="text-zinc-600" />
-                        <div>
-                          <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Deep Analysis</p>
-                          <p className="text-[9px] text-zinc-600 font-medium">90 days + Enhanced or Pro required</p>
-                        </div>
-                      </div>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); onViewChange('account'); }}
-                        className="text-[10px] font-black text-indigo-400 uppercase tracking-widest hover:text-indigo-300 transition-colors bg-indigo-500/10 px-3 py-1.5 rounded-lg"
-                      >
-                        Upgrade →
-                      </button>
-                    </div>
-                ) : !isDeepAnalysis && aiInsight && (
-                  /* Maturity-Locked Pro Button */
-                  <button
-                    onClick={(e) => { e.stopPropagation(); if (dataMaturity.level >= 4 && isEnhanced) handleDeepAnalysis(); }}
-                    className={`mt-3 w-full py-2 border text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-2 rounded transition-all ${
-                      dataMaturity.level >= 4 && isEnhanced 
-                        ? 'bg-zinc-800/50 hover:bg-zinc-700/50 border-zinc-800 text-indigo-400'
-                        : 'bg-zinc-900/50 border-zinc-800 text-zinc-600 cursor-not-allowed'
-                    }`}
-                  >
-                    <Sparkles size={10} />
-                    {dataMaturity.level >= 4 && isEnhanced ? (
-                      `Run Deep Analysis (${personalizationProfile ? '90' : '30'} Days)`
-                    ) : (
-                      <>
-                        <Lock size={8} /> Locked <span className="hidden group-hover:inline"> (Unlocks at Advanced Maturity (90+ Days Logged))</span>
-                      </>
-                    )}
-                  </button>
-                )
-              )}
-            </div>
+            {dataMaturity.level >= 3 ? (
+              <div className="space-y-4">
+                <p className="text-zinc-200 leading-relaxed text-sm font-medium">
+                  {isAiLoading ? "Analyzing recent logs..." : (aiInsight ? aiInsight : "No insights available yet.")}
+                </p>
+                {!isAiLoading && aiInsight && (
+                  <p className="text-[10px] text-zinc-500 italic leading-tight">{DISCLAIMER}</p>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <p className="text-zinc-400 text-sm italic">
+                  Log more nights to unlock personalized pattern analysis ({dataMaturity.count}/14)
+                </p>
+              </div>
+            )}
           </div>
         </Card>
 

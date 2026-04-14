@@ -31,6 +31,17 @@ const FactorRow = ({ label, value, confidence }: { label: string; value: string 
 };
 
 export const SiaPatternReview: React.FC<SiaPatternReviewProps> = ({ isOpen, onClose, onConfirm, suggestion }) => {
+  React.useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isOpen]);
+
   const s = suggestion.suggestion;
   const cm = suggestion.confidenceMap;
   const f = s.factors;
@@ -78,12 +89,12 @@ export const SiaPatternReview: React.FC<SiaPatternReviewProps> = ({ isOpen, onCl
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-8 bg-black/60 backdrop-blur-sm">
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.9 }}
-            className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 w-full max-w-md shadow-2xl max-h-[90vh] overflow-y-auto"
+            className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 w-full max-w-md mx-auto my-auto shadow-2xl max-h-[90vh] overflow-y-auto"
           >
             <div className="flex justify-between items-center mb-5">
               <div>

@@ -63,8 +63,6 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
       children: [
         { id: 'quick-insight-card', name: 'Quick Insight Card', tag: 'card', description: 'Full-width clickable card, navigates to AI view', path: '/src/components/Dashboard.tsx', children: [
           { id: 'insight-body', name: 'Insight Body Text', tag: 'comp', description: 'AI-generated insight', path: '/src/components/Dashboard.tsx' },
-          { id: 'deep-analysis-row', name: 'Deep Analysis CTA Row', tag: 'comp', description: 'Container for analysis button', path: '/src/components/Dashboard.tsx' },
-          { id: 'run-analysis-btn', name: 'Run Deep Analysis Button', tag: 'btn', description: 'Triggers handleDeepAnalysis if user maturity level is 4 (90+ days)', path: '/src/components/Dashboard.tsx' },
           { id: 'disclaimer-text', name: 'Disclaimer Text', tag: 'comp', description: 'Italic disclaimer', path: '/src/components/Dashboard.tsx' },
         ]},
         { id: 'clinical-insights-feed', name: 'Clinical Insights Feed', tag: 'section', description: 'List of insights (InsightCard.tsx for Pro/Enhanced) or locked card (LockedFeatureCard.tsx for Basic)', path: '/src/components/Dashboard.tsx', children: [
@@ -241,7 +239,11 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
       description: 'Import external data',
       path: '/src/App.tsx',
       children: [
-        { id: 'data-importer-comp', name: 'Data Importer', tag: 'comp', description: 'DataImporter component', path: '/src/components/DataImporter.tsx' },
+        { id: 'data-importer-comp', name: 'Data Importer', tag: 'comp', description: 'DataImporter component', path: '/src/components/DataImporter.tsx', children: [
+          { id: 'imp-preflight-bar', name: 'Pre-Flight Check Bar', tag: 'comp', description: 'Consolidated constraints, credits, and template download', path: '/src/components/DataImporter.tsx' },
+          { id: 'imp-checklist-cards', name: 'Checklist Cards', tag: 'comp', description: 'Elevated preparation guidelines', path: '/src/components/DataImporter.tsx' },
+          { id: 'imp-action-zone', name: 'Action Zone', tag: 'comp', description: 'Unified paste and file dropzone', path: '/src/components/DataImporter.tsx' },
+        ]},
       ]
     },
   ],
@@ -414,14 +416,14 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
           { id: 'acc-demographics-row', name: 'Demographics Row', tag: 'comp', description: 'Age, Sex, Work, etc.', path: '/src/components/AccountPage.tsx' },
           { id: 'acc-anonymized-toggle', name: 'Anonymized Sharing Toggle', tag: 'input', description: 'Writes to personalizationProfile.allowsAnonymizedSharing.', path: '/src/components/AccountPage.tsx' },
         ]},
-        { id: 'acc-actions', name: 'Actions Section', tag: 'section', description: 'Ledger, Assessment, Logout, Feedback', path: '/src/components/AccountPage.tsx', children: [
+        { id: 'acc-actions', name: 'Actions Section', tag: 'section', description: 'Ledger, Assessment, Logout, Feedback, Element Map', path: '/src/components/AccountPage.tsx', children: [
+          { id: 'acc-element-map-btn', name: 'Element Map Button', tag: 'btn', description: 'Navigates to Element Map view.', path: '/src/components/AccountPage.tsx' },
           { id: 'acc-modify-assessment-btn', name: 'Modify Assessment Button', tag: 'btn', description: 'Modify assessment', path: '/src/components/AccountPage.tsx' },
           { id: 'acc-export-summary-btn', name: 'Export Summary Button', tag: 'btn', description: 'Downloads daily_trends_summary.csv.', path: '/src/components/AccountPage.tsx' },
           { id: 'acc-export-deep-btn', name: 'Export Deep Architecture Button', tag: 'btn', description: 'Downloads deep_architecture.csv. Disabled for Basic tier.', path: '/src/components/AccountPage.tsx' },
           { id: 'acc-delete-account-btn', name: 'Delete Account Button', tag: 'btn', description: 'Delete account', path: '/src/components/AccountPage.tsx' },
         ]},
         { id: 'acc-dev-tools', name: 'Developer Tools Section', tag: 'section', description: 'Admin-only debugging and data management', path: '/src/components/AccountPage.tsx', children: [
-          { id: 'dev-open-map-btn', name: 'Open Map Button', tag: 'btn', description: 'Navigates to /dev/map. Dev Environment Only / Admin only.', path: '/src/components/AccountPage.tsx' },
           { id: 'dev-clear-local', name: 'Clear All Local Data Button', tag: 'btn', description: 'Wipes localStorage.', path: '/src/components/AccountPage.tsx' },
           { id: 'dev-switchboard-container', name: 'Dev Switchboard', tag: 'section', description: 'Dev Environment Only / Admin only.', path: '/src/components/AccountPage.tsx', children: [
             { id: 'dev-tier-buttons', name: 'Tier Toggle Buttons', tag: 'btn', description: 'Dev Environment Only.', path: '/src/components/AccountPage.tsx' },
@@ -433,6 +435,17 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
     },
   ],
   Overlays: [
+    {
+      id: 'ovl-ethical-pledge',
+      name: 'Ethical Data Pledge Modal',
+      tag: 'overlay',
+      description: 'Triggered by showModal state in EthicalDataPledge. Backdrop: Clicking does not close the modal.',
+      path: '/src/components/EthicalDataPledge.tsx',
+      children: [
+        { id: 'ovl-pledge-backdrop', name: 'Backdrop', tag: 'overlay', description: 'Modal backdrop', path: '/src/components/EthicalDataPledge.tsx' },
+        { id: 'ovl-pledge-panel', name: 'Panel', tag: 'overlay', description: 'Content panel', path: '/src/components/EthicalDataPledge.tsx' },
+      ]
+    },
     {
       id: 'ovl-prefill-confirm',
       name: 'Prefill Confirmation Modal',

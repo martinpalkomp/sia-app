@@ -28,13 +28,14 @@ import { purgeUserData } from '../utils/devTools';
 import DataManager from './DataManager';
 import FeedbackForm from './FeedbackForm';
 import AdminFeedback from './AdminFeedback';
+import DevElementMap from './DevElementMap';
 import { calculateAge, getAgeDecade } from '../utils/dateUtils';
 import { AIService } from '../services/aiService';
 import { exportDailySummary, exportDeepEventLog } from '../utils/exportUtils';
 
 export default function AccountPage({ onModifyAssessment, onRefresh }: { onModifyAssessment: () => void; onRefresh?: () => void; }) {
   const { user, personalizationProfile, logs, maturity, highlightTier, tier, userProfile, setMockLogs } = useUser();
-  const [view, setView] = React.useState<'main' | 'data-ledger' | 'feedback' | 'admin-feedback'>('main');
+  const [view, setView] = React.useState<'main' | 'data-ledger' | 'feedback' | 'admin-feedback' | 'element-map'>('main');
   const [userData, setUserData] = React.useState<any>(null);
   const [modal, setModal] = React.useState<{ isOpen: boolean; message: string; onConfirm: () => void; onCancel?: () => void }>({
     isOpen: false,
@@ -133,6 +134,26 @@ export default function AccountPage({ onModifyAssessment, onRefresh }: { onModif
       });
     }
   };
+
+  if (view === 'element-map') {
+    return (
+      <motion.div
+        initial={{ opacity: 0, x: 20 }}
+        animate={{ opacity: 1, x: 0 }}
+        exit={{ opacity: 0, x: -20 }}
+        className="space-y-6"
+      >
+        <button 
+          onClick={() => setView('main')}
+          className="flex items-center gap-2 text-zinc-500 hover:text-white transition-colors group"
+        >
+          <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
+          <span className="text-xs font-black uppercase tracking-widest">Back to Account</span>
+        </button>
+        <DevElementMap />
+      </motion.div>
+    );
+  }
 
   if (view === 'data-ledger') {
     return (
@@ -360,6 +381,22 @@ export default function AccountPage({ onModifyAssessment, onRefresh }: { onModif
       {/* Actions */}
       <div className="flex flex-col gap-3">
         <button 
+          onClick={() => setView('element-map')}
+          className="w-full p-4 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-2xl flex items-center justify-between group transition-all"
+        >
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 rounded-xl bg-zinc-800 flex items-center justify-center text-zinc-400 group-hover:text-clinical-primary transition-colors">
+              <Layers size={20} />
+            </div>
+            <div className="text-left">
+              <div className="text-sm font-black text-white">Element Map</div>
+              <div className="text-[10px] text-zinc-400 uppercase tracking-widest">Explore the UI architecture</div>
+            </div>
+          </div>
+          <ChevronRight size={20} className="text-zinc-700 group-hover:text-white transition-colors" />
+        </button>
+
+        <button 
           onClick={() => setView('data-ledger')}
           className="w-full p-4 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-2xl flex items-center justify-between group transition-all"
         >
@@ -458,13 +495,6 @@ export default function AccountPage({ onModifyAssessment, onRefresh }: { onModif
             >
               <Trash2 size={14} className="text-red-400" />
               <span className="text-[9px] font-black text-red-400 uppercase tracking-widest">Clear All Local Data</span>
-            </button>
-            <button 
-              onClick={() => window.location.hash = '/dev/map'}
-              className="w-full p-4 bg-indigo-600/10 hover:bg-indigo-600/20 border border-indigo-500/30 rounded-2xl flex items-center justify-center gap-3 group transition-all"
-            >
-              <Layers size={18} className="text-indigo-400" />
-              <span className="text-sm font-black text-indigo-400 uppercase tracking-widest">OPEN ELEMENT MAP</span>
             </button>
           </div>
 
