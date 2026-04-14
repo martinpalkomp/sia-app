@@ -23,7 +23,7 @@ import {
   doc, 
   serverTimestamp, 
   getDoc, 
-  runTransaction, 
+  writeBatch, 
   addDoc, 
   collection,
   deleteField,
@@ -849,37 +849,36 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
 
         while (retryCount <= maxRetries && !success) {
           try {
-            await runTransaction(db, async (transaction) => {
-              for (const [date, log] of chunk) {
-                const logRef = doc(db, 'users', user.uid, 'sleep_logs', date);
-                
-                const updateData: any = {
-                  ...log,
-                  updatedAt: serverTimestamp(),
-                  timeline: deleteField()
-                };
+            const batch = writeBatch(db);
 
-                transaction.set(logRef, updateData, { merge: true });
+            for (const [date, log] of chunk) {
+              const logRef = doc(db, 'users', user.uid, 'sleep_logs', date);
+              batch.set(logRef, {
+                ...log,
+                updatedAt: serverTimestamp(),
+                timeline: deleteField()
+              }, { merge: true });
 
-                const metricsRef = doc(db, 'users', user.uid, 'daily_metrics', date);
-                transaction.set(metricsRef, {
-                  date,
-                  sleep_quality: log.sleep_quality,
-                  morning_alertness: log.morning_alertness,
-                  daytime_energy: log.daytime_energy,
-                  daily_remarks: log.daily_remarks,
-                  source: 'import',
-                  updatedAt: serverTimestamp(),
-                }, { merge: true });
-              }
-            });
+              const metricsRef = doc(db, 'users', user.uid, 'daily_metrics', date);
+              batch.set(metricsRef, {
+                date,
+                sleep_quality: log.sleep_quality,
+                morning_alertness: log.morning_alertness,
+                daytime_energy: log.daytime_energy,
+                daily_remarks: log.daily_remarks,
+                source: 'import',
+                updatedAt: serverTimestamp(),
+              }, { merge: true });
+            }
+
+            await batch.commit();
             success = true;
             const userRef = doc(db, 'users', user.uid);
             await updateDoc(userRef, {
               importedLogCount: increment(sleepDays.length)
             });
           } catch (txError: any) {
-            console.error(`Transaction failed for ${chunkLabel} (Attempt ${retryCount + 1}):`, txError);
+            console.error(`Batch write failed for ${chunkLabel} (Attempt ${retryCount + 1}):`, txError);
             retryCount++;
             if (retryCount > maxRetries) {
               throw new Error(`Failed to save ${chunkLabel} after ${maxRetries + 1} attempts: ${txError.message}`);

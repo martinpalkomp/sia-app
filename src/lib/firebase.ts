@@ -25,6 +25,7 @@ export {
   getDocs, 
   getDoc, 
   getDocFromServer,
+  getCountFromServer,
   doc, 
   limit,
   setDoc,

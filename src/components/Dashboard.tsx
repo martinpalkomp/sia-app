@@ -160,24 +160,39 @@ export default function Dashboard({
 
   // Fetch/Generate Daily Brief
   const today = getTodayDate();
+  const getInsightCacheKey = () => `sia_insight_${user?.uid}_${today}`;
+  const getCachedInsight = () => sessionStorage.getItem(getInsightCacheKey());
+  const setCachedInsight = (content: string) => sessionStorage.setItem(getInsightCacheKey(), content);
+
   useEffect(() => {
     if (!user || !userProfile || !logs || Object.keys(logs).length === 0 || !contextMaturity) return;
+
+    const briefCacheKey = `sia_brief_${user.uid}_${today}`;
+
+    // Session cache hit — skip Firestore read entirely
+    const sessionCached = sessionStorage.getItem(briefCacheKey);
+    if (sessionCached) {
+      setDailyBrief(sessionCached);
+      return;
+    }
+
     const fetchBrief = async () => {
       setIsBriefLoading(true);
       try {
         const response = await AIService.generateDailyBrief(
-          user.uid, 
-          Object.values(logs), 
+          user.uid,
+          Object.values(logs),
           userProfile.tier,
           contextMaturity
         );
         if (response.status === 'success') {
           setDailyBrief(response.content);
+          if (response.content) sessionStorage.setItem(briefCacheKey, response.content);
         } else {
           setDailyBrief(rephraseGuardrailMessage(response.reason));
         }
       } catch (err) {
-        console.error("Brief Error:", err);
+        console.error('Brief Error:', err);
       } finally {
         setIsBriefLoading(false);
       }
@@ -331,11 +346,17 @@ export default function Dashboard({
   }, [isFirstVisit, averageBedtime, logs, onLogClick]);
 
   const insightDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lastInsightKeyRef = useRef<string>('');
 
   const generateQuickInsight = async () => {
     if (!logs || Object.keys(logs).length < 1 || !user || !userProfile || !contextMaturity || aiInsight) return;
-    
+
+    // Check session cache first — avoid Firestore call entirely
+    const cached = getCachedInsight();
+    if (cached) {
+      setAiInsight(cached);
+      return;
+    }
+
     setIsAiLoading(true);
     try {
       const response = await AIService.generateQuickInsight(
@@ -343,30 +364,45 @@ export default function Dashboard({
         Object.values(logs),
         userProfile.tier,
         contextMaturity,
-        null // Need to fetch lastGeneratedDate if needed
+        today  // ← was hardcoded null — now passes today's date so guardrail can check "already generated"
       );
-      
       if (response.status === 'success') {
         setAiInsight(response.content);
+        if (response.content) setCachedInsight(response.content);
       } else {
         setAiInsight(rephraseGuardrailMessage(response.reason));
       }
     } catch (e) {
-      console.error("Dashboard AI Error:", e);
+      console.error('Dashboard AI Error:', e);
     } finally {
       setIsAiLoading(false);
     }
   };
 
   useEffect(() => {
-    const logsCount = Object.keys(logs).length;
-    const key = `${logsCount}-${logsCount > 2 ? 'bulk' : 'single'}`;
-    if (key === lastInsightKeyRef.current) return;
+    if (!user || !userProfile || !contextMaturity) return;
+
+    const logCount = Object.keys(logs).length;
+    const today = format(new Date(), 'yyyy-MM-dd');
+    const thresholdKey = `sia_insight_threshold_${user.uid}_${today}`;
+
+    // Read the log count at last insight generation
+    const lastCountStr = sessionStorage.getItem(thresholdKey);
+    const lastCount = lastCountStr ? parseInt(lastCountStr, 10) : 0;
+
+    // Only re-fetch if we have a session cache miss OR 3+ new logs since last fetch
+    const sessionCached = sessionStorage.getItem(`sia_insight_${user.uid}_${today}`);
+    const newLogsSinceLast = logCount - lastCount;
+
+    if (sessionCached && newLogsSinceLast < 3) return;
+
     if (insightDebounceRef.current) clearTimeout(insightDebounceRef.current);
     insightDebounceRef.current = setTimeout(async () => {
-      lastInsightKeyRef.current = key;
       await generateQuickInsight();
+      // Record the log count at time of this generation
+      sessionStorage.setItem(thresholdKey, String(logCount));
     }, 2000);
+
     return () => { if (insightDebounceRef.current) clearTimeout(insightDebounceRef.current); };
   }, [logs, user, userProfile, contextMaturity]);
 
@@ -397,7 +433,7 @@ export default function Dashboard({
         historicalLogs,
         userProfile.tier,
         contextMaturity,
-        null // Need to fetch lastGeneratedDate if needed
+        today // Changed null to today
       );
 
       if (response.status === 'success') {

@@ -2384,6 +2384,8 @@ export default function App() {
                 onImportComplete={async () => {
                   setToast({ message: 'Data imported and synced successfully', type: 'success' });
                   setIsImporting(false);
+                  // Wait for Firestore writes to propagate before re-counting
+                  await new Promise(resolve => setTimeout(resolve, 1500));
                   if (user) {
                     AIService.getUserDataMaturity(user.uid).then(setMaturity);
                   }

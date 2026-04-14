@@ -7,6 +7,7 @@ import {
   orderBy, 
   limit, 
   getDocs, 
+  getCountFromServer,
   addDoc, 
   serverTimestamp, 
   doc, 
@@ -55,8 +56,10 @@ export class AIService {
       }
 
       const logsRef = collection(db, 'users', userId, 'sleep_logs');
-      const snapshot = await getDocs(query(logsRef, where('type', '==', 'log')));
-      const count = snapshot.size;
+      const countSnapshot = await getCountFromServer(
+        query(logsRef, where('type', '==', 'log'))
+      );
+      const count = countSnapshot.data().count;
 
       if (count >= 90) return { level: 4, count, label: 'Advanced Diagnostic', nextThreshold: 90 };
       if (count >= 14) return { level: 3, count, label: 'Deep Analysis', nextThreshold: 90 };
@@ -308,13 +311,18 @@ export class AIService {
 
     // 3. Check ClinicalInsights Guardrail
     const logsRef = collection(db!, 'users', userId, 'sleep_logs');
-    const logsSnap = await getDocs(query(logsRef));
-    const logs: DailyLog[] = [];
-    logsSnap.forEach(doc => logs.push(doc.data() as DailyLog));
-    const logsCount = logs.length;
+    const totalCountSnap = await getCountFromServer(
+      query(logsRef, where('type', '==', 'log'))
+    );
+    const logsCount = totalCountSnap.data().count;
+
     const oneMonthAgo = new Date();
     oneMonthAgo.setDate(oneMonthAgo.getDate() - 30);
-    const logsInLastMonthCount = logs.filter(log => new Date(log.date) >= oneMonthAgo).length;
+    const monthStr = oneMonthAgo.toISOString().split('T')[0];
+    const monthCountSnap = await getCountFromServer(
+      query(logsRef, where('type', '==', 'log'), where('date', '>=', monthStr))
+    );
+    const logsInLastMonthCount = monthCountSnap.data().count;
 
     const clinicalGuardrail = shouldTriggerAI(tier, maturity.level, logsCount, logsInLastMonthCount, 'ClinicalInsights', null);
 
