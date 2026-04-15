@@ -65,7 +65,7 @@ export const MetricDisplay: React.FC<MetricDisplayProps> = ({ title, value, unit
   return (
     <div className={className}>
       <div className="flex items-center gap-1 relative">
-        <p className="text-[8px] md:text-[10px] font-black uppercase tracking-[0.2em] text-clinical-text-muted mb-1">{title}</p>
+        <p className="text-[8px] md:text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-1">{title}</p>
         <div 
           className="w-3 h-3 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-500 cursor-help transition-opacity hover:text-white"
           onMouseEnter={() => setShowTooltip(true)}

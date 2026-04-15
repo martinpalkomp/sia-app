@@ -21,15 +21,15 @@ interface InsightCardProps {
 const getCategoryInfo = (insight: Insight) => {
   const text = (insight.summary + (insight.details || '')).toLowerCase();
   
-  if (text.includes('caffeine') || text.includes('coffee')) return { label: 'SUBSTANCE REBOUND', icon: Coffee };
-  if (text.includes('temperature') || text.includes('environment')) return { label: 'ENVIRONMENT', icon: Thermometer };
-  if (text.includes('sedative') || text.includes('risk')) return { label: 'HEALTH RISK', icon: AlertTriangle };
-  if (text.includes('circadian') || text.includes('shift')) return { label: 'CIRCADIAN SHIFT', icon: Moon };
+  if (text.includes('caffeine') || text.includes('coffee')) return { label: 'Substance Rebound', icon: Coffee };
+  if (text.includes('temperature') || text.includes('environment')) return { label: 'Environment', icon: Thermometer };
+  if (text.includes('sedative') || text.includes('risk')) return { label: 'Health Risk', icon: AlertTriangle };
+  if (text.includes('circadian') || text.includes('shift')) return { label: 'Circadian Shift', icon: Moon };
   
   switch (insight.type) {
-    case 'Pattern': return { label: 'PATTERN', icon: Activity };
-    case 'Recommendation': return { label: 'RECOMMENDATION', icon: Lightbulb };
-    default: return { label: 'INSIGHT', icon: Activity };
+    case 'Pattern': return { label: 'Pattern', icon: Activity };
+    case 'Recommendation': return { label: 'Recommendation', icon: Lightbulb };
+    default: return { label: 'Insight', icon: Activity };
   }
 };
 
@@ -61,7 +61,7 @@ export const InsightCard: React.FC<InsightCardProps> = ({ insight, tier = 'Basic
         </div>
         <div className="flex-1 space-y-1.5">
           <div className="flex justify-between items-center">
-            <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wide">{label}</span>
+            <span className="text-[10px] font-black text-zinc-400 tracking-widest">{label}</span>
             {isHovered && (
               <motion.div 
                 initial={{ opacity: 0, scale: 0.8 }}

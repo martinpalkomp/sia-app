@@ -1,5 +1,6 @@
-import { db, doc, serverTimestamp, updateDoc, setDoc } from '../lib/firebase';
+import { db, doc, serverTimestamp, setDoc } from '../lib/firebase';
 import { DailyLog, SummaryLog } from '../types';
+import { handleFirestoreError, OperationType } from '../lib/errorHandling';
 
 /**
  * Validates sleep metrics to ensure they are within clinical ranges.
@@ -53,17 +54,25 @@ export const saveLog = async (uid: string, logData: Partial<DailyLog> & { date: 
   // We use setDoc with merge: true only if the document might not exist, 
   // but for log updates, updateDoc is safer for permissions.
   // Assuming the document exists for updates.
-  await setDoc(docRef, payload, { merge: true });
+  try {
+    await setDoc(docRef, payload, { merge: true });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, `users/${uid}/sleep_logs/${date}`);
+  }
 
   // Sync to daily_metrics if it has metrics
   if (rest.sleep_quality !== undefined) {
-    await setDoc(metricsRef, {
-      sleep_quality: rest.sleep_quality,
-      morning_alertness: rest.morning_alertness,
-      daytime_energy: rest.daytime_energy,
-      daily_remarks: rest.daily_remarks,
-      source: rest.source || 'manual',
-      updatedAt: serverTimestamp(),
-    }, { merge: true });
+    try {
+      await setDoc(metricsRef, {
+        sleep_quality: rest.sleep_quality,
+        morning_alertness: rest.morning_alertness,
+        daytime_energy: rest.daytime_energy,
+        daily_remarks: rest.daily_remarks,
+        source: rest.source || 'manual',
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, `users/${uid}/daily_metrics/${date}`);
+    }
   }
 };

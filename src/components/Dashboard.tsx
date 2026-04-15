@@ -563,7 +563,7 @@ export default function Dashboard({
           <Card className="col-span-2 md:col-span-1 flex flex-col justify-center border-zinc-800/50 bg-zinc-900/30 p-3 md:p-4 min-h-[18svh] hover:border-zinc-700/50 transition-colors">
             <div className="flex items-center gap-2 mb-2">
               <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
-              <span className="text-[8px] md:text-[10px] text-zinc-300 uppercase tracking-widest font-bold">Status Report</span>
+              <span className="text-[8px] md:text-[10px] text-zinc-50 font-black uppercase tracking-widest">STATUS REPORT</span>
             </div>
             <p className="text-zinc-400 text-[10px] md:text-sm font-bold leading-relaxed tracking-widest">
               {dataMaturity && dataMaturity.count >= 7
@@ -689,7 +689,7 @@ export default function Dashboard({
         {/* Insights Feed */}
         <section className="space-y-6">
           <div className="flex items-center justify-between">
-            <h3 className="text-[10px] font-medium uppercase tracking-wide text-slate-400">Clinical Insights</h3>
+            <h3 className="text-[10px] font-black uppercase tracking-widest text-zinc-50">CLINICAL INSIGHTS</h3>
             <span className="text-[9px] font-black text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-full uppercase tracking-widest border border-indigo-500/20">
               {userProfile?.tier} Intelligence
             </span>
@@ -728,7 +728,7 @@ export default function Dashboard({
                 <Plus size={24} />
               </div>
               <div className="text-left">
-                <p className="text-[10px] font-black text-zinc-300 uppercase tracking-[0.2em]">Quick Action</p>
+                <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Quick Action</p>
                 <p className="text-xl text-white font-black tracking-tight mt-0.5">Log Last Night</p>
                 {correctionsCount > 0 && (
                   <button 
@@ -778,7 +778,7 @@ export default function Dashboard({
                   <Sparkles size={24} />
                 </div>
                 <div className="text-left">
-                  <p className="text-[10px] font-black text-zinc-300 uppercase tracking-[0.2em]">Deep Dive</p>
+                  <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Deep Dive</p>
                   <p className="text-xl text-white font-black tracking-tight mt-0.5">AI Analysis</p>
                 </div>
               </div>
@@ -791,7 +791,7 @@ export default function Dashboard({
       {/* Section 4: The Growth Hub */}
       <section className="space-y-6 pt-6 border-t border-zinc-800">
         <div className="flex items-center justify-between">
-          <h3 className="text-[10px] font-medium uppercase tracking-wide text-slate-400">Growth Hub</h3>
+          <h3 className="text-[10px] font-black uppercase tracking-widest text-zinc-50">Growth Hub</h3>
         </div>
         
         <div className="grid grid-cols-1 gap-6">
@@ -803,7 +803,7 @@ export default function Dashboard({
       {/* Section: SIA Intelligence Feed */}
       <section className="space-y-6 pt-6 border-t border-zinc-800">
         <div className="flex items-center justify-between">
-          <h3 className="text-[10px] font-medium uppercase tracking-wide text-slate-400">SIA Intelligence Feed</h3>
+          <h3 className="text-[10px] font-black uppercase tracking-widest text-zinc-50">SIA Intelligence Feed</h3>
         </div>
         
         <div className="grid grid-cols-1 gap-6">
@@ -835,7 +835,7 @@ export default function Dashboard({
                       <div className="space-y-1">
                         <h4 className="text-sm font-bold text-zinc-500 uppercase tracking-widest">Intelligence Gated</h4>
                         <p className="text-xs text-zinc-500 max-w-xs mx-auto leading-relaxed">
-                          SIA Intelligence requires 90 days of baseline data to identify biological anomalies. (Progress: {dataMaturity.count}/90).
+                          SIA Intelligence requires 90 days of baseline data to identify biological anomalies. ({dataMaturity.count}/90).
                         </p>
                       </div>
                     </div>
@@ -917,7 +917,7 @@ export default function Dashboard({
       {/* Section: Data Maturity Progress */}
       <section className="space-y-6 pt-6 border-t border-zinc-800">
         <div className="flex items-center justify-between">
-          <h3 className="text-[10px] font-medium uppercase tracking-wide text-slate-400">Data Maturity</h3>
+          <h3 className="text-[10px] font-black uppercase tracking-widest text-zinc-50">DATA MATURITY PROGRESS</h3>
         </div>
         <DataMaturityTracker 
           maturity={dataMaturity as MaturityInfo} 

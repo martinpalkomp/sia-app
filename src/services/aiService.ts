@@ -1,3 +1,4 @@
+import { handleFirestoreError, OperationType } from "../lib/errorHandling";
 import { GoogleGenAI, Type } from "@google/genai";
 import { 
   db, 
@@ -39,7 +40,7 @@ export class AIService {
   private static apiKey = process.env.GEMINI_API_KEY || "";
 
   static getModelForTier(tier: UserTier): string {
-    return "gemini-1.5-flash";
+    return "gemini-2.0-flash";
   }
 
   static async getUserDataMaturity(userId: string): Promise<MaturityInfo> {
@@ -66,22 +67,25 @@ export class AIService {
       if (count >= 7) return { level: 2, count, label: 'Trends', nextThreshold: 14 };
       return { level: 1, count, label: 'Baseline', nextThreshold: 7 };
     } catch (error) {
-      console.error('Error fetching maturity:', error);
-      // Fallback to Baseline if Firebase fails
-      return { level: 1, count: 0, label: 'Baseline', nextThreshold: 7 };
+      handleFirestoreError(error, OperationType.GET, `users/${userId}`);
     }
   }
 
   static async checkAndResetQuota(userId: string, tier: UserTier): Promise<UserQuota> {
     const userRef = doc(db!, 'users', userId);
-    const userSnap = await getDoc(userRef);
+    let userSnap;
+    try {
+      userSnap = await getDoc(userRef);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.GET, `users/${userId}`);
+    }
     
     let quota: UserQuota = {
       chatMessagesUsed: 0,
       lastPromptReset: serverTimestamp()
     };
 
-    if (userSnap.exists()) {
+    if (userSnap?.exists()) {
       const data = userSnap.data();
       if (data.quota) {
         quota = data.quota;
@@ -93,19 +97,31 @@ export class AIService {
         if (startOfDay(lastReset).getTime() < startOfDay(now).getTime()) {
           quota.chatMessagesUsed = 0;
           quota.lastPromptReset = serverTimestamp();
-          await updateDoc(userRef, { quota });
+          try {
+            await updateDoc(userRef, { quota });
+          } catch (error) {
+            handleFirestoreError(error, OperationType.UPDATE, `users/${userId}`);
+          }
         }
       } else {
-        await updateDoc(userRef, { quota });
+        try {
+          await updateDoc(userRef, { quota });
+        } catch (error) {
+          handleFirestoreError(error, OperationType.UPDATE, `users/${userId}`);
+        }
       }
     } else {
       // Create user doc if it doesn't exist (though it should)
-      await setDoc(userRef, { 
-        uid: userId, 
-        tier: 'Basic', 
-        quota,
-        createdAt: serverTimestamp() 
-      }, { merge: true });
+      try {
+        await setDoc(userRef, { 
+          uid: userId, 
+          tier: 'Basic', 
+          quota,
+          createdAt: serverTimestamp() 
+        }, { merge: true });
+      } catch (error) {
+        handleFirestoreError(error, OperationType.WRITE, `users/${userId}`);
+      }
     }
 
     return quota;
@@ -477,17 +493,7 @@ export class AIService {
     };
 
     try {
-      let response;
-      try {
-        response = await callModel(modelName);
-      } catch (error: any) {
-        if (error.status === 404) {
-          console.warn(`Model ${modelName} not found, falling back to gemini-1.5-flash`);
-          response = await callModel("gemini-1.5-flash");
-        } else {
-          throw error;
-        }
-      }
+      const response = await callModel(modelName);
 
       const result = JSON.parse(response.text || '{}');
       const answer = result.answer || "I'm sorry, I couldn't process that.";

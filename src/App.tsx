@@ -124,6 +124,7 @@ import { UserProvider } from './context/UserContext';
 
 import { saveLog, validateLogMetrics } from './services/sleepService';
 import { getSuggestedLog, AICorrection, SuggestionResult } from './utils/patternEngine';
+import { handleFirestoreError, OperationType } from './lib/errorHandling';
 
 import { 
   auth, 
@@ -699,12 +700,7 @@ export default function App() {
         setUserProfile(initialProfile);
       }
     }, (error) => {
-      // Handle "offline" error gracefully - it will retry automatically
-      if (error.message.includes('offline')) {
-        console.warn("Firestore is offline, waiting for connection...");
-      } else {
-        console.error("User profile fetch error:", error);
-      }
+      handleFirestoreError(error, OperationType.GET, `users/${user.uid}`);
     });
 
     return () => unsubscribe();
@@ -732,12 +728,7 @@ export default function App() {
       }
       setIsProfileLoading(false);
     }, (error) => {
-      if (error.message.includes('offline')) {
-        console.warn("Personalization profile fetch is offline, waiting...");
-      } else {
-        console.error("Profile fetch error:", error);
-      }
-      setIsProfileLoading(false);
+      handleFirestoreError(error, OperationType.GET, `users/${user.uid}/personalization/profile`);
     });
 
     return () => unsubscribe();
@@ -1102,7 +1093,7 @@ export default function App() {
         return fetchedLogs;
       });
     }, (error) => {
-      console.error('onSnapshot error:', error);
+      handleFirestoreError(error, OperationType.LIST, `users/${user.uid}/sleep_logs`);
     });
 
     return () => unsubscribe();
@@ -1127,6 +1118,8 @@ export default function App() {
         fetchedCorrections.push(doc.data() as AICorrection);
       });
       setAiCorrections(fetchedCorrections);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, `users/${user.uid}/ai_corrections`);
     });
 
     return () => unsubscribe();
