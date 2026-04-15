@@ -865,6 +865,9 @@ export default function App() {
             summaryMetrics,
             isIgnored: log.isIgnored || false,
           });
+          
+          // Update maturity info after successful save
+          AIService.getUserDataMaturity(user.uid).then(setMaturity);
         } catch (error: any) {
           console.error("Save failed:", error);
           alert(error.code === 'permission-denied' 
