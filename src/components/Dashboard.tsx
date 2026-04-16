@@ -130,6 +130,15 @@ export default function Dashboard({
   maturity: externalMaturity
 }: DashboardProps) {
   const { dataDepth, maturity: contextMaturity } = useUser();
+  const dataMaturity = useMemo(() => {
+    // externalMaturity comes from App.tsx via a full Firestore count (not view-filtered)
+    // contextMaturity is the internal fetch — also full count but may lag on load
+    // Never fall back to Object.keys(logs).length — logs is view-filtered (7 or 30 days)
+    const source = externalMaturity || contextMaturity;
+    if (source) return source as MaturityInfo;
+    // Still loading — show 0 rather than a misleading view-filtered count
+    return { level: 1, count: 0, label: 'Baseline', nextThreshold: 7 } as MaturityInfo;
+  }, [externalMaturity, contextMaturity]);
   const [aiInsight, setAiInsight] = useState<string | null>(null);
   const [dailyBrief, setDailyBrief] = useState<string | null>(null);
   const [insights, setInsights] = useState<Insight[]>([]);
@@ -164,7 +173,7 @@ export default function Dashboard({
   const setCachedInsight = (content: string) => sessionStorage.setItem(getInsightCacheKey(), content);
 
   useEffect(() => {
-    if (!user || !userProfile || !logs || Object.keys(logs).length === 0 || !contextMaturity) return;
+    if (!user || !userProfile || !logs || dataMaturity.count === 0 || !dataMaturity) return;
 
     const briefCacheKey = `sia_brief_${user.uid}_${today}`;
 
@@ -182,7 +191,7 @@ export default function Dashboard({
           user.uid,
           Object.values(logs),
           userProfile.tier,
-          contextMaturity
+          dataMaturity
         );
         if (response.status === 'success') {
           setDailyBrief(response.content);
@@ -354,7 +363,7 @@ export default function Dashboard({
   const insightDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const generateQuickInsight = async () => {
-    if (!logs || Object.keys(logs).length < 1 || !user || !userProfile || !contextMaturity || aiInsight) return;
+    if (!logs || Object.keys(logs).length < 1 || !user || !userProfile || !dataMaturity || aiInsight) return;
 
     // Check session cache first — avoid Firestore call entirely
     const cached = getCachedInsight();
@@ -369,7 +378,7 @@ export default function Dashboard({
         user.uid,
         Object.values(logs),
         userProfile.tier,
-        contextMaturity,
+        dataMaturity,
         today  // ← was hardcoded null — now passes today's date so guardrail can check "already generated"
       );
       if (response.status === 'success') {
@@ -386,7 +395,7 @@ export default function Dashboard({
   };
 
   useEffect(() => {
-    if (!user || !userProfile || !contextMaturity) return;
+    if (!user || !userProfile || !dataMaturity) return;
 
     const logCount = Object.keys(logs).length;
     const today = format(new Date(), 'yyyy-MM-dd');
@@ -410,10 +419,10 @@ export default function Dashboard({
     }, 2000);
 
     return () => { if (insightDebounceRef.current) clearTimeout(insightDebounceRef.current); };
-  }, [logs, user, userProfile, contextMaturity]);
+  }, [logs, user, userProfile, dataMaturity]);
 
   const handleDeepAnalysis = async () => {
-    if (!user || !userProfile || isAiLoading || !contextMaturity) return;
+    if (!user || !userProfile || isAiLoading || !dataMaturity) return;
     
     setIsAiLoading(true);
     setIsDeepAnalysis(true);
@@ -433,7 +442,7 @@ export default function Dashboard({
         user.uid,
         historicalLogs,
         userProfile.tier,
-        contextMaturity,
+        dataMaturity,
         today // Changed null to today
       );
 
@@ -450,15 +459,7 @@ export default function Dashboard({
     }
   };
 
-  const dataMaturity = useMemo(() => {
-    // externalMaturity comes from App.tsx via a full Firestore count (not view-filtered)
-    // contextMaturity is the internal fetch — also full count but may lag on load
-    // Never fall back to Object.keys(logs).length — logs is view-filtered (7 or 30 days)
-    const source = externalMaturity || contextMaturity;
-    if (source) return source;
-    // Still loading — show 0 rather than a misleading view-filtered count
-    return { level: 1, count: 0, label: 'Baseline', nextThreshold: 7 };
-  }, [externalMaturity, contextMaturity]);
+  // Removed dataMaturity definition from here
 
   const DISCLAIMER = "SIA provides lifestyle recommendations based on patterns. This is not a medical diagnosis. Consult a professional for clinical concerns.";
 

@@ -271,7 +271,7 @@ export default function AIInsightsAgent() {
 
       const oneMonthAgo = new Date();
       oneMonthAgo.setDate(oneMonthAgo.getDate() - 30);
-      const logsArray = Object.values(logs);
+      const logsArray = cachedLogsRef.current ?? Object.values(logs);
       const logsCount = logsArray.length;
       const logsInLastMonthCount = logsArray.filter(log => new Date(log.date) >= oneMonthAgo).length;
       const today = format(new Date(), 'yyyy-MM-dd');
@@ -377,7 +377,7 @@ export default function AIInsightsAgent() {
 
   if (isProfileLoading || !user) {
     return (
-      <div className="flex flex-col h-[80svh] bg-zinc-900/50 border border-zinc-800 rounded-3xl overflow-hidden items-center justify-center space-y-4">
+      <div className="flex flex-col h-[80svh] md:h-[80vh] bg-zinc-900/50 border border-zinc-800 rounded-3xl overflow-hidden items-center justify-center space-y-4">
         <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
         <p className="text-sm text-zinc-300 font-medium animate-pulse">Syncing Profile...</p>
       </div>
@@ -385,7 +385,7 @@ export default function AIInsightsAgent() {
   }
 
   return (
-    <div className={`flex flex-col h-[80svh] w-full bg-zinc-950 border ${theme.border} rounded-none md:rounded-3xl overflow-hidden animate-scanning relative`}>
+    <div className={`flex flex-col h-[80svh] md:h-[80vh] w-full bg-zinc-950 border ${theme.border} rounded-none md:rounded-3xl overflow-hidden animate-scanning relative`}>
       {/* Header */}
       <div className={`p-4 border-b ${theme.border} bg-zinc-900/80 backdrop-blur-md flex items-center justify-between text-left relative z-10`}>
         <div className="flex items-center gap-3">
