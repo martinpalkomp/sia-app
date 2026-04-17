@@ -241,6 +241,7 @@ export default function App() {
   const [showPersonalizationWizard, setShowPersonalizationWizard] = useState(false);
   const [activeState, setActiveState] = useState<SleepState>('sleep');
   const reportRef = useRef<HTMLDivElement>(null);
+  const pendingSave = useRef(false);
   const [isDragging, setIsDragging] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [initialTimeline, setInitialTimeline] = useState<SleepState[] | null>(null);
@@ -888,12 +889,14 @@ export default function App() {
 
       return { ...prevLogs, [selectedDate]: newLog };
     });
+    pendingSave.current = true;
     setSaveStatus('saving');
   };
 
   useEffect(() => {
-    if (!user || !logs[selectedDate] || saveStatus !== 'saving') return;
-    saveLogs(logs, selectedDate).then(() => setSaveStatus('idle')).catch(err => {
+    if (!user || !logs[selectedDate] || !pendingSave.current) return;
+    pendingSave.current = false;
+    saveLogs(logs, selectedDate).catch(err => {
       console.error('Auto-save failed:', err);
       setSaveStatus('idle');
     });

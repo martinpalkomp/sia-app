@@ -561,12 +561,12 @@ export default function Dashboard({
       {/* Section: Status Report */}
       <section className="space-y-4">
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
-          <Card className="col-span-2 md:col-span-1 flex flex-col justify-center border-zinc-800/50 bg-zinc-900/30 p-3 md:p-4 min-h-[18svh] hover:border-zinc-700/50 transition-colors">
+          <Card className={`flex flex-col justify-between hover:border-zinc-400 group hover:-translate-y-1 hover:shadow-zinc-500/20 transition-all duration-300 min-h-[18svh] animate-sia-pulse border-zinc-800 bg-zinc-900/30`}>
             <div className="flex items-center gap-2 mb-2">
               <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
-              <span className="text-[8px] md:text-[10px] text-zinc-50 font-black uppercase tracking-widest">STATUS REPORT</span>
+              <span className="text-[10px] text-zinc-50 font-black uppercase tracking-widest">STATUS REPORT</span>
             </div>
-            <p className="text-zinc-400 text-[10px] md:text-sm font-bold leading-relaxed tracking-widest">
+            <p className="text-zinc-400 text-[10px] md:text-sm font-bold leading-relaxed tracking-widest mt-2">
               {dataMaturity && dataMaturity.count >= 7
                 ? "I've analyzed your sleep intelligence for the last 7 days."
                 : `Log more nights to unlock your weekly trend analysis (${dataMaturity?.count || 0}/7)`}
