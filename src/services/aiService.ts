@@ -167,9 +167,10 @@ export class AIService {
     const ai = new GoogleGenAI({ apiKey: this.apiKey });
     
     const prompt = `
-      Analyze the following sleep logs and provide a concise daily brief (max 3 sentences).
-      Logs: ${JSON.stringify(logs.slice(0, 7))}
-      Focus on immediate recovery status and one actionable tip for tonight.
+      Analyze the following sleep logs: ${JSON.stringify(logs.slice(0, 7))}
+      Calculate the delta between the most recent log and the 7-day average.
+      Provide a concise morning briefing (max 3 sentences).
+      ${tier === 'Enhanced' ? 'Include a recommendation for "Circadian Advice" (e.g., optimized light exposure at a specific time).' : ''}
     `;
 
     const callModel = async (model: string) => {
@@ -257,9 +258,14 @@ export class AIService {
     }
   }
 
-  static async generateQuickInsight(userId: string, logs: DailyLog[], tier: UserTier, maturity: MaturityInfo, lastGeneratedDate: string | null): Promise<AIResponse> {
+  static async generatePatternDecoder(userId: string, logs: DailyLog[], tier: UserTier, maturity: MaturityInfo, lastGeneratedDate: string | null): Promise<AIResponse> {
     const today = format(new Date(), 'yyyy-MM-dd');
     
+    // Maturity Gate: Enforce dataMaturity.level >= 3
+    if (maturity.level < 3) {
+      return { content: null, status: 'skipped', reason: 'Pattern Decoder requires Deep Analysis (Data Maturity Level 3).' };
+    }
+
     const oneMonthAgo = new Date();
     oneMonthAgo.setDate(oneMonthAgo.getDate() - 30);
     const logsInLastMonthCount = logs.filter(log => new Date(log.date) >= oneMonthAgo).length;
@@ -272,17 +278,23 @@ export class AIService {
     const modelName = this.getModelForTier(tier);
     const ai = new GoogleGenAI({ apiKey: this.apiKey });
     
-    const prompt = `
-      Analyze recent sleep logs: ${JSON.stringify(logs.slice(0, 14))}
-      Provide a concise, actionable insight (max 2 sentences).
+    let promptText = `
+      Analyze recent sleep logs: ${JSON.stringify(logs.slice(0, 30))}
+      Perform a Correlation Analysis on sleep data and lifestyle factors.
     `;
+
+    if (tier === 'Enhanced' || tier === 'Pro') {
+      promptText += `Deliver a "Correlative Insight" linking two metrics (e.g., lifestyle factor vs Heart Rate/Efficiency/Quality in REM).`;
+    } else {
+      promptText += `Return a single sentence about the most frequent sleep factor affect your sleep quality.`;
+    }
 
     const callModel = async (model: string) => {
       return await ai.models.generateContent({
         model: model,
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        contents: [{ role: "user", parts: [{ text: promptText }] }],
         config: {
-          systemInstruction: "You are SIA, a Sleep Intelligence Agent. Provide a quick, actionable insight.",
+          systemInstruction: "You are SIA, a clinical Sleep Intelligence Agent. Provide deep correlation insights.",
           temperature: 0.7
         }
       });

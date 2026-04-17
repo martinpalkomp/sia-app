@@ -415,10 +415,10 @@ export default function App() {
       const d = new Date(selectedDate + 'T00:00:00');
       d.setDate(d.getDate() + val);
       
-      // Check if more than 30 days in the future
+      // Check if more than 5 days in the future
       const today = new Date(getTodayDate() + 'T00:00:00');
       const maxFutureDate = new Date(today);
-      maxFutureDate.setDate(today.getDate() + 30);
+      maxFutureDate.setDate(today.getDate() + 5);
       
       if (d > maxFutureDate) {
         return; // Prevent navigation
@@ -562,16 +562,6 @@ export default function App() {
   useEffect(() => {
     setIsEditing(false);
   }, []);
-
-  // Handle auto-save animation
-  useEffect(() => {
-    if (saveStatus === 'saving') {
-      const timer = setTimeout(() => {
-        setSaveStatus('saved');
-      }, 1500);
-      return () => clearTimeout(timer);
-    }
-  }, [saveStatus]);
 
   // Toast auto-hide
   useEffect(() => {
@@ -856,7 +846,9 @@ export default function App() {
 
           if (!validateLogMetrics(summaryMetrics)) {
             console.error('saveLog blocked — invalid metrics:', summaryMetrics);
-            return; // do not write invalid data to Firestore
+            setSaveStatus('idle');
+            setToast({ message: 'Log not saved: metric values out of range.', type: 'error' });
+            return;
           }
 
           await saveLog(user.uid, {
@@ -868,8 +860,11 @@ export default function App() {
           
           // Update maturity info after successful save
           AIService.getUserDataMaturity(user.uid).then(setMaturity);
+          setSaveStatus('saved');
+          setTimeout(() => setSaveStatus('idle'), 2000);
         } catch (error: any) {
           console.error("Save failed:", error);
+          setSaveStatus('idle');
           alert(error.code === 'permission-denied' 
             ? "SIA Permission Error: Check Firestore Rules pathing." 
             : "Failed to save log. Please check your connection.");
@@ -886,17 +881,23 @@ export default function App() {
       const currentLogForDate = prevLogs[selectedDate] || getDefaultLog(selectedDate);
       const newUpdates = typeof updates === 'function' ? updates(currentLogForDate) : updates;
       const newLog = { ...currentLogForDate, ...newUpdates };
-      
+
       if (newLog.source === 'import') {
         newLog.source = 'manual';
       }
-      
-      const newLogs = { ...prevLogs, [selectedDate]: newLog };
-      saveLogs(newLogs, selectedDate);
-      return newLogs;
+
+      return { ...prevLogs, [selectedDate]: newLog };
     });
     setSaveStatus('saving');
   };
+
+  useEffect(() => {
+    if (!user || !logs[selectedDate] || saveStatus !== 'saving') return;
+    saveLogs(logs, selectedDate).then(() => setSaveStatus('idle')).catch(err => {
+      console.error('Auto-save failed:', err);
+      setSaveStatus('idle');
+    });
+  }, [logs[selectedDate], selectedDate, user]);
 
   const updateFactors = (updates: Partial<DailyLog['factors']>) => {
     updateLog(prevLog => ({
@@ -1521,7 +1522,7 @@ export default function App() {
                     <h2 className="text-lg font-bold text-white tracking-tight group-hover:text-indigo-400 transition-colors">
                       {formatDisplayDate(selectedDate)}
                     </h2>
-                    <p className="text-[10px] font-black text-zinc-300 uppercase tracking-widest">
+                    <p id="log-date-label" className="text-[10px] font-black text-zinc-300 uppercase tracking-widest">
                       {(() => {
                         const today = getTodayDate();
                         const yesterday = new Date();
@@ -1530,14 +1531,21 @@ export default function App() {
                         
                         if (selectedDate === today) return 'TODAY';
                         if (selectedDate === yesterdayStr) return 'YESTERDAY NIGHT';
+                        if (new Date(selectedDate + 'T00:00:00') > new Date(today + 'T00:00:00')) return 'FUTURE PLANNING';
                         return 'HISTORICAL LOG';
                       })()}
                     </p>
                   </div>
 
                   <button 
+                    id="log-date-next"
                     onClick={() => changeDate(1)}
-                    className="p-2 hover:bg-zinc-800 rounded-full transition-colors text-zinc-400"
+                    disabled={new Date(selectedDate + 'T00:00:00') >= (() => {
+                      const today = new Date(getTodayDate() + 'T00:00:00');
+                      today.setDate(today.getDate() + 5);
+                      return today;
+                    })()}
+                    className="p-2 hover:bg-zinc-800 rounded-full transition-colors text-zinc-400 disabled:opacity-30 disabled:cursor-not-allowed"
                   >
                     <ChevronRight size={20} />
                   </button>

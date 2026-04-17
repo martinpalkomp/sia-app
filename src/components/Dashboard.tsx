@@ -362,7 +362,7 @@ export default function Dashboard({
 
   const insightDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const generateQuickInsight = async () => {
+  const generatePatternDecoder = async () => {
     if (!logs || Object.keys(logs).length < 1 || !user || !userProfile || !dataMaturity || aiInsight) return;
 
     // Check session cache first — avoid Firestore call entirely
@@ -374,7 +374,7 @@ export default function Dashboard({
 
     setIsAiLoading(true);
     try {
-      const response = await AIService.generateQuickInsight(
+      const response = await AIService.generatePatternDecoder(
         user.uid,
         Object.values(logs),
         userProfile.tier,
@@ -413,7 +413,7 @@ export default function Dashboard({
 
     if (insightDebounceRef.current) clearTimeout(insightDebounceRef.current);
     insightDebounceRef.current = setTimeout(async () => {
-      await generateQuickInsight();
+      await generatePatternDecoder();
       // Record the log count at time of this generation
       sessionStorage.setItem(thresholdKey, String(logCount));
     }, 2000);
@@ -526,8 +526,8 @@ export default function Dashboard({
               <Sparkles className="text-indigo-400" size={20} />
             </div>
             <div>
-              <h2 className="text-lg font-medium uppercase tracking-wide text-slate-400">SIA WEEKLY BRIEF</h2>
-              <p className="text-xs text-indigo-300/70 font-medium uppercase tracking-widest">Personalized Weekly Summary</p>
+              <h2 className="text-lg font-medium uppercase tracking-wide text-slate-400">SIA MORNING BRIEFING</h2>
+              <p className="text-xs text-indigo-300/70 font-medium uppercase tracking-widest">Your Personalized Delta</p>
             </div>
           </div>
 
@@ -663,8 +663,8 @@ export default function Dashboard({
                 <Sparkles className="text-indigo-400" size={20} />
               </div>
               <div>
-                <h2 className="text-lg font-medium uppercase tracking-wide text-slate-400">SIA QUICK INSIGHT</h2>
-                <p className="text-xs text-indigo-300/70 font-bold uppercase tracking-widest">Personalized Pattern Analysis</p>
+                <h2 className="text-lg font-medium uppercase tracking-wide text-slate-400">SIA PATTERN DECODER</h2>
+                <p className="text-xs text-indigo-300/70 font-bold uppercase tracking-widest">Correlation Analysis</p>
               </div>
             </div>
             

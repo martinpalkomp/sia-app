@@ -25,50 +25,31 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
     },
     { id: 'dev-switchboard-mini', name: 'Dev Switchboard Mini', tag: 'comp', description: 'Collapsible dev switchboard.', path: '/src/components/DevSwitchboardMini.tsx' },
     {
-      id: 'db-daily-brief',
-      name: 'Weekly Brief Section',
+      id: 'db-morning-briefing',
+      name: 'Morning Briefing Section',
       tag: 'section',
-      description: 'AI-generated summary container',
+      description: 'AI-generated morning briefing container',
       path: '/src/components/Dashboard.tsx',
       children: [
-        { id: 'daily-brief-card', name: 'Weekly Brief Card', tag: 'card', description: 'Tier-coloured container', path: '/src/components/Dashboard.tsx', children: [
-          { id: 'brief-body', name: 'Brief Body Text', tag: 'comp', description: 'AI-generated summary', path: '/src/components/Dashboard.tsx' },
-          { id: 'discuss-btn', name: 'Discuss with SIA Button', tag: 'btn', description: 'Navigates to AI view via onViewChange(ai). Mutually exclusive with fallback-ui.', path: '/src/components/Dashboard.tsx' },
+        { id: 'morning-brief-card', name: 'Morning Briefing Card', tag: 'card', description: 'Tier-coloured container', path: '/src/components/Dashboard.tsx', children: [
+          { id: 'brief-body', name: 'Brief Body Text', tag: 'comp', description: 'AI-generated briefing', path: '/src/components/Dashboard.tsx' },
+          { id: 'discuss-btn', name: 'Discuss with SIA Button', tag: 'btn', description: 'Navigates to AI view via onViewChange(ai).', path: '/src/components/Dashboard.tsx' },
           { id: 'fallback-ui', name: 'Static Fallback UI', tag: 'comp', description: 'Displays dynamic countdown to 7-day unlock.', path: '/src/components/Dashboard.tsx' },
-          { id: 'loading-spinner', name: 'Loading Spinner', tag: 'comp', description: 'Shown while generating brief', path: '/src/components/Dashboard.tsx' },
         ]}
       ]
     },
     {
-      id: 'db-status-report',
-      name: 'Status Report Section',
+      id: 'db-pattern-decoder',
+      name: 'SIA Pattern Decoder Section',
       tag: 'section',
-      description: '6-card grid of metrics',
+      description: 'Correlation analysis and clinical feed',
       path: '/src/components/Dashboard.tsx',
       children: [
-        { id: 'status-report-card', name: 'Status Report Card', tag: 'card', description: 'Maturity status card', path: '/src/components/Dashboard.tsx' },
-        { id: 'avg-quality', name: 'Avg Quality Card', tag: 'card', description: '7-day average SQ score', path: '/src/components/Dashboard.tsx' },
-        { id: 'avg-restedness', name: 'Avg Restedness Card', tag: 'card', description: '7-day average R score', path: '/src/components/Dashboard.tsx' },
-        { id: 'avg-energy', name: 'Avg Energy Card', tag: 'card', description: '7-day average L score', path: '/src/components/Dashboard.tsx' },
-        { id: 'avg-duration', name: 'Avg Sleep Duration Card', tag: 'card', description: '7-day average duration', path: '/src/components/Dashboard.tsx' },
-        { id: 'avg-efficiency', name: 'Avg Efficiency Card', tag: 'card', description: '7-day average efficiency', path: '/src/components/Dashboard.tsx' },
-      ]
-    },
-    {
-      id: 'db-quick-insight',
-      name: 'SIA Quick Insight Section',
-      tag: 'section',
-      description: 'Quick insight card and clinical feed',
-      path: '/src/components/Dashboard.tsx',
-      children: [
-        { id: 'quick-insight-card', name: 'Quick Insight Card', tag: 'card', description: 'Full-width clickable card, navigates to AI view', path: '/src/components/Dashboard.tsx', children: [
-          { id: 'insight-body', name: 'Insight Body Text', tag: 'comp', description: 'AI-generated insight', path: '/src/components/Dashboard.tsx' },
+        { id: 'pattern-decoder-card', name: 'Pattern Decoder Card', tag: 'card', description: 'Full-width clickable card, navigates to AI view', path: '/src/components/Dashboard.tsx', children: [
+          { id: 'insight-body', name: 'Decoder Body Text', tag: 'comp', description: 'AI-generated correlation', path: '/src/components/Dashboard.tsx' },
           { id: 'disclaimer-text', name: 'Disclaimer Text', tag: 'comp', description: 'Italic disclaimer', path: '/src/components/Dashboard.tsx' },
         ]},
-        { id: 'clinical-insights-feed', name: 'Clinical Insights Feed', tag: 'section', description: 'List of insights (InsightCard.tsx for Pro/Enhanced) or locked card (LockedFeatureCard.tsx for Basic)', path: '/src/components/Dashboard.tsx', children: [
-          { id: 'insight-card', name: 'InsightCard', tag: 'comp', description: 'Pattern/Risk/Recommendation card', path: '/src/components/InsightCard.tsx' },
-          { id: 'locked-feature-card', name: 'LockedFeatureCard', tag: 'comp', description: 'Basic tier locked card', path: '/src/components/LockedFeatureCard.tsx' },
-        ]}
+        { id: 'clinical-insights-feed', name: 'Clinical Insights Feed', tag: 'section', description: 'List of insights', path: '/src/components/Dashboard.tsx' }
       ]
     },
     {

@@ -68,6 +68,11 @@ const SleepPatternCard: React.FC<SleepPatternCardProps> = ({ logs, periodType, p
   ];
 
   const [copied, setCopied] = React.useState(false);
+  const [activeTooltip, setActiveTooltip] = React.useState<string | null>(null);
+  
+  const toggleTooltip = (id: string) => {
+    setActiveTooltip(activeTooltip === id ? null : id);
+  };
   
   const handleExportReport = () => {
     if (userProfile?.tier === 'Basic') {
@@ -164,12 +169,15 @@ ${generateASCIIRibbonHeader()}
           <div className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
           <h3 className="text-[10px] font-black text-zinc-300 uppercase tracking-[0.2em]">Sleep Pattern Summary</h3>
           <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">• {periodType}</span>
-          <div className="w-4 h-4 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-500 cursor-help group relative">
+          <button 
+            onClick={() => toggleTooltip('header')}
+            className="w-4 h-4 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-500 cursor-pointer relative"
+          >
             <span className="text-[10px]">i</span>
-            <div className="absolute top-full left-0 mt-2 w-64 p-4 bg-zinc-900/95 border border-zinc-800 rounded-lg text-[11px] text-zinc-300 z-50 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity">
+            <div className={`absolute top-full left-0 mt-2 w-64 p-4 bg-zinc-900/95 border border-zinc-800 rounded-lg text-[11px] text-zinc-300 z-50 transition-opacity ${activeTooltip === 'header' ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} pointer-events-none`}>
               This summary provides observations based on your logged data over the selected period.
             </div>
-          </div>
+          </button>
         </div>
       </div>
 
@@ -180,12 +188,15 @@ ${generateASCIIRibbonHeader()}
           <div key={i} className="bg-zinc-800/50 border border-zinc-700/50 p-4 rounded-2xl space-y-2 relative group text-left hover:border-indigo-500/50 transition-colors">
             <div className="flex items-center justify-between">
               <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">{m.label}</span>
-              <div className="w-4 h-4 rounded-full bg-zinc-700 flex items-center justify-center text-zinc-500 cursor-help relative group/tooltip">
+              <button 
+                onClick={() => toggleTooltip(m.label)}
+                className="w-4 h-4 rounded-full bg-zinc-700 flex items-center justify-center text-zinc-500 cursor-pointer relative"
+              >
                 <span className="text-[8px]">i</span>
-                <div className="absolute bottom-full left-0 mb-2 w-48 p-2 bg-zinc-800 text-[10px] text-zinc-300 rounded-lg opacity-0 group-hover/tooltip:opacity-100 transition-opacity pointer-events-none z-10 border border-zinc-700 shadow-xl">
+                <div className={`absolute bottom-full left-0 mb-2 w-48 p-2 bg-zinc-800 text-[10px] text-zinc-300 rounded-lg transition-opacity ${activeTooltip === m.label ? 'opacity-100' : 'opacity-0 group-hover/tooltip:opacity-100'} pointer-events-none z-10 border border-zinc-700 shadow-xl`}>
                   {m.desc}
                 </div>
-              </div>
+              </button>
             </div>
             <div className="flex items-center justify-between">
               <p className="text-xl font-black text-white tracking-tight">{m.value}</p>

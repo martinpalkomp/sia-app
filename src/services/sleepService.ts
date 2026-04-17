@@ -8,7 +8,7 @@ import { handleFirestoreError, OperationType } from '../lib/errorHandling';
  * @returns {boolean} - True if valid, false otherwise.
  */
 export const validateLogMetrics = (metrics: Partial<SummaryLog['summaryMetrics']>): boolean => {
-  const checkRange = (val?: number) => val === undefined || (val >= 1 && val <= 10);
+  const checkRange = (val?: number) => val === undefined || val === 0 || (val >= 1 && val <= 10);
   const checkPositive = (val?: number) => val === undefined || val >= 0;
 
   const { sleep_quality, morning_alertness, daytime_energy, importedDuration, importedInBed } = metrics;
@@ -37,6 +37,20 @@ export const saveLog = async (uid: string, logData: Partial<DailyLog> & { date: 
   if (!db) throw new Error('Firestore is not initialized — check Firebase configuration');
   const { date, ...rest } = logData;
   
+  // Future planning limit: 5 nights max
+  const logDate = new Date(date);
+  const now = new Date();
+  const fiveDaysFromNow = new Date();
+  fiveDaysFromNow.setDate(now.getDate() + 5);
+  
+  // Normalize to start of day for comparison
+  logDate.setHours(0, 0, 0, 0);
+  fiveDaysFromNow.setHours(0, 0, 0, 0);
+
+  if (logDate > fiveDaysFromNow) {
+    throw new Error('Future planning is limited to a maximum of 5 days.');
+  }
+
   // Basic validation before saving
   if (rest.summaryMetrics && !validateLogMetrics(rest.summaryMetrics)) {
     throw new Error('Invalid clinical metrics detected. Values must be 1-10 and durations must be positive.');
