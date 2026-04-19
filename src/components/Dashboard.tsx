@@ -48,6 +48,7 @@ import {
   limit, 
   getDocs,
   doc,
+  setDoc,
   deleteDoc
 } from '../lib/firebase';
 import { getTodayDate, formatDisplayDate } from '../utils/dateUtils';
@@ -421,6 +422,40 @@ export default function Dashboard({
     return () => { if (insightDebounceRef.current) clearTimeout(insightDebounceRef.current); };
   }, [logs, user, userProfile, dataMaturity]);
 
+  const handleSaveLog = async (logData: any) => {
+    if (!user) return;
+    
+    try {
+      setSaveStatus('saving');
+      
+      // 1. Prepare the log object
+      const logId = logData.id || `log_${Date.now()}`;
+      const finalLog = {
+        ...logData,
+        id: logId,
+        userId: user.uid,
+        updatedAt: new Date().toISOString()
+      };
+
+      // 2. DIRECT PERSISTENCE (Fixes the refresh bug)
+      const logRef = doc(db, 'users', user.uid, 'sleep_logs', logId);
+      await setDoc(logRef, finalLog);
+
+      // 3. Update local state
+      setLogs(prev => ({
+        ...prev,
+        [logId]: finalLog
+      }));
+
+      setSaveStatus('saved');
+      setTimeout(() => setSaveStatus('idle'), 2000);
+      setView('main');
+    } catch (error) {
+      console.error("Persistence Error:", error);
+      setSaveStatus('error');
+    }
+  };
+
   const handleDeepAnalysis = async () => {
     if (!user || !userProfile || isAiLoading || !dataMaturity) return;
     
@@ -526,8 +561,10 @@ export default function Dashboard({
               <Sparkles className="text-indigo-400" size={20} />
             </div>
             <div>
-              <h2 className="text-lg font-medium uppercase tracking-wide text-slate-400">SIA MORNING BRIEFING</h2>
-              <p className="text-xs text-indigo-300/70 font-medium uppercase tracking-widest">Your Personalized Delta</p>
+              <h3 className="font-black text-xs tracking-widest text-slate-400 uppercase mb-4 flex items-center gap-2">
+                <Sparkles size={14} className="text-indigo-400" />
+                SIA MORNING BRIEFING
+              </h3>
             </div>
           </div>
 
@@ -560,7 +597,7 @@ export default function Dashboard({
 
       {/* Section: Status Report */}
       <section className="space-y-4">
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4 min-h-[18svh]">
           <Card className={`flex flex-col justify-between hover:border-zinc-400 group hover:-translate-y-1 hover:shadow-zinc-500/20 transition-all duration-300 min-h-[18svh] animate-sia-pulse border-zinc-800 bg-zinc-900/30`}>
             <div className="flex items-center gap-2 mb-2">
               <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
@@ -663,8 +700,10 @@ export default function Dashboard({
                 <Sparkles className="text-indigo-400" size={20} />
               </div>
               <div>
-                <h2 className="text-lg font-medium uppercase tracking-wide text-slate-400">SIA PATTERN DECODER</h2>
-                <p className="text-xs text-indigo-300/70 font-bold uppercase tracking-widest">Correlation Analysis</p>
+                <h3 className="font-black text-xs tracking-widest text-slate-400 uppercase mb-4 flex items-center gap-2">
+                  <Brain size={14} className="text-indigo-400" />
+                  SIA PATTERN DECODER
+                </h3>
               </div>
             </div>
             
