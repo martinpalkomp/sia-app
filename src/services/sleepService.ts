@@ -61,6 +61,7 @@ export const saveLog = async (uid: string, logData: Partial<DailyLog> & { date: 
   
   const payload = {
     ...sanitizeLogForSaving(rest),
+    type: 'log',          // always enforced — required by onSnapshot query filter
     updatedAt: serverTimestamp(),
   };
 

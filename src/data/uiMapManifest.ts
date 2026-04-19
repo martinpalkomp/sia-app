@@ -25,6 +25,13 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
     },
     { id: 'dev-switchboard-mini', name: 'Dev Switchboard Mini', tag: 'comp', description: 'Collapsible dev switchboard.', path: '/src/components/DevSwitchboardMini.tsx' },
     {
+      id: 'db-data-ledger',
+      name: 'Unified Data Audit Trail',
+      tag: 'section',
+      description: 'Audit trail of all sleep logs',
+      path: '/src/components/DataLedger.tsx',
+    },
+    {
       id: 'db-morning-briefing',
       name: 'Morning Briefing Section',
       tag: 'section',

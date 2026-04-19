@@ -246,7 +246,7 @@ export default function AIInsightsAgent() {
       if (!cachedLogsRef.current || !cachedProfileRef.current) {
         const logsRef = collection(db, 'users', user.uid, 'sleep_logs');
         const [logsSnap, profileSnap, unstructuredSnap] = await Promise.all([
-          getDocs(query(logsRef, orderBy('date', 'desc'), limit(14))),
+          getDocs(query(logsRef, orderBy('date', 'desc'))),
           getDoc(doc(db, 'users', user.uid, 'personalization', 'profile')),
           getDocs(query(collection(db, 'users', user.uid, 'unstructured_data'), orderBy('uploadDate', 'desc'), limit(10)))
         ]);

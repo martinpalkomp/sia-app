@@ -438,6 +438,7 @@ export default function Dashboard({
         id: logId,
         userId: user.uid,
         updatedAt: new Date().toISOString(),
+        source: 'manual',
       };
 
       // 2. THE DIRECT STRIKE: Write to Firestore immediately

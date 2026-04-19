@@ -998,11 +998,17 @@ export default function App() {
     setInitialMetrics(null);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     setIsEditing(false);
     setInitialTimeline(null);
     setInitialMetrics(null);
-    setToast({ message: 'Changes saved', type: 'success' });
+    try {
+      await saveLogs(logs, selectedDate);
+      setToast({ message: 'Changes saved', type: 'success' });
+    } catch (err) {
+      console.error('handleSave failed:', err);
+      setToast({ message: 'Save failed — please try again', type: 'error' });
+    }
   };
 
   const handleMouseUp = () => {
@@ -1053,16 +1059,17 @@ export default function App() {
     }
 
     // Determine the range to fetch
-    const start = activeDates[0];
-    const end = activeDates[activeDates.length - 1];
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0];
 
-    if (!start || !end || !db) return;
+    if (!db) return;
 
     const q = query(
       collection(db, 'users', user.uid, 'sleep_logs'),
       where('type', '==', 'log'),
-      where('date', '>=', start),
-      where('date', '<=', end)
+      where('date', '>=', thirtyDaysAgoStr),
+      orderBy('date', 'desc')
     );
     
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -2384,12 +2391,16 @@ export default function App() {
 
               <div className="flex gap-4">
                 <button 
-                  onClick={() => {
+                  onClick={async () => {
                     setSaveStatus('saving');
-                    setTimeout(() => {
-                      setSaveStatus('saved');
-                      setToast({ message: 'All changes synced to SIA cloud', type: 'success' });
-                    }, 500);
+                    try {
+                      await saveLogs(logs, selectedDate);
+                      setToast({ message: 'Log saved to SIA cloud', type: 'success' });
+                    } catch (err) {
+                      console.error('Manual save failed:', err);
+                      setSaveStatus('idle');
+                      setToast({ message: 'Save failed — check your connection', type: 'error' });
+                    }
                   }}
                   className="flex-[2] py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-bold text-sm transition-all shadow-xl shadow-indigo-600/20 flex items-center justify-center gap-2"
                 >
