@@ -27,11 +27,11 @@ export default function DataLedger({ logs, userId }: DataLedgerProps) {
 
   const getSourceInfo = (log: DailyLog) => {
     switch (log.source) {
-      case 'manual': return { label: 'MANUAL', icon: CheckCircle, color: 'text-emerald-400' };
-      case 'predicted': return { label: 'PREDICTED', icon: Sparkles, color: 'text-indigo-400' };
-      case 'imported': return { label: 'IMPORTED', icon: FileUp, color: 'text-zinc-400' };
-      case 'ai-adjusted': return { label: 'AI ADJUSTED', icon: Wrench, color: 'text-amber-400' };
-      default: return { label: 'MANUAL', icon: User, color: 'text-zinc-400' };
+      case 'manual': return { label: 'MANUAL INPUT', icon: User, color: 'text-indigo-400' };
+      case 'predicted': return { label: 'AI PREDICTED', icon: Sparkles, color: 'text-amber-400' };
+      case 'import': return { label: 'NATIVE IMPORT', icon: FileUp, color: 'text-emerald-400' };
+      case 'ai-adjusted': return { label: 'AI ADJUSTED', icon: Wrench, color: 'text-cyan-400' };
+      default: return { label: 'MANUAL INPUT', icon: User, color: 'text-indigo-400' };
     }
   };
 

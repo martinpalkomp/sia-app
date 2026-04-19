@@ -451,7 +451,7 @@ export default function App() {
     return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
   };
 
-  const handleConfirmPattern = () => {
+  const handleConfirmPattern = async () => {
     if (!pendingSuggestion) return;
     const suggestion = pendingSuggestion.suggestion as any;
     console.log("DEBUG: SIA Suggestion Received:", suggestion);
@@ -526,10 +526,46 @@ export default function App() {
 
     console.log("DEBUG: Form State After Apply:", newLogData);
 
-    // Trigger a single update and save
+    // 3. Persist to Firestore
+    const logId = currentLog.date;
+    const logRef = doc(db, 'users', user.uid, 'sleep_logs', logId);
+    
+    // Ensure nulls are 0 or false
+    const sanitizedLog = {
+      ...newLogData,
+      source: 'predicted',
+      type: 'log',
+      factors: {
+        ...newLogData.factors,
+        caffeine: {
+          consumed: !!newLogData.factors?.caffeine?.consumed,
+          amount: newLogData.factors?.caffeine?.amount || 0,
+          lastIntake: newLogData.factors?.caffeine?.lastIntake || '08:00'
+        },
+        alcohol: {
+          consumed: !!newLogData.factors?.alcohol?.consumed,
+          drinks: newLogData.factors?.alcohol?.drinks || 0,
+          lastIntake: newLogData.factors?.alcohol?.lastIntake || '20:00'
+        },
+        medication: {
+          taken: !!newLogData.factors?.medication?.taken,
+          type: newLogData.factors?.medication?.type || '',
+          time: newLogData.factors?.medication?.time || '08:00'
+        },
+        exercise: {
+          completed: !!newLogData.factors?.exercise?.completed,
+          type: newLogData.factors?.exercise?.type || '',
+          time: newLogData.factors?.exercise?.time || '08:00'
+        }
+      }
+    };
+    
+    await setDoc(logRef, sanitizedLog, { merge: true });
+
+    // Trigger UI update
     updateLog(newLogData);
     
-    setToast({ message: 'Routine applied! You can still make adjustments.', type: 'success' });
+    setToast({ message: 'Routine applied & saved!', type: 'success' });
     setShowPatternReview(false);
     setPendingSuggestion(null);
 
@@ -541,7 +577,6 @@ export default function App() {
       }
     }, 100);
   };
-
   const slideVariants = {
     enter: (direction: number) => ({
       x: direction > 0 ? 500 : -500,
@@ -1838,25 +1873,31 @@ export default function App() {
                 <div className="grid gap-8">
                   <SliderInput 
                     id="log-info-quality"
-                    label="Sleep Quality (SQ)" 
+                    label="Sleep Quality (0-10)" 
                     value={currentLog.sleep_quality} 
                     onChange={(val) => updateLog({ sleep_quality: val })}
+                    min={0}
+                    max={10}
                     icon={Moon}
                     info="Measures how restorative and uninterrupted your sleep felt throughout the night."
                   />
                   <SliderInput 
                     id="log-info-restedness"
-                    label="Restedness after Awakening (R)" 
+                    label="Restedness after Awakening (0-10)" 
                     value={currentLog.morning_alertness} 
                     onChange={(val) => updateLog({ morning_alertness: val })}
+                    min={0}
+                    max={10}
                     icon={Sun}
                     info="Reflects how refreshed and ready for the day you felt immediately upon waking."
                   />
                   <SliderInput 
                     id="log-info-energy"
-                    label="Energy Level in the Morning (L)" 
+                    label="Energy Level in the Morning (0-10)" 
                     value={currentLog.daytime_energy} 
                     onChange={(val) => updateLog({ daytime_energy: val })}
+                    min={0}
+                    max={10}
                     icon={BarChart3}
                     info="Indicates your overall vitality and alertness levels during the early part of your day."
                   />
@@ -2056,11 +2097,11 @@ export default function App() {
                   {/* Stress Level */}
                   <SliderInput 
                     id="log-info-stress"
-                    label="Stress Level" 
+                    label="Stress Level (0-10)" 
                     value={currentLog.factors.stressLevel} 
                     onChange={(val) => updateFactors({ stressLevel: val })} 
-                    min={1}
-                    max={5}
+                    min={0}
+                    max={10}
                     icon={Brain}
                   />
 

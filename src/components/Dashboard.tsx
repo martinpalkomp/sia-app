@@ -439,6 +439,30 @@ export default function Dashboard({
         userId: user.uid,
         updatedAt: new Date().toISOString(),
         source: 'manual',
+        type: 'log',
+        factors: {
+          ...logData.factors,
+          caffeine: {
+            consumed: !!logData.factors?.caffeine?.consumed,
+            amount: logData.factors?.caffeine?.amount || 0,
+            lastIntake: logData.factors?.caffeine?.lastIntake || '08:00'
+          },
+          alcohol: {
+            consumed: !!logData.factors?.alcohol?.consumed,
+            drinks: logData.factors?.alcohol?.drinks || 0,
+            lastIntake: logData.factors?.alcohol?.lastIntake || '20:00'
+          },
+          medication: {
+            taken: !!logData.factors?.medication?.taken,
+            type: logData.factors?.medication?.type || '',
+            time: logData.factors?.medication?.time || '08:00'
+          },
+          exercise: {
+            completed: !!logData.factors?.exercise?.completed,
+            type: logData.factors?.exercise?.type || '',
+            time: logData.factors?.exercise?.time || '08:00'
+          }
+        }
       };
 
       // 2. THE DIRECT STRIKE: Write to Firestore immediately
