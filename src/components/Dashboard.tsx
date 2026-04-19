@@ -423,35 +423,40 @@ export default function Dashboard({
   }, [logs, user, userProfile, dataMaturity]);
 
   const handleSaveLog = async (logData: any) => {
-    if (!user) return;
-    
+    if (!user) {
+      console.error("No user found for save");
+      return;
+    }
+
+    // 1. Force 'saving' status for UI feedback
+    setSaveStatus('saving');
+
     try {
-      setSaveStatus('saving');
-      
-      // 1. Prepare the log object
       const logId = logData.id || `log_${Date.now()}`;
-      const finalLog = {
+      const updatedLog = {
         ...logData,
         id: logId,
         userId: user.uid,
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date().toISOString(),
       };
 
-      // 2. DIRECT PERSISTENCE (Fixes the refresh bug)
+      // 2. THE DIRECT STRIKE: Write to Firestore immediately
+      // This bypasses all loops and ensures persistence before refresh
       const logRef = doc(db, 'users', user.uid, 'sleep_logs', logId);
-      await setDoc(logRef, finalLog);
+      await setDoc(logRef, updatedLog);
 
-      // 3. Update local state
+      // 3. Update local state ONLY after DB success
       setLogs(prev => ({
         ...prev,
-        [logId]: finalLog
+        [logId]: updatedLog
       }));
 
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus('idle'), 2000);
-      setView('main');
+      setView('main'); // Return to dashboard
+      
     } catch (error) {
-      console.error("Persistence Error:", error);
+      console.error("SIA Persistence Error:", error);
       setSaveStatus('error');
     }
   };

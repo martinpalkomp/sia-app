@@ -893,15 +893,6 @@ export default function App() {
     setSaveStatus('saving');
   };
 
-  useEffect(() => {
-    if (!user || !logs[selectedDate] || !pendingSave.current) return;
-    pendingSave.current = false;
-    saveLogs(logs, selectedDate).catch(err => {
-      console.error('Auto-save failed:', err);
-      setSaveStatus('idle');
-    });
-  }, [logs[selectedDate], selectedDate, user]);
-
   const updateFactors = (updates: Partial<DailyLog['factors']>) => {
     updateLog(prevLog => ({
       factors: { ...prevLog.factors, ...updates }
