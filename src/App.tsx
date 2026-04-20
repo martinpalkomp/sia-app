@@ -792,12 +792,22 @@ export default function App() {
     if (dateToUpdate) {
       const log = newLogs[dateToUpdate];
       if (log) {
-        // Generate visual timeline for duration calculations
-        const visualTimeline = getGridFromEvents(log.sleepEvents || []);
+        // Determine if visualTimeline has been manually modified
+        const isManuallyModified = log.source === 'manual';
+        
+        // Prioritize manual timeline, reverse-map to sleepEvents if modified
+        let visualTimeline = log.visualTimeline;
+        let sleepEvents = log.sleepEvents;
+        
+        if (isManuallyModified && visualTimeline && visualTimeline.length === 96) {
+          sleepEvents = convertGridToEvents(visualTimeline, log.date);
+        } else {
+          visualTimeline = getGridFromEvents(log.sleepEvents || []);
+        }
         
         // Calculate durations from events/timeline
-        const sleepDuration = calculateSleepDuration(log.sleepEvents || log.timeline || []);
-        const timeInBed = calculateTimeInBed(log.sleepEvents || log.timeline || []);
+        const sleepDuration = calculateSleepDuration(sleepEvents || log.timeline || []);
+        const timeInBed = calculateTimeInBed(sleepEvents || log.timeline || []);
 
         // Populate summaryMetrics before saving
         const summaryMetrics = {

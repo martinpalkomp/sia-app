@@ -147,15 +147,14 @@ export class AIService {
     return null;
   }
 
-  static async generateDailyBrief(userId: string, logs: DailyLog[], tier: UserTier, maturity: MaturityInfo): Promise<AIResponse> {
-    const today = format(new Date(), 'yyyy-MM-dd');
-    const cached = await this.getCachedDailyBrief(userId, today);
+  static async generateDailyBrief(userId: string, logs: DailyLog[], tier: UserTier, maturity: MaturityInfo, currentDate: string): Promise<AIResponse> {
+    const cached = await this.getCachedDailyBrief(userId, currentDate);
     
     const oneMonthAgo = new Date();
     oneMonthAgo.setDate(oneMonthAgo.getDate() - 30);
     const logsInLastMonthCount = logs.filter(log => new Date(log.date) >= oneMonthAgo).length;
 
-    const guardrail = shouldTriggerAI(tier, maturity.level, logs.length, logsInLastMonthCount, 'DailyBrief', cached ? today : null);
+    const guardrail = shouldTriggerAI(tier, maturity.level, logs.length, logsInLastMonthCount, 'DailyBrief', cached ? currentDate : null);
     if (!guardrail.shouldTrigger) {
       if (cached && guardrail.reason === "Already generated today.") {
         return { content: cached.content, status: 'success' };
@@ -167,6 +166,11 @@ export class AIService {
     const ai = new GoogleGenAI({ apiKey: this.apiKey });
     
     const prompt = `
+      Today's date is ${currentDate}.
+      The 'Last Night' log is the one dated the day before today.
+      Analyze the data and provide a briefing.
+      If the most recent log provided isn't from last night, acknowledge the gap in data gracefully.
+      
       Analyze the following sleep logs: ${JSON.stringify(logs.slice(0, 7))}
       Calculate the delta between the most recent log and the 7-day average.
       Provide a concise morning briefing (max 3 sentences).
@@ -208,6 +212,42 @@ export class AIService {
       }
       throw error;
     }
+  }
+
+  static async generatePatternTeaser(userId: string, logs: DailyLog[], currentDate: string): Promise<string> {
+    const cacheRef = collection(db!, 'users', userId, 'analysis_cache');
+    const q = query(cacheRef, where('date', '==', currentDate), where('type', '==', 'teaser'), limit(1));
+    const snap = await getDocs(q);
+    
+    if (!snap.empty) {
+      return snap.docs[0].data().content;
+    }
+
+    const ai = new GoogleGenAI({ apiKey: this.apiKey });
+    const prompt = `
+      Analyze the following sleep logs (last 30 days): ${JSON.stringify(logs.slice(0, 30))}
+      Identify the single most significant trend or correlation.
+      Provide a concise 5-sentence summary written in a supportive yet direct tone.
+      Briefly mention the date range this reflects based on the log dates.
+      Do not give all the details; leave the user curious to read the full report.
+    `;
+    
+    const response = await ai.models.generateContent({
+      model: this.getModelForTier('Basic'),
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      config: { systemInstruction: "You are SIA Teaser bot. Keep insights under 5 sentences.", temperature: 0.7 }
+    });
+    
+    const content = response.text || "Your nightly insights are ready to be explored.";
+    
+    await addDoc(cacheRef, {
+      date: currentDate,
+      content: content,
+      type: 'teaser',
+      createdAt: serverTimestamp()
+    });
+    
+    return content;
   }
 
   static async generateDeepAnalysis(userId: string, logs: DailyLog[], tier: UserTier, maturity: MaturityInfo, lastGeneratedDate: string | null): Promise<AIResponse> {
