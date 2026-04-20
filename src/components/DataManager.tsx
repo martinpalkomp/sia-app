@@ -30,7 +30,6 @@ import { format } from 'date-fns';
 import { Card } from './UI';
 import { exportUserData } from '../utils/DataExporter';
 
-import { exportDailySummary, exportDeepEventLog, exportForResearch } from '../utils/exportUtils';
 import { DailyLog, PersonalizationProfile } from '../types';
 
 interface DataManagerProps {
@@ -45,6 +44,7 @@ interface DataItem {
   type: 'structured' | 'unstructured';
   name: string;
   date: string;
+  source?: string;
   content?: string;
 }
 
@@ -70,11 +70,13 @@ export default function DataManager({ user, onRefresh, logs, personalizationProf
 
       const structuredItems: DataItem[] = [];
       structuredSnap.forEach(doc => {
+        const data = doc.data();
         structuredItems.push({
           id: doc.id,
           type: 'structured',
           name: `Sleep Log: ${doc.id}`,
-          date: doc.id
+          date: doc.id,
+          source: data.source || 'manual'
         });
       });
 
@@ -169,8 +171,29 @@ export default function DataManager({ user, onRefresh, logs, personalizationProf
     }
   };
 
+  const getSourceBadge = (source: string = 'manual') => {
+    switch (source) {
+      case 'manual': return { label: 'MANUAL INPUT', color: 'indigo' };
+      case 'predicted': return { label: 'AI PREDICTED', color: 'amber' };
+      case 'import': return { label: 'NATIVE IMPORT', color: 'emerald' };
+      case 'ai-adjusted': return { label: 'AI ADJUSTED', color: 'cyan' };
+      default: return { label: 'MANUAL INPUT', color: 'indigo' };
+    }
+  };
+
+  const getSourceColorClasses = (color: string) => {
+    switch (color) {
+      case 'indigo': return 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20';
+      case 'amber': return 'bg-amber-500/10 text-amber-400 border-amber-500/20';
+      case 'emerald': return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
+      case 'cyan': return 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20';
+      default: return 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20';
+    }
+  };
+
   return (
     <div className="space-y-6">
+      {/* ... keeping existing header ... */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-black text-white flex items-center gap-3">
@@ -180,37 +203,6 @@ export default function DataManager({ user, onRefresh, logs, personalizationProf
           <p className="text-sm text-zinc-500 font-medium">Manage your personal health data sources</p>
         </div>
         <div className="flex items-center gap-2">
-          <button 
-            onClick={() => exportDailySummary(Object.values(logs || {}))}
-            className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2"
-          >
-            <Download size={14} />
-            Export Daily Summary (CSV)
-          </button>
-          <button 
-            onClick={() => exportDeepEventLog(Object.values(logs || {}))}
-            className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2"
-          >
-            <Download size={14} />
-            Export Deep Event Log (CSV)
-          </button>
-          {personalizationProfile && (
-            <button 
-              onClick={() => exportForResearch(Object.values(logs || {}), personalizationProfile)}
-              className="px-4 py-2 bg-violet-500/10 hover:bg-violet-500/20 text-violet-400 border border-violet-500/30 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2"
-            >
-              <Download size={14} />
-              Export for Research (CSV)
-            </button>
-          )}
-          <button 
-            onClick={handleExportData}
-            disabled={isExporting}
-            className="px-4 py-2 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 disabled:opacity-50"
-          >
-            {isExporting ? <Loader2 className="animate-spin" size={14} /> : exportSuccess ? <CheckCircle2 size={14} className="text-emerald-500" /> : <Download size={14} />}
-            {isExporting ? 'Exporting...' : exportSuccess ? 'Exported!' : 'Export All'}
-          </button>
           <button 
             onClick={() => setShowPurgeConfirm(true)}
             className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/30 rounded-xl text-xs font-black uppercase tracking-widest transition-all"
@@ -232,7 +224,11 @@ export default function DataManager({ user, onRefresh, logs, personalizationProf
         </Card>
       ) : (
         <div className="grid gap-3">
-          {items.map((item) => (
+          {items.map((item) => {
+             const badge = item.type === 'structured' ? getSourceBadge(item.source) : { label: 'UNSTRUCTURED', color: 'zinc' };
+             const colorClasses = getSourceColorClasses(badge.color);
+             
+             return (
             <motion.div
               key={item.id}
               initial={{ opacity: 0, x: -10 }}
@@ -247,8 +243,13 @@ export default function DataManager({ user, onRefresh, logs, personalizationProf
                 </div>
                 <div>
                   <div className="text-sm font-black text-white">{item.name}</div>
-                  <div className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">
-                    {item.type === 'structured' ? 'Grid Entry' : 'Raw Insight'} • {item.type === 'unstructured' ? format(new Date(item.date), 'MMM d, yyyy HH:mm') : item.date}
+                  <div className="flex items-center gap-2 mt-1">
+                      <span className={`px-2 py-0.5 text-[9px] font-black uppercase tracking-widest rounded-md border ${colorClasses}`}>
+                        {badge.label}
+                      </span>
+                      <span className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">
+                        • {item.type === 'unstructured' ? format(new Date(item.date), 'MMM d, yyyy HH:mm') : item.date}
+                      </span>
                   </div>
                 </div>
               </div>
@@ -270,7 +271,8 @@ export default function DataManager({ user, onRefresh, logs, personalizationProf
                 </button>
               </div>
             </motion.div>
-          ))}
+             )
+          })}
         </div>
       )}
 

@@ -862,17 +862,37 @@ export default function Dashboard({
               <Card className="bg-zinc-900 border border-zinc-800 p-6 rounded-3xl min-h-[15svh] flex items-center justify-center">
                  <Loader2 className="animate-spin text-zinc-500" />
               </Card>
+            ) : userProfile?.tier === 'Basic' ? (
+              <div className="relative w-full group">
+                <div className="absolute inset-0 bg-gradient-to-r from-zinc-900 via-zinc-800 to-zinc-900 rounded-3xl opacity-50 blur-sm" />
+                <Card
+                  onClick={() => onViewChange('account')}
+                  className="relative bg-zinc-950/80 border border-indigo-500/30 p-6 flex flex-col justify-start rounded-3xl min-h-[15svh] group cursor-pointer hover:border-indigo-500/50 backdrop-blur-sm"
+                >
+                  <div className="flex items-center gap-3 mb-4">
+                    <Sparkles className="text-zinc-500" size={16} />
+                    <span className="text-[10px] font-black uppercase text-zinc-500 tracking-widest">SIA INSIGHT TEASER</span>
+                  </div>
+                  <p className="text-zinc-500 font-bold text-sm leading-relaxed mb-6">Unlock deeper sleep patterns and trends with an Enhanced or Pro subscription.</p>
+                  <div className="mt-auto">
+                      <span className="text-indigo-400 text-[10px] font-black uppercase tracking-widest hover:underline">UPGRADE TO UNLOCK →</span>
+                  </div>
+                </Card>
+              </div>
             ) : patternTeaser ? (
               <Card
+                id="ai-analysis-card"
                 onClick={() => onViewChange('ai')}
-                className="relative bg-zinc-900/50 border border-indigo-500/20 p-6 flex flex-col justify-between rounded-3xl min-h-[15svh] group cursor-pointer hover:border-indigo-500/40"
+                className="relative bg-zinc-900/50 border border-indigo-500/20 p-6 flex flex-col justify-start rounded-3xl min-h-[15svh] group cursor-pointer hover:border-indigo-500/40"
               >
-                <div className="flex items-center gap-3 mb-3">
+                <div className="flex items-center gap-3 mb-4">
                   <Sparkles className="text-amber-400" size={16} />
                   <span className="text-[10px] font-black uppercase text-amber-500 tracking-widest">SIA INSIGHT TEASER</span>
                 </div>
-                <p className="text-zinc-300 font-bold text-sm leading-relaxed mb-4">{patternTeaser}</p>
-                <span className="text-indigo-400 text-[10px] font-black uppercase tracking-widest hover:underline group-hover:text-indigo-300">READ FULL ANALYSIS →</span>
+                <p className="text-zinc-300 font-bold text-sm leading-relaxed mb-6">{patternTeaser}</p>
+                <div className="mt-auto">
+                    <span className="text-indigo-400 text-[10px] font-black uppercase tracking-widest hover:underline group-hover:text-indigo-300">READ FULL ANALYSIS →</span>
+                </div>
               </Card>
             ) : null
           )}

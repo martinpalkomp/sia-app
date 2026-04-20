@@ -33,6 +33,7 @@ import {
 import { DailyLog, SleepState, SleepEvent } from '../types';
 import { TOTAL_SLOTS } from '../constants';
 import { saveLog } from '../services/sleepService';
+import { SIA_AI_MODEL } from '../services/aiService';
 import { 
   snapTo15Min, 
   timeToIndex, 
@@ -163,7 +164,7 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
       if (apiKey) {
         const ai = new GoogleGenAI({ apiKey });
         const aiPromise = ai.models.generateContent({
-          model: "gemini-2.0-flash",
+          model: SIA_AI_MODEL,
           config: {
             systemInstruction: "Extract sleep insights from this text. Return only valid JSON: { summary, estimatedDateRange, extractedInsights (string array), rawDataType }.",
             temperature: 0.4
@@ -487,7 +488,7 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
       `;
 
       const aiPromise = ai.models.generateContent({
-        model: "gemini-2.0-flash",
+        model: SIA_AI_MODEL,
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
         config: { temperature: 0.4 }
       });

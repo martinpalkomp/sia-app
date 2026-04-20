@@ -31,7 +31,6 @@ import AdminFeedback from './AdminFeedback';
 import DevElementMap from './DevElementMap';
 import { calculateAge, getAgeDecade } from '../utils/dateUtils';
 import { AIService } from '../services/aiService';
-import { exportDailySummary, exportDeepEventLog } from '../utils/exportUtils';
 
 export default function AccountPage({ onModifyAssessment, onRefresh }: { onModifyAssessment: () => void; onRefresh?: () => void; }) {
   const { user, personalizationProfile, logs, maturity, highlightTier, tier, userProfile, setMockLogs } = useUser();
@@ -327,55 +326,6 @@ export default function AccountPage({ onModifyAssessment, onRefresh }: { onModif
             </div>
           </div>
         </Card>
-      </div>
-
-      {/* Researcher Tools */}
-      <div className="pt-8 border-t border-zinc-800">
-        <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 ml-1 mb-4">
-          ### [ RESEARCHER TOOLS ]
-        </h3>
-        <div className="bg-zinc-900/50 border border-zinc-800 p-4 rounded-2xl mb-4">
-          <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest mb-2 flex items-center gap-2">
-            <ShieldCheck size={12} className="text-amber-500" />
-            ⚠️ ADVISORY
-          </p>
-          <p className="text-[10px] text-zinc-500 leading-relaxed">
-            ⚠️ ADVISORY: Exported files are unencrypted. Store safely on your local machine.
-          </p>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <button 
-            onClick={() => exportDailySummary(Object.values(logs || {}))}
-            className="p-4 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-2xl text-left transition-all group"
-          >
-            <div className="text-sm font-black text-white mb-1">Export Tidy Trends (.CSV)</div>
-            <div className="text-[10px] text-zinc-500 leading-relaxed">
-              Aggregates sleep metrics and lifestyle factors for longitudinal analysis in R/RStudio.
-            </div>
-          </button>
-          {derivedTier === 'Basic' ? (
-            <button
-              disabled
-              title="Available on Enhanced and Pro"
-              className="p-4 bg-zinc-900 border border-zinc-800 rounded-2xl text-left transition-all group opacity-40 cursor-not-allowed"
-            >
-              <div className="text-sm font-black text-white mb-1">Deep Architecture Export — Enhanced+</div>
-              <div className="text-[10px] text-zinc-500 leading-relaxed">
-                High-resolution event log for analyzing sleep fragmentation and circadian phase shifts.
-              </div>
-            </button>
-          ) : (
-            <button 
-              onClick={() => exportDeepEventLog(Object.values(logs || {}))}
-              className="p-4 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-2xl text-left transition-all group"
-            >
-              <div className="text-sm font-black text-white mb-1">Export Deep Architecture (.CSV)</div>
-              <div className="text-[10px] text-zinc-500 leading-relaxed">
-                High-resolution event log for analyzing sleep fragmentation and circadian phase shifts.
-              </div>
-            </button>
-          )}
-        </div>
       </div>
 
       {/* Actions */}

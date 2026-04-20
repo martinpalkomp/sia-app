@@ -23,6 +23,8 @@ import { calculateLogVitality } from "../utils/correctionLogic";
 
 const DISCLAIMER = "SIA provides lifestyle recommendations based on patterns. This is not a medical diagnosis. Consult a professional for clinical concerns.";
 
+export const SIA_AI_MODEL = 'gemini-1.5-flash';
+
 export interface MaturityInfo {
   level: 1 | 2 | 3 | 4;
   count: number;
@@ -40,7 +42,7 @@ export class AIService {
   private static apiKey = process.env.GEMINI_API_KEY || "";
 
   static getModelForTier(tier: UserTier): string {
-    return "gemini-2.0-flash";
+    return SIA_AI_MODEL;
   }
 
   static async getUserDataMaturity(userId: string): Promise<MaturityInfo> {
