@@ -151,7 +151,7 @@ export class AIService {
     return null;
   }
 
-  static async generateDailyBrief(userId: string, logs: DailyLog[], tier: UserTier, maturity: MaturityInfo, currentDate: string): Promise<AIResponse> {
+  static async generateDailyBrief(userId: string, logs: DailyLog[], tier: UserTier, maturity: MaturityInfo, currentDate: string, lastNightDate: string): Promise<AIResponse> {
     const cached = await this.getCachedDailyBrief(userId, currentDate);
     
     const oneMonthAgo = new Date();
@@ -171,12 +171,10 @@ export class AIService {
     
     const prompt = `
       Today's date is ${currentDate}.
-      The 'Last Night' log is the one dated the day before today.
-      Analyze the data and provide a briefing.
-      If the most recent log provided isn't from last night, acknowledge the gap in data gracefully.
-      
-      Analyze the following sleep logs: ${JSON.stringify(logs.slice(0, 7))}
-      Calculate the delta between the most recent log and the 7-day average.
+      SIA is analyzing the log for last night: ${lastNightDate}.
+      Provide a briefing based specifically on the log dated ${lastNightDate}.
+      Analyze the following sleep logs (focusing on ${lastNightDate}): ${JSON.stringify(logs.slice(0, 7))}
+      Calculate the delta between the log from ${lastNightDate} and the 7-day average.
       Provide a concise morning briefing (max 3 sentences).
       ${tier === 'Enhanced' ? 'Include a recommendation for "Circadian Advice" (e.g., optimized light exposure at a specific time).' : ''}
     `;
@@ -204,7 +202,7 @@ export class AIService {
 
       // Cache it
       await addDoc(collection(db!, 'users', userId, 'daily_briefs'), {
-        date: today,
+        date: currentDate,
         content: finalContent,
         createdAt: serverTimestamp()
       });

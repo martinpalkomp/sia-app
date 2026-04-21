@@ -190,17 +190,25 @@ export default function Dashboard({
     const fetchBrief = async () => {
       setIsBriefLoading(true);
       try {
-        const today = new Date();
-        const todayStr = today.toISOString().split('T')[0];
-        const yesterday = new Date(today);
-        yesterday.setDate(yesterday.getDate() - 1);
-        const yesterdayStr = yesterday.toISOString().split('T')[0];
+        const now = new Date();
+        // Format today as YYYY-MM-DD
+        const todayStr = now.toISOString().split('T')[0];
+
+        // Calculate 'Last Night' (Night Started Date)
+        const lastNight = new Date(now);
+        lastNight.setDate(lastNight.getDate() - 1);
+        const lastNightStr = lastNight.toISOString().split('T')[0];
+
+        console.log("System Today:", todayStr);
+        console.log("Targeting Log from:", lastNightStr);
 
         const sortedLogs = Object.values(logs).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-        const latestLogDate = sortedLogs[0]?.date;
+        
+        // Data Validation: Check if log exists for lastNightStr
+        const hasLastNightLog = logs[lastNightStr];
 
-        if (latestLogDate !== todayStr && latestLogDate !== yesterdayStr) {
-          setDailyBrief("I don't see a log for last night yet. Please log your sleep so I can provide your briefing!");
+        if (!hasLastNightLog) {
+          setDailyBrief(`I don't see a log for last night (${lastNightStr}) yet. Did you forget to record it?`);
           setIsBriefLoading(false);
           return;
         }
@@ -210,7 +218,8 @@ export default function Dashboard({
           Object.values(logs),
           userProfile.tier,
           dataMaturity,
-          todayStr
+          todayStr, // Pass todayStr
+          lastNightStr // Pass lastNightStr for context
         );
         if (response.status === 'success') {
           setDailyBrief(response.content);
@@ -862,23 +871,6 @@ export default function Dashboard({
               <Card className="bg-zinc-900 border border-zinc-800 p-6 rounded-3xl min-h-[15svh] flex items-center justify-center">
                  <Loader2 className="animate-spin text-zinc-500" />
               </Card>
-            ) : userProfile?.tier === 'Basic' ? (
-              <div className="relative w-full group">
-                <div className="absolute inset-0 bg-gradient-to-r from-zinc-900 via-zinc-800 to-zinc-900 rounded-3xl opacity-50 blur-sm" />
-                <Card
-                  onClick={() => onViewChange('account')}
-                  className="relative bg-zinc-950/80 border border-indigo-500/30 p-6 flex flex-col justify-start rounded-3xl min-h-[15svh] group cursor-pointer hover:border-indigo-500/50 backdrop-blur-sm"
-                >
-                  <div className="flex items-center gap-3 mb-4">
-                    <Sparkles className="text-zinc-500" size={16} />
-                    <span className="text-[10px] font-black uppercase text-zinc-500 tracking-widest">SIA INSIGHT TEASER</span>
-                  </div>
-                  <p className="text-zinc-500 font-bold text-sm leading-relaxed mb-6">Unlock deeper sleep patterns and trends with an Enhanced or Pro subscription.</p>
-                  <div className="mt-auto">
-                      <span className="text-indigo-400 text-[10px] font-black uppercase tracking-widest hover:underline">UPGRADE TO UNLOCK →</span>
-                  </div>
-                </Card>
-              </div>
             ) : patternTeaser ? (
               <Card
                 id="ai-analysis-card"

@@ -2107,11 +2107,11 @@ export default function App() {
                   {/* Stress Level */}
                   <SliderInput 
                     id="log-info-stress"
-                    label="Stress Level (0-10)" 
-                    value={currentLog.factors.stressLevel} 
+                    label="Stress Level" 
+                    value={currentLog.factors.stressLevel || 3} 
                     onChange={(val) => updateFactors({ stressLevel: val })} 
-                    min={0}
-                    max={10}
+                    min={1}
+                    max={5}
                     icon={Brain}
                   />
 
