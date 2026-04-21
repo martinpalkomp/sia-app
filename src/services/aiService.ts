@@ -23,7 +23,9 @@ import { calculateLogVitality } from "../utils/correctionLogic";
 
 const DISCLAIMER = "SIA provides lifestyle recommendations based on patterns. This is not a medical diagnosis. Consult a professional for clinical concerns.";
 
-export const SIA_AI_MODEL = 'gemini-1.5-flash';
+// ⚠️ DO NOT CHANGE — gemini-1.5-flash and gemini-2.0-flash are both dead (404 in 2026)
+// Confirmed stable model string: https://ai.google.dev/api
+export const SIA_AI_MODEL = 'gemini-2.5-flash';
 
 export interface MaturityInfo {
   level: 1 | 2 | 3 | 4;
