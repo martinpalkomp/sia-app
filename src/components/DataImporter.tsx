@@ -33,7 +33,7 @@ import {
 import { DailyLog, SleepState, SleepEvent } from '../types';
 import { TOTAL_SLOTS } from '../constants';
 import { saveLog } from '../services/sleepService';
-import { SIA_AI_MODEL } from '../services/aiService';
+import { SIA_AI_MODEL } from '../services/ai/aiConfig';
 import { 
   snapTo15Min, 
   timeToIndex, 

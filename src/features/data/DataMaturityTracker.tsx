@@ -1,8 +1,8 @@
 import React from 'react';
 import { motion } from 'motion/react';
 import { Square, Waves, Network, Brain, Check, Zap, Sparkles } from 'lucide-react';
-import { Card } from './UI';
-import { MaturityInfo } from '../services/aiService';
+import { Card } from '../../components/UI';
+import { MaturityInfo } from '../../services/aiService';
 
 interface DataMaturityTrackerProps {
   maturity: MaturityInfo;

@@ -4608,6 +4608,478 @@ export default function SleepGuideInteractive({ onClose, onOpenPersonalization }
 }
 </file>
 
+<file path="src/utils/DataExporter.ts">
+import ExcelJS from 'exceljs';
+import { format, parseISO, addDays } from 'date-fns';
+import { 
+  collection, 
+  getDocs, 
+  query, 
+  orderBy 
+} from 'firebase/firestore';
+import { User } from 'firebase/auth';
+import { DailyLog } from '../types';
+import { getGridFromEvents, convertGridToEvents, timeToIndex, addMinutes } from './sleepUtils';
+import { TEMPLATE_INSTRUCTIONS } from './templateInstructions';
+
+const TEMPLATE_HEADERS = [
+  'Date', 'Bedtime', 'Waketime', 'Status_Code', 'SQ', 'R', 'L', 'Remarks', 
+  'Caffeine_Y/N', 'Caffeine_Cups', 'Caffeine_LastIntake', 
+  'Alcohol_Y/N', 'Alcohol_Drinks', 'Alcohol_LastIntake', 
+  'Medication_Y/N', 'Medication_Type', 'Medication_Time', 
+  'Exercise_Y/N', 'Exercise_Type', 'Exercise_Time', 
+  'Screens_Y', 'Stress_1to5', 'LastMeal_Time', 
+  'NaturalWake_Y', 'MorningMood_1to5', 'Sleep_Gadgets'
+];
+
+/**
+ * Exports sleep logs to an Excel file with perfect symmetry to the DataImporter.
+ * Uses sleepEvents as the source of truth, ensuring round-trip consistency.
+ */
+export const exportToExcel = async (logs: DailyLog[]) => {
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet('DATA');
+
+  // Add headers with styling matching the template
+  const headerRow = worksheet.addRow(TEMPLATE_HEADERS);
+  headerRow.eachCell((cell) => {
+    cell.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FF2D2B55' }
+    };
+    cell.font = {
+      color: { argb: 'FFFFFFFF' },
+      bold: true,
+      name: 'Arial'
+    };
+    cell.alignment = { vertical: 'middle', horizontal: 'center' };
+  });
+
+  // Sort logs by date ascending
+  const sortedLogs = [...logs].sort((a, b) => a.date.localeCompare(b.date));
+
+  sortedLogs.forEach(log => {
+    // Export all events exactly as they are in the database
+    const processedEvents: { start: string; end: string; type: string }[] = (log.sleepEvents || []).map(e => ({
+      start: e.start,
+      end: e.end,
+      type: e.type.toUpperCase()
+    }));
+
+    // Sort events by start time using the 20:00 anchor logic
+    processedEvents.sort((a, b) => {
+      return timeToIndex(a.start) - timeToIndex(b.start);
+    });
+
+    processedEvents.forEach((event, idx) => {
+      // Determine the Calendar Date for the row
+      // If start time is before 20:00, it belongs to the next calendar day relative to the sleep day
+      const logDate = parseISO(log.date);
+      const [hours] = event.start.split(':').map(Number);
+      const calendarDate = hours < 20 ? addDays(logDate, 1) : logDate;
+      const dateStr = format(calendarDate, 'yyyy-MM-dd');
+
+      const f = log.factors || {
+        caffeine: { consumed: null, amount: null, lastIntake: null },
+        alcohol: { consumed: null, drinks: null, lastIntake: null },
+        medication: { taken: null, type: null, time: null },
+        exercise: { completed: null, type: null, time: null },
+        screensInBed: null,
+        stressLevel: null
+      };
+
+      const rowData = [
+        dateStr,
+        event.start,
+        event.end,
+        event.type,
+        idx === 0 ? (log.sleep_quality ?? '') : '',
+        idx === 0 ? (log.morning_alertness ?? '') : '',
+        idx === 0 ? (log.daytime_energy ?? '') : '',
+        idx === 0 ? (log.daily_remarks ?? '') : '',
+        // Caffeine
+        idx === 0 ? (f.caffeine?.consumed === true ? 'yes' : f.caffeine?.consumed === false ? 'no' : '') : '',
+        idx === 0 ? (f.caffeine?.amount ?? '') : '',
+        idx === 0 ? (f.caffeine?.lastIntake ?? '') : '',
+        // Alcohol
+        idx === 0 ? (f.alcohol?.consumed === true ? 'yes' : f.alcohol?.consumed === false ? 'no' : '') : '',
+        idx === 0 ? (f.alcohol?.drinks ?? '') : '',
+        idx === 0 ? (f.alcohol?.lastIntake ?? '') : '',
+        // Medication
+        idx === 0 ? (f.medication?.taken === true ? 'yes' : f.medication?.taken === false ? 'no' : '') : '',
+        idx === 0 ? (f.medication?.type ?? '') : '',
+        idx === 0 ? (f.medication?.time ?? '') : '',
+        // Exercise
+        idx === 0 ? (f.exercise?.completed === true ? 'yes' : f.exercise?.completed === false ? 'no' : '') : '',
+        idx === 0 ? (f.exercise?.type ?? '') : '',
+        idx === 0 ? (f.exercise?.time ?? '') : '',
+        // Screens
+        idx === 0 ? (f.screensInBed === true ? 'yes' : f.screensInBed === false ? 'no' : '') : '',
+        // Stress
+        idx === 0 ? (f.stressLevel ?? '') : '',
+        // Last Meal
+        idx === 0 ? (f.lastMealTime ?? '') : '',
+        // Natural Wake
+        idx === 0 ? (f.naturalWake === true ? 'yes' : f.naturalWake === false ? 'no' : '') : '',
+        // Morning Mood
+        idx === 0 ? (f.moodScore ?? '') : '',
+        // Sleep Gadgets
+        idx === 0 ? (() => {
+          const items: string[] = [];
+          
+          const serializeItem = (name: string, data: { enabled?: boolean; duration?: number; timing?: string } | undefined) => {
+            if (data?.enabled) {
+              let s = name;
+              if (data.duration) s += ` (${data.duration}min)`;
+              if (data.timing) s += ` @${data.timing}`;
+              items.push(s);
+            }
+          };
+
+          if (f.interventions) {
+            serializeItem('light_therapy', f.interventions.lightTherapy);
+            serializeItem('breathing_trainer', f.interventions.breathingTrainer);
+            serializeItem('pre_sleep_heating', f.interventions.preSleepHeating);
+            serializeItem('aromatherapy', f.interventions.aromatherapy);
+            serializeItem('meditation_app', f.interventions.meditationApp);
+            serializeItem('cooling_pad', f.interventions.coolingPad);
+          }
+          if (f.passiveAids) {
+            serializeItem('white_noise', f.passiveAids.whiteNoise);
+            serializeItem('sleep_mask', f.passiveAids.sleepMask);
+            serializeItem('earplugs', f.passiveAids.earplugs);
+            serializeItem('weighted_blanket', f.passiveAids.weightedBlanket);
+          }
+          
+          // Legacy support
+          if (f.sleepGadgets) {
+            f.sleepGadgets.forEach(g => {
+              if (!items.find(i => i.startsWith(g.type))) {
+                let s = g.type;
+                if (g.durationMinutes) s += ` (${g.durationMinutes}min)`;
+                if (g.timeOfUse) s += ` @${g.timeOfUse}`;
+                items.push(s);
+              }
+            });
+          }
+          
+          return items.join(', ');
+        })() : ''
+      ];
+
+      const row = worksheet.addRow(rowData);
+      
+      // Apply conditional styling matching the template
+      const isSleep = event.type === 'SLEEP';
+      const fillColor = isSleep ? 'FFE8E6FF' : 'FFFFF8E1';
+      row.eachCell((cell, colNumber) => {
+        // Only color the first 4 columns (Date, Bedtime, Waketime, Status_Code)
+        if (colNumber <= 4) {
+          cell.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: fillColor }
+          };
+        }
+      });
+    });
+  });
+
+  // Set column widths for readability
+  worksheet.columns = TEMPLATE_HEADERS.map((h, i) => {
+    if (i === 7) return { width: 40 }; // Remarks
+    if (i === 25) return { width: 40 }; // Sleep Gadgets
+    return { width: 15 };
+  });
+
+  // Sheet 2: INSTRUCTIONS
+  const instructionsSheet = workbook.addWorksheet('INSTRUCTIONS');
+  TEMPLATE_INSTRUCTIONS.forEach((row, i) => {
+    const r = instructionsSheet.addRow(row);
+    if (i === 0) {
+      r.getCell(1).font = { bold: true, size: 14 };
+    }
+    if (row[0] === 'Column' || row[0] === 'Important Notes:') {
+      r.getCell(1).font = { bold: true };
+    }
+  });
+  instructionsSheet.getColumn(1).width = 25;
+  instructionsSheet.getColumn(2).width = 80;
+
+  // Trigger file download
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const url = window.URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = `sia_sleep_export_${format(new Date(), 'yyyyMMdd')}.xlsx`;
+  anchor.click();
+  window.URL.revokeObjectURL(url);
+};
+
+/**
+ * Fetches all user logs from Firestore and exports them to Excel.
+ * Used in AccountPage for a full data backup.
+ */
+export async function exportUserData(user: User, db: any) {
+  const logsRef = collection(db, 'users', user.uid, 'sleep_logs');
+  const q = query(logsRef, orderBy('date', 'asc'));
+  const logsSnap = await getDocs(q);
+  const logs = logsSnap.docs.map(d => d.data() as DailyLog);
+  
+  await exportToExcel(logs);
+}
+</file>
+
+<file path="src/components/CorrectionHub.tsx">
+import React, { useState, useMemo } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { 
+  AlertCircle, 
+  CheckCircle2, 
+  EyeOff, 
+  Calendar, 
+  ChevronRight, 
+  X,
+  Save,
+  Clock,
+  Activity,
+  Moon,
+  Zap,
+  Loader2
+} from 'lucide-react';
+import { getPendingCorrections } from '../utils/correctionLogic';
+import { DailyLog } from '../types';
+import { saveLog } from '../services/sleepService';
+import { format, isAfter, parseISO, startOfDay } from 'date-fns';
+import { User } from '../lib/firebase';
+
+interface CorrectionHubProps {
+  user: User;
+  logs: Record<string, DailyLog>;
+  onUpdate: () => void;
+  onGoToLog: (date: string) => void;
+}
+
+const CorrectionHub: React.FC<CorrectionHubProps> = ({ user, logs, onUpdate, onGoToLog }) => {
+  const [trackingStartDate, setTrackingStartDate] = useState<string>(
+    format(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd')
+  );
+
+  const incompleteLogs = useMemo(() => {
+    return getPendingCorrections(logs, trackingStartDate);
+  }, [logs, trackingStartDate]);
+
+  const handleIgnore = async (date: string) => {
+    try {
+      await saveLog(user.uid, {
+        date,
+        isIgnored: true,
+        type: 'log'
+      });
+      onUpdate();
+    } catch (error) {
+      console.error("Failed to ignore log:", error);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-zinc-900/50 p-6 rounded-3xl shadow-sm border border-zinc-800/50">
+        <div>
+          <h2 className="text-xl md:text-3xl font-black tracking-tighter text-white flex items-center gap-3 leading-[0.95]">
+            <AlertCircle className="w-6 h-6 text-amber-500" />
+            Correction Hub
+          </h2>
+          <p className="text-zinc-500 text-[9px] mt-2 font-black uppercase tracking-widest">
+            Review and complete missing clinical data points.
+          </p>
+        </div>
+        
+        <div className="flex items-center gap-3 bg-zinc-900/80 p-2 rounded-2xl border border-zinc-800">
+          <Calendar className="w-4 h-4 text-zinc-500 ml-2" />
+          <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Tracking Start:</span>
+          <input 
+            type="date" 
+            value={trackingStartDate}
+            onChange={(e) => setTrackingStartDate(e.target.value)}
+            className="bg-transparent border-none text-sm font-bold text-white focus:ring-0 cursor-pointer"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4">
+        <AnimatePresence mode="popLayout">
+          {incompleteLogs.length === 0 ? (
+            <motion.div 
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex flex-col items-center justify-center py-16 bg-zinc-900/30 rounded-3xl border-2 border-dashed border-zinc-800/50"
+            >
+              <div className="w-16 h-16 bg-emerald-500/10 rounded-2xl flex items-center justify-center mb-4 border border-emerald-500/20">
+                <CheckCircle2 className="w-8 h-8 text-emerald-500" />
+              </div>
+              <p className="text-white font-bold text-lg">All caught up!</p>
+              <p className="text-zinc-500 text-sm mt-1">No incomplete days found in the selected range.</p>
+            </motion.div>
+          ) : (
+            incompleteLogs.map((log) => (
+              <motion.div
+                key={log.date}
+                layout
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="group bg-zinc-900/50 p-6 rounded-2xl border border-zinc-800/50 hover:border-zinc-700/50 transition-all shadow-xl flex items-center justify-between gap-4"
+              >
+                <div className="flex items-center gap-5">
+                  <div className="w-14 h-14 rounded-2xl bg-zinc-800 flex flex-col items-center justify-center border border-zinc-700 shadow-inner">
+                    <span className="text-[10px] font-black text-zinc-500 uppercase tracking-tighter leading-none">
+                      {format(parseISO(log.date), 'MMM')}
+                    </span>
+                    <span className="text-xl font-black text-white leading-none mt-1">
+                      {format(parseISO(log.date), 'dd')}
+                    </span>
+                  </div>
+                  
+                  <div>
+                    <h3 className="font-bold text-lg text-white tracking-tight">
+                      {format(parseISO(log.date), 'EEEE, MMMM do')}
+                    </h3>
+                    <div className="flex items-center gap-2 mt-2">
+                      {(!log.summaryMetrics || 
+                        typeof log.summaryMetrics.sleep_quality !== 'number' ||
+                        typeof log.summaryMetrics.morning_alertness !== 'number' ||
+                        typeof log.summaryMetrics.daytime_energy !== 'number') && (
+                        <span className="flex items-center gap-1 text-[9px] font-black uppercase tracking-[0.15em] text-amber-400 bg-amber-400/10 px-2.5 py-1 rounded-lg border border-amber-400/20">
+                          Missing Metrics
+                        </span>
+                      )}
+                      {(!log.sleepEvents || log.sleepEvents.length === 0) && (!log.timeline || log.timeline.every(s => s === 'awake-out')) && (
+                        <span className="flex items-center gap-1 text-[9px] font-black uppercase tracking-[0.15em] text-indigo-400 bg-indigo-400/10 px-2.5 py-1 rounded-lg border border-indigo-400/20">
+                          Missing Timeline
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => handleIgnore(log.date)}
+                    className="p-3 text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 rounded-2xl transition-all flex items-center gap-2 text-xs font-bold uppercase tracking-widest"
+                    title="Ignore this date"
+                  >
+                    <EyeOff className="w-4 h-4" />
+                    <span className="hidden sm:inline">Ignore</span>
+                  </button>
+                  <button
+                    onClick={() => onGoToLog(log.date)}
+                    className="bg-indigo-600 text-white px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-indigo-500 transition-all flex items-center gap-2 shadow-lg shadow-indigo-600/20"
+                  >
+                    Go to Log
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </motion.div>
+            ))
+          )}
+        </AnimatePresence>
+      </div>
+    </div>
+  );
+};
+
+export default CorrectionHub;
+</file>
+
+<file path="src/components/InsightCard.tsx">
+import React, { useState } from 'react';
+import { motion } from 'motion/react';
+import { 
+  Coffee, 
+  Thermometer, 
+  AlertTriangle, 
+  Activity, 
+  Lightbulb, 
+  CheckCircle,
+  Moon,
+  Sun
+} from 'lucide-react';
+import { Insight } from '../types';
+import { Card } from './UI';
+
+interface InsightCardProps {
+  insight: Insight;
+  tier?: 'Basic' | 'Enhanced' | 'Pro';
+}
+
+const getCategoryInfo = (insight: Insight) => {
+  const text = (insight.summary + (insight.details || '')).toLowerCase();
+  
+  if (text.includes('caffeine') || text.includes('coffee')) return { label: 'Substance Rebound', icon: Coffee };
+  if (text.includes('temperature') || text.includes('environment')) return { label: 'Environment', icon: Thermometer };
+  if (text.includes('sedative') || text.includes('risk')) return { label: 'Health Risk', icon: AlertTriangle };
+  if (text.includes('circadian') || text.includes('shift')) return { label: 'Circadian Shift', icon: Moon };
+  
+  switch (insight.type) {
+    case 'Pattern': return { label: 'Pattern', icon: Activity };
+    case 'Recommendation': return { label: 'Recommendation', icon: Lightbulb };
+    default: return { label: 'Insight', icon: Activity };
+  }
+};
+
+export const InsightCard: React.FC<InsightCardProps> = ({ insight, tier = 'Basic' }) => {
+  const [isHovered, setIsHovered] = useState(false);
+  const { label, icon: Icon } = getCategoryInfo(insight);
+  
+  const tierStyles = {
+    Pro: 'from-violet-900/20 to-zinc-950/50 border-violet-500/30 shadow-violet-500/10',
+    Enhanced: 'from-indigo-900/20 to-zinc-950/50 border-indigo-500/30 shadow-indigo-500/10',
+    Basic: 'from-zinc-900/20 to-zinc-950/50 border-zinc-800 shadow-zinc-500/5'
+  };
+
+  const activeStyle = tierStyles[tier] || tierStyles.Basic;
+
+  return (
+    <Card
+      onClick={() => setIsHovered(!isHovered)}
+      className={`relative overflow-hidden bg-gradient-to-br ${activeStyle} border backdrop-blur-sm p-6 transition-all duration-500 rounded-3xl shadow-lg hover:border-opacity-50`}
+    >
+      {/* Background Texture */}
+      <div className="absolute inset-0 opacity-20 pointer-events-none">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-indigo-500/10 via-transparent to-transparent" />
+      </div>
+      
+      <div className="relative z-10 flex items-start gap-4">
+        <div className={`p-3 rounded-2xl bg-white/5 ${tier === 'Pro' ? 'text-violet-400' : tier === 'Enhanced' ? 'text-indigo-400' : 'text-zinc-400'}`}>
+          <Icon size={24} />
+        </div>
+        <div className="flex-1 space-y-1.5">
+          <div className="flex justify-between items-center">
+            <span className="text-[10px] font-black text-zinc-400 tracking-widest">{label}</span>
+            {isHovered && (
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="text-emerald-500"
+              >
+                <CheckCircle size={16} />
+              </motion.div>
+            )}
+          </div>
+          <p className="text-sm font-normal text-zinc-300 leading-snug">{insight.summary}</p>
+          {insight.details && (
+            <p className="text-sm text-zinc-300 font-normal leading-relaxed">{insight.details}</p>
+          )}
+        </div>
+      </div>
+    </Card>
+  );
+};
+</file>
+
 <file path="src/data/uiMapManifest.ts">
 export interface UIElement {
   id: string;
@@ -4679,7 +5151,6 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
       children: [
         { id: 'log-last-night-card', name: 'Log Last Night Card', tag: 'btn', description: 'Navigates to Log view via onLogClick', path: '/src/components/Dashboard.tsx' },
         { id: 'fix-missing-data-btn', name: 'Fix Missing Data Button', tag: 'btn', description: 'Shown only when correctionsCount > 0, navigates to corrections', path: '/src/components/Dashboard.tsx' },
-        { id: 'ai-analysis-card', name: 'AI Analysis Card', tag: 'btn', description: 'Navigates to AI view via onViewChange(ai)', path: '/src/components/Dashboard.tsx' },
       ]
     },
     {
@@ -5186,478 +5657,6 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
     { id: 'voc-drawer', name: 'Drawer', tag: 'comp', description: 'A sliding panel.', path: 'N/A' },
     { id: 'voc-button', name: 'Button', tag: 'comp', description: 'A standard interactive element.', path: 'N/A' },
   ],
-};
-</file>
-
-<file path="src/utils/DataExporter.ts">
-import ExcelJS from 'exceljs';
-import { format, parseISO, addDays } from 'date-fns';
-import { 
-  collection, 
-  getDocs, 
-  query, 
-  orderBy 
-} from 'firebase/firestore';
-import { User } from 'firebase/auth';
-import { DailyLog } from '../types';
-import { getGridFromEvents, convertGridToEvents, timeToIndex, addMinutes } from './sleepUtils';
-import { TEMPLATE_INSTRUCTIONS } from './templateInstructions';
-
-const TEMPLATE_HEADERS = [
-  'Date', 'Bedtime', 'Waketime', 'Status_Code', 'SQ', 'R', 'L', 'Remarks', 
-  'Caffeine_Y/N', 'Caffeine_Cups', 'Caffeine_LastIntake', 
-  'Alcohol_Y/N', 'Alcohol_Drinks', 'Alcohol_LastIntake', 
-  'Medication_Y/N', 'Medication_Type', 'Medication_Time', 
-  'Exercise_Y/N', 'Exercise_Type', 'Exercise_Time', 
-  'Screens_Y', 'Stress_1to5', 'LastMeal_Time', 
-  'NaturalWake_Y', 'MorningMood_1to5', 'Sleep_Gadgets'
-];
-
-/**
- * Exports sleep logs to an Excel file with perfect symmetry to the DataImporter.
- * Uses sleepEvents as the source of truth, ensuring round-trip consistency.
- */
-export const exportToExcel = async (logs: DailyLog[]) => {
-  const workbook = new ExcelJS.Workbook();
-  const worksheet = workbook.addWorksheet('DATA');
-
-  // Add headers with styling matching the template
-  const headerRow = worksheet.addRow(TEMPLATE_HEADERS);
-  headerRow.eachCell((cell) => {
-    cell.fill = {
-      type: 'pattern',
-      pattern: 'solid',
-      fgColor: { argb: 'FF2D2B55' }
-    };
-    cell.font = {
-      color: { argb: 'FFFFFFFF' },
-      bold: true,
-      name: 'Arial'
-    };
-    cell.alignment = { vertical: 'middle', horizontal: 'center' };
-  });
-
-  // Sort logs by date ascending
-  const sortedLogs = [...logs].sort((a, b) => a.date.localeCompare(b.date));
-
-  sortedLogs.forEach(log => {
-    // Export all events exactly as they are in the database
-    const processedEvents: { start: string; end: string; type: string }[] = (log.sleepEvents || []).map(e => ({
-      start: e.start,
-      end: e.end,
-      type: e.type.toUpperCase()
-    }));
-
-    // Sort events by start time using the 20:00 anchor logic
-    processedEvents.sort((a, b) => {
-      return timeToIndex(a.start) - timeToIndex(b.start);
-    });
-
-    processedEvents.forEach((event, idx) => {
-      // Determine the Calendar Date for the row
-      // If start time is before 20:00, it belongs to the next calendar day relative to the sleep day
-      const logDate = parseISO(log.date);
-      const [hours] = event.start.split(':').map(Number);
-      const calendarDate = hours < 20 ? addDays(logDate, 1) : logDate;
-      const dateStr = format(calendarDate, 'yyyy-MM-dd');
-
-      const f = log.factors || {
-        caffeine: { consumed: null, amount: null, lastIntake: null },
-        alcohol: { consumed: null, drinks: null, lastIntake: null },
-        medication: { taken: null, type: null, time: null },
-        exercise: { completed: null, type: null, time: null },
-        screensInBed: null,
-        stressLevel: null
-      };
-
-      const rowData = [
-        dateStr,
-        event.start,
-        event.end,
-        event.type,
-        idx === 0 ? (log.sleep_quality ?? '') : '',
-        idx === 0 ? (log.morning_alertness ?? '') : '',
-        idx === 0 ? (log.daytime_energy ?? '') : '',
-        idx === 0 ? (log.daily_remarks ?? '') : '',
-        // Caffeine
-        idx === 0 ? (f.caffeine?.consumed === true ? 'yes' : f.caffeine?.consumed === false ? 'no' : '') : '',
-        idx === 0 ? (f.caffeine?.amount ?? '') : '',
-        idx === 0 ? (f.caffeine?.lastIntake ?? '') : '',
-        // Alcohol
-        idx === 0 ? (f.alcohol?.consumed === true ? 'yes' : f.alcohol?.consumed === false ? 'no' : '') : '',
-        idx === 0 ? (f.alcohol?.drinks ?? '') : '',
-        idx === 0 ? (f.alcohol?.lastIntake ?? '') : '',
-        // Medication
-        idx === 0 ? (f.medication?.taken === true ? 'yes' : f.medication?.taken === false ? 'no' : '') : '',
-        idx === 0 ? (f.medication?.type ?? '') : '',
-        idx === 0 ? (f.medication?.time ?? '') : '',
-        // Exercise
-        idx === 0 ? (f.exercise?.completed === true ? 'yes' : f.exercise?.completed === false ? 'no' : '') : '',
-        idx === 0 ? (f.exercise?.type ?? '') : '',
-        idx === 0 ? (f.exercise?.time ?? '') : '',
-        // Screens
-        idx === 0 ? (f.screensInBed === true ? 'yes' : f.screensInBed === false ? 'no' : '') : '',
-        // Stress
-        idx === 0 ? (f.stressLevel ?? '') : '',
-        // Last Meal
-        idx === 0 ? (f.lastMealTime ?? '') : '',
-        // Natural Wake
-        idx === 0 ? (f.naturalWake === true ? 'yes' : f.naturalWake === false ? 'no' : '') : '',
-        // Morning Mood
-        idx === 0 ? (f.moodScore ?? '') : '',
-        // Sleep Gadgets
-        idx === 0 ? (() => {
-          const items: string[] = [];
-          
-          const serializeItem = (name: string, data: { enabled?: boolean; duration?: number; timing?: string } | undefined) => {
-            if (data?.enabled) {
-              let s = name;
-              if (data.duration) s += ` (${data.duration}min)`;
-              if (data.timing) s += ` @${data.timing}`;
-              items.push(s);
-            }
-          };
-
-          if (f.interventions) {
-            serializeItem('light_therapy', f.interventions.lightTherapy);
-            serializeItem('breathing_trainer', f.interventions.breathingTrainer);
-            serializeItem('pre_sleep_heating', f.interventions.preSleepHeating);
-            serializeItem('aromatherapy', f.interventions.aromatherapy);
-            serializeItem('meditation_app', f.interventions.meditationApp);
-            serializeItem('cooling_pad', f.interventions.coolingPad);
-          }
-          if (f.passiveAids) {
-            serializeItem('white_noise', f.passiveAids.whiteNoise);
-            serializeItem('sleep_mask', f.passiveAids.sleepMask);
-            serializeItem('earplugs', f.passiveAids.earplugs);
-            serializeItem('weighted_blanket', f.passiveAids.weightedBlanket);
-          }
-          
-          // Legacy support
-          if (f.sleepGadgets) {
-            f.sleepGadgets.forEach(g => {
-              if (!items.find(i => i.startsWith(g.type))) {
-                let s = g.type;
-                if (g.durationMinutes) s += ` (${g.durationMinutes}min)`;
-                if (g.timeOfUse) s += ` @${g.timeOfUse}`;
-                items.push(s);
-              }
-            });
-          }
-          
-          return items.join(', ');
-        })() : ''
-      ];
-
-      const row = worksheet.addRow(rowData);
-      
-      // Apply conditional styling matching the template
-      const isSleep = event.type === 'SLEEP';
-      const fillColor = isSleep ? 'FFE8E6FF' : 'FFFFF8E1';
-      row.eachCell((cell, colNumber) => {
-        // Only color the first 4 columns (Date, Bedtime, Waketime, Status_Code)
-        if (colNumber <= 4) {
-          cell.fill = {
-            type: 'pattern',
-            pattern: 'solid',
-            fgColor: { argb: fillColor }
-          };
-        }
-      });
-    });
-  });
-
-  // Set column widths for readability
-  worksheet.columns = TEMPLATE_HEADERS.map((h, i) => {
-    if (i === 7) return { width: 40 }; // Remarks
-    if (i === 25) return { width: 40 }; // Sleep Gadgets
-    return { width: 15 };
-  });
-
-  // Sheet 2: INSTRUCTIONS
-  const instructionsSheet = workbook.addWorksheet('INSTRUCTIONS');
-  TEMPLATE_INSTRUCTIONS.forEach((row, i) => {
-    const r = instructionsSheet.addRow(row);
-    if (i === 0) {
-      r.getCell(1).font = { bold: true, size: 14 };
-    }
-    if (row[0] === 'Column' || row[0] === 'Important Notes:') {
-      r.getCell(1).font = { bold: true };
-    }
-  });
-  instructionsSheet.getColumn(1).width = 25;
-  instructionsSheet.getColumn(2).width = 80;
-
-  // Trigger file download
-  const buffer = await workbook.xlsx.writeBuffer();
-  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-  const url = window.URL.createObjectURL(blob);
-  const anchor = document.createElement('a');
-  anchor.href = url;
-  anchor.download = `sia_sleep_export_${format(new Date(), 'yyyyMMdd')}.xlsx`;
-  anchor.click();
-  window.URL.revokeObjectURL(url);
-};
-
-/**
- * Fetches all user logs from Firestore and exports them to Excel.
- * Used in AccountPage for a full data backup.
- */
-export async function exportUserData(user: User, db: any) {
-  const logsRef = collection(db, 'users', user.uid, 'sleep_logs');
-  const q = query(logsRef, orderBy('date', 'asc'));
-  const logsSnap = await getDocs(q);
-  const logs = logsSnap.docs.map(d => d.data() as DailyLog);
-  
-  await exportToExcel(logs);
-}
-</file>
-
-<file path="src/components/CorrectionHub.tsx">
-import React, { useState, useMemo } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { 
-  AlertCircle, 
-  CheckCircle2, 
-  EyeOff, 
-  Calendar, 
-  ChevronRight, 
-  X,
-  Save,
-  Clock,
-  Activity,
-  Moon,
-  Zap,
-  Loader2
-} from 'lucide-react';
-import { getPendingCorrections } from '../utils/correctionLogic';
-import { DailyLog } from '../types';
-import { saveLog } from '../services/sleepService';
-import { format, isAfter, parseISO, startOfDay } from 'date-fns';
-import { User } from '../lib/firebase';
-
-interface CorrectionHubProps {
-  user: User;
-  logs: Record<string, DailyLog>;
-  onUpdate: () => void;
-  onGoToLog: (date: string) => void;
-}
-
-const CorrectionHub: React.FC<CorrectionHubProps> = ({ user, logs, onUpdate, onGoToLog }) => {
-  const [trackingStartDate, setTrackingStartDate] = useState<string>(
-    format(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd')
-  );
-
-  const incompleteLogs = useMemo(() => {
-    return getPendingCorrections(logs, trackingStartDate);
-  }, [logs, trackingStartDate]);
-
-  const handleIgnore = async (date: string) => {
-    try {
-      await saveLog(user.uid, {
-        date,
-        isIgnored: true,
-        type: 'log'
-      });
-      onUpdate();
-    } catch (error) {
-      console.error("Failed to ignore log:", error);
-    }
-  };
-
-  return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-zinc-900/50 p-6 rounded-3xl shadow-sm border border-zinc-800/50">
-        <div>
-          <h2 className="text-xl md:text-3xl font-black tracking-tighter text-white flex items-center gap-3 leading-[0.95]">
-            <AlertCircle className="w-6 h-6 text-amber-500" />
-            Correction Hub
-          </h2>
-          <p className="text-zinc-500 text-[9px] mt-2 font-black uppercase tracking-widest">
-            Review and complete missing clinical data points.
-          </p>
-        </div>
-        
-        <div className="flex items-center gap-3 bg-zinc-900/80 p-2 rounded-2xl border border-zinc-800">
-          <Calendar className="w-4 h-4 text-zinc-500 ml-2" />
-          <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Tracking Start:</span>
-          <input 
-            type="date" 
-            value={trackingStartDate}
-            onChange={(e) => setTrackingStartDate(e.target.value)}
-            className="bg-transparent border-none text-sm font-bold text-white focus:ring-0 cursor-pointer"
-          />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 gap-4">
-        <AnimatePresence mode="popLayout">
-          {incompleteLogs.length === 0 ? (
-            <motion.div 
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="flex flex-col items-center justify-center py-16 bg-zinc-900/30 rounded-3xl border-2 border-dashed border-zinc-800/50"
-            >
-              <div className="w-16 h-16 bg-emerald-500/10 rounded-2xl flex items-center justify-center mb-4 border border-emerald-500/20">
-                <CheckCircle2 className="w-8 h-8 text-emerald-500" />
-              </div>
-              <p className="text-white font-bold text-lg">All caught up!</p>
-              <p className="text-zinc-500 text-sm mt-1">No incomplete days found in the selected range.</p>
-            </motion.div>
-          ) : (
-            incompleteLogs.map((log) => (
-              <motion.div
-                key={log.date}
-                layout
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                className="group bg-zinc-900/50 p-6 rounded-2xl border border-zinc-800/50 hover:border-zinc-700/50 transition-all shadow-xl flex items-center justify-between gap-4"
-              >
-                <div className="flex items-center gap-5">
-                  <div className="w-14 h-14 rounded-2xl bg-zinc-800 flex flex-col items-center justify-center border border-zinc-700 shadow-inner">
-                    <span className="text-[10px] font-black text-zinc-500 uppercase tracking-tighter leading-none">
-                      {format(parseISO(log.date), 'MMM')}
-                    </span>
-                    <span className="text-xl font-black text-white leading-none mt-1">
-                      {format(parseISO(log.date), 'dd')}
-                    </span>
-                  </div>
-                  
-                  <div>
-                    <h3 className="font-bold text-lg text-white tracking-tight">
-                      {format(parseISO(log.date), 'EEEE, MMMM do')}
-                    </h3>
-                    <div className="flex items-center gap-2 mt-2">
-                      {(!log.summaryMetrics || 
-                        typeof log.summaryMetrics.sleep_quality !== 'number' ||
-                        typeof log.summaryMetrics.morning_alertness !== 'number' ||
-                        typeof log.summaryMetrics.daytime_energy !== 'number') && (
-                        <span className="flex items-center gap-1 text-[9px] font-black uppercase tracking-[0.15em] text-amber-400 bg-amber-400/10 px-2.5 py-1 rounded-lg border border-amber-400/20">
-                          Missing Metrics
-                        </span>
-                      )}
-                      {(!log.sleepEvents || log.sleepEvents.length === 0) && (!log.timeline || log.timeline.every(s => s === 'awake-out')) && (
-                        <span className="flex items-center gap-1 text-[9px] font-black uppercase tracking-[0.15em] text-indigo-400 bg-indigo-400/10 px-2.5 py-1 rounded-lg border border-indigo-400/20">
-                          Missing Timeline
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => handleIgnore(log.date)}
-                    className="p-3 text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 rounded-2xl transition-all flex items-center gap-2 text-xs font-bold uppercase tracking-widest"
-                    title="Ignore this date"
-                  >
-                    <EyeOff className="w-4 h-4" />
-                    <span className="hidden sm:inline">Ignore</span>
-                  </button>
-                  <button
-                    onClick={() => onGoToLog(log.date)}
-                    className="bg-indigo-600 text-white px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-indigo-500 transition-all flex items-center gap-2 shadow-lg shadow-indigo-600/20"
-                  >
-                    Go to Log
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
-                </div>
-              </motion.div>
-            ))
-          )}
-        </AnimatePresence>
-      </div>
-    </div>
-  );
-};
-
-export default CorrectionHub;
-</file>
-
-<file path="src/components/InsightCard.tsx">
-import React, { useState } from 'react';
-import { motion } from 'motion/react';
-import { 
-  Coffee, 
-  Thermometer, 
-  AlertTriangle, 
-  Activity, 
-  Lightbulb, 
-  CheckCircle,
-  Moon,
-  Sun
-} from 'lucide-react';
-import { Insight } from '../types';
-import { Card } from './UI';
-
-interface InsightCardProps {
-  insight: Insight;
-  tier?: 'Basic' | 'Enhanced' | 'Pro';
-}
-
-const getCategoryInfo = (insight: Insight) => {
-  const text = (insight.summary + (insight.details || '')).toLowerCase();
-  
-  if (text.includes('caffeine') || text.includes('coffee')) return { label: 'Substance Rebound', icon: Coffee };
-  if (text.includes('temperature') || text.includes('environment')) return { label: 'Environment', icon: Thermometer };
-  if (text.includes('sedative') || text.includes('risk')) return { label: 'Health Risk', icon: AlertTriangle };
-  if (text.includes('circadian') || text.includes('shift')) return { label: 'Circadian Shift', icon: Moon };
-  
-  switch (insight.type) {
-    case 'Pattern': return { label: 'Pattern', icon: Activity };
-    case 'Recommendation': return { label: 'Recommendation', icon: Lightbulb };
-    default: return { label: 'Insight', icon: Activity };
-  }
-};
-
-export const InsightCard: React.FC<InsightCardProps> = ({ insight, tier = 'Basic' }) => {
-  const [isHovered, setIsHovered] = useState(false);
-  const { label, icon: Icon } = getCategoryInfo(insight);
-  
-  const tierStyles = {
-    Pro: 'from-violet-900/20 to-zinc-950/50 border-violet-500/30 shadow-violet-500/10',
-    Enhanced: 'from-indigo-900/20 to-zinc-950/50 border-indigo-500/30 shadow-indigo-500/10',
-    Basic: 'from-zinc-900/20 to-zinc-950/50 border-zinc-800 shadow-zinc-500/5'
-  };
-
-  const activeStyle = tierStyles[tier] || tierStyles.Basic;
-
-  return (
-    <Card
-      onClick={() => setIsHovered(!isHovered)}
-      className={`relative overflow-hidden bg-gradient-to-br ${activeStyle} border backdrop-blur-sm p-6 transition-all duration-500 rounded-3xl shadow-lg hover:border-opacity-50`}
-    >
-      {/* Background Texture */}
-      <div className="absolute inset-0 opacity-20 pointer-events-none">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-indigo-500/10 via-transparent to-transparent" />
-      </div>
-      
-      <div className="relative z-10 flex items-start gap-4">
-        <div className={`p-3 rounded-2xl bg-white/5 ${tier === 'Pro' ? 'text-violet-400' : tier === 'Enhanced' ? 'text-indigo-400' : 'text-zinc-400'}`}>
-          <Icon size={24} />
-        </div>
-        <div className="flex-1 space-y-1.5">
-          <div className="flex justify-between items-center">
-            <span className="text-[10px] font-black text-zinc-400 tracking-widest">{label}</span>
-            {isHovered && (
-              <motion.div 
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="text-emerald-500"
-              >
-                <CheckCircle size={16} />
-              </motion.div>
-            )}
-          </div>
-          <p className="text-sm font-normal text-zinc-300 leading-snug">{insight.summary}</p>
-          {insight.details && (
-            <p className="text-sm text-zinc-300 font-normal leading-relaxed">{insight.details}</p>
-          )}
-        </div>
-      </div>
-    </Card>
-  );
 };
 </file>
 
@@ -8980,7 +8979,9 @@ import { calculateLogVitality } from "../utils/correctionLogic";
 
 const DISCLAIMER = "SIA provides lifestyle recommendations based on patterns. This is not a medical diagnosis. Consult a professional for clinical concerns.";
 
-export const SIA_AI_MODEL = 'gemini-1.5-flash';
+// ⚠️ DO NOT CHANGE — gemini-1.5-flash and gemini-2.0-flash are both dead (404 in 2026)
+// Confirmed stable model string: https://ai.google.dev/api
+export const SIA_AI_MODEL = 'gemini-2.5-flash';
 
 export interface MaturityInfo {
   level: 1 | 2 | 3 | 4;
@@ -8988,6 +8989,9 @@ export interface MaturityInfo {
   label?: string;
   nextThreshold: number;
 }
+
+const MANDATE_MODEL = 'gemini-2.5-flash';
+const STABLE_MODEL = 'gemini-1.5-flash';
 
 export interface AIResponse {
   content: string | null;
@@ -8997,6 +9001,21 @@ export interface AIResponse {
 
 export class AIService {
   private static apiKey = process.env.GEMINI_API_KEY || "";
+  private static genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
+
+  static async getGenerativeModelWithFallback(prompt: string) {
+    try {
+      const model = this.genAI.getGenerativeModel({ model: MANDATE_MODEL });
+      return await model.generateContent(prompt);
+    } catch (error: any) {
+      if (error.status === 503 || error.status === 404) {
+        console.warn(`SIA: Mandate model ${MANDATE_MODEL} failed. Falling back to ${STABLE_MODEL}`);
+        const fallbackModel = this.genAI.getGenerativeModel({ model: STABLE_MODEL });
+        return await fallbackModel.generateContent(prompt);
+      }
+      throw error;
+    }
+  }
 
   static getModelForTier(tier: UserTier): string {
     return SIA_AI_MODEL;
@@ -9106,7 +9125,7 @@ export class AIService {
     return null;
   }
 
-  static async generateDailyBrief(userId: string, logs: DailyLog[], tier: UserTier, maturity: MaturityInfo, currentDate: string): Promise<AIResponse> {
+  static async generateDailyBrief(userId: string, logs: DailyLog[], tier: UserTier, maturity: MaturityInfo, currentDate: string, lastNightDate: string): Promise<AIResponse> {
     const cached = await this.getCachedDailyBrief(userId, currentDate);
     
     const oneMonthAgo = new Date();
@@ -9126,29 +9145,39 @@ export class AIService {
     
     const prompt = `
       Today's date is ${currentDate}.
-      The 'Last Night' log is the one dated the day before today.
-      Analyze the data and provide a briefing.
-      If the most recent log provided isn't from last night, acknowledge the gap in data gracefully.
-      
-      Analyze the following sleep logs: ${JSON.stringify(logs.slice(0, 7))}
-      Calculate the delta between the most recent log and the 7-day average.
+      SIA is analyzing the log for last night: ${lastNightDate}.
+      Provide a briefing based specifically on the log dated ${lastNightDate}.
+      Analyze the following sleep logs (focusing on ${lastNightDate}): ${JSON.stringify(logs.slice(0, 7))}
+      Calculate the delta between the log from ${lastNightDate} and the 7-day average.
       Provide a concise morning briefing (max 3 sentences).
       ${tier === 'Enhanced' ? 'Include a recommendation for "Circadian Advice" (e.g., optimized light exposure at a specific time).' : ''}
     `;
 
-    const callModel = async (model: string) => {
-      return await ai.models.generateContent({
-        model: model,
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        config: {
-          systemInstruction: "You are SIA, a Sleep Intelligence Agent. Provide a brief, professional daily summary.",
-          temperature: 0.7
+    const callModel = async (prompt: string, config: any) => {
+      try {
+        return await AIService.genAI.models.generateContent({
+          model: MANDATE_MODEL,
+          contents: [{ role: "user", parts: [{ text: prompt }] }],
+          config
+        });
+      } catch (error: any) {
+        if (error.status === 503 || error.status === 404) {
+          console.warn(`SIA: Mandate model ${MANDATE_MODEL} failed. Falling back to ${STABLE_MODEL}`);
+          return await AIService.genAI.models.generateContent({
+            model: STABLE_MODEL,
+            contents: [{ role: "user", parts: [{ text: prompt }] }],
+            config
+          });
         }
-      });
+        throw error;
+      }
     };
 
     try {
-      const response = await callModel(modelName);
+      const response = await callModel(prompt, {
+          systemInstruction: "You are SIA, a Sleep Intelligence Agent. Provide a brief, professional daily summary.",
+          temperature: 0.7
+      });
       const content = response.text || "Unable to generate brief.";
       
       // Check for partial logs
@@ -9159,7 +9188,7 @@ export class AIService {
 
       // Cache it
       await addDoc(collection(db!, 'users', userId, 'daily_briefs'), {
-        date: today,
+        date: currentDate,
         content: finalContent,
         createdAt: serverTimestamp()
       });
@@ -9171,42 +9200,6 @@ export class AIService {
       }
       throw error;
     }
-  }
-
-  static async generatePatternTeaser(userId: string, logs: DailyLog[], currentDate: string): Promise<string> {
-    const cacheRef = collection(db!, 'users', userId, 'analysis_cache');
-    const q = query(cacheRef, where('date', '==', currentDate), where('type', '==', 'teaser'), limit(1));
-    const snap = await getDocs(q);
-    
-    if (!snap.empty) {
-      return snap.docs[0].data().content;
-    }
-
-    const ai = new GoogleGenAI({ apiKey: this.apiKey });
-    const prompt = `
-      Analyze the following sleep logs (last 30 days): ${JSON.stringify(logs.slice(0, 30))}
-      Identify the single most significant trend or correlation.
-      Provide a concise 5-sentence summary written in a supportive yet direct tone.
-      Briefly mention the date range this reflects based on the log dates.
-      Do not give all the details; leave the user curious to read the full report.
-    `;
-    
-    const response = await ai.models.generateContent({
-      model: this.getModelForTier('Basic'),
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-      config: { systemInstruction: "You are SIA Teaser bot. Keep insights under 5 sentences.", temperature: 0.7 }
-    });
-    
-    const content = response.text || "Your nightly insights are ready to be explored.";
-    
-    await addDoc(cacheRef, {
-      date: currentDate,
-      content: content,
-      type: 'teaser',
-      createdAt: serverTimestamp()
-    });
-    
-    return content;
   }
 
   static async generateDeepAnalysis(userId: string, logs: DailyLog[], tier: UserTier, maturity: MaturityInfo, lastGeneratedDate: string | null): Promise<AIResponse> {
@@ -9231,19 +9224,31 @@ export class AIService {
       Format: "📊 SIA Monthly Analysis: [Your analysis here]"
     `;
 
-    const callModel = async (model: string) => {
-      return await ai.models.generateContent({
-        model: model,
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        config: {
-          systemInstruction: "You are 'SIA', a Sleep Intelligence Agent. Provide deep, structured, data-backed long-term sleep analysis.",
-          temperature: 0.7
+    const callModel = async (prompt: string, config: any) => {
+      try {
+        return await AIService.genAI.models.generateContent({
+          model: MANDATE_MODEL,
+          contents: [{ role: "user", parts: [{ text: prompt }] }],
+          config
+        });
+      } catch (error: any) {
+        if (error.status === 503 || error.status === 404) {
+          console.warn(`SIA: Mandate model ${MANDATE_MODEL} failed. Falling back to ${STABLE_MODEL}`);
+          return await AIService.genAI.models.generateContent({
+            model: STABLE_MODEL,
+            contents: [{ role: "user", parts: [{ text: prompt }] }],
+            config
+          });
         }
-      });
+        throw error;
+      }
     };
 
     try {
-      const response = await callModel(modelName);
+      const response = await callModel(prompt, {
+          systemInstruction: "You are 'SIA', a Sleep Intelligence Agent. Provide deep, structured, data-backed long-term sleep analysis.",
+          temperature: 0.7
+        });
 
       const content = response.text || "Unable to generate analysis.";
       const finalContent = `${content}\n\n***\n\n${DISCLAIMER}`;
@@ -9288,19 +9293,31 @@ export class AIService {
       promptText += `Return a single sentence about the most frequent sleep factor affect your sleep quality.`;
     }
 
-    const callModel = async (model: string) => {
-      return await ai.models.generateContent({
-        model: model,
-        contents: [{ role: "user", parts: [{ text: promptText }] }],
-        config: {
-          systemInstruction: "You are SIA, a clinical Sleep Intelligence Agent. Provide deep correlation insights.",
-          temperature: 0.7
+    const callModel = async (promptText: string, config: any) => {
+      try {
+        return await AIService.genAI.models.generateContent({
+          model: MANDATE_MODEL,
+          contents: [{ role: "user", parts: [{ text: promptText }] }],
+          config
+        });
+      } catch (error: any) {
+        if (error.status === 503 || error.status === 404) {
+          console.warn(`SIA: Mandate model ${MANDATE_MODEL} failed. Falling back to ${STABLE_MODEL}`);
+          return await AIService.genAI.models.generateContent({
+            model: STABLE_MODEL,
+            contents: [{ role: "user", parts: [{ text: promptText }] }],
+            config
+          });
         }
-      });
+        throw error;
+      }
     };
 
     try {
-      const response = await callModel(modelName);
+      const response = await callModel(promptText, {
+          systemInstruction: "You are SIA, a clinical Sleep Intelligence Agent. Provide deep correlation insights.",
+          temperature: 0.7
+        });
 
       const content = response.text || "Unable to generate insight.";
       const finalContent = `${content}\n\n***\n\n${DISCLAIMER}`;
@@ -9464,14 +9481,34 @@ export class AIService {
       }
     `;
 
-    const callModel = async (model: string) => {
-      return await ai.models.generateContent({
-        model: model,
-        contents: [
-          ...context.history,
-          { role: "user", parts: [{ text: userMessage }] }
-        ],
-        config: {
+    const callModel = async (userMessage: string, config: any) => {
+      try {
+        return await AIService.genAI.models.generateContent({
+          model: MANDATE_MODEL,
+          contents: [
+            ...context.history,
+            { role: "user", parts: [{ text: userMessage }] }
+          ],
+          config
+        });
+      } catch (error: any) {
+        if (error.status === 503 || error.status === 404) {
+          console.warn(`SIA: Mandate model ${MANDATE_MODEL} failed. Falling back to ${STABLE_MODEL}`);
+          return await AIService.genAI.models.generateContent({
+            model: STABLE_MODEL,
+            contents: [
+              ...context.history,
+              { role: "user", parts: [{ text: userMessage }] }
+            ],
+            config
+          });
+        }
+        throw error;
+      }
+    };
+
+    try {
+      const response = await callModel(userMessage, {
           systemInstruction,
           temperature: 0.7,
           responseMimeType: "application/json",
@@ -9499,12 +9536,7 @@ export class AIService {
             },
             required: ["answer", "sleep_quality", "morning_alertness", "daytime_energy"]
           }
-        }
-      });
-    };
-
-    try {
-      const response = await callModel(modelName);
+        });
 
       const result = JSON.parse(response.text || '{}');
       const answer = result.answer || "I'm sorry, I couldn't process that.";
@@ -11273,8 +11305,6 @@ export default function Dashboard({
   const [isDeepAnalysis, setIsDeepAnalysis] = useState(false);
   const [isFirstVisit, setIsFirstVisit] = useState(false);
   const [showUnlockEnhanced, setShowUnlockEnhanced] = useState(false);
-  const [patternTeaser, setPatternTeaser] = useState<string | null>(null);
-  const [isLoadingTeaser, setIsLoadingTeaser] = useState(false);
 
   const correctionsCount = useMemo(() => {
     const trackingStartDate = format(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd');
@@ -11315,17 +11345,25 @@ export default function Dashboard({
     const fetchBrief = async () => {
       setIsBriefLoading(true);
       try {
-        const today = new Date();
-        const todayStr = today.toISOString().split('T')[0];
-        const yesterday = new Date(today);
-        yesterday.setDate(yesterday.getDate() - 1);
-        const yesterdayStr = yesterday.toISOString().split('T')[0];
+        const now = new Date();
+        // Format today as YYYY-MM-DD
+        const todayStr = now.toISOString().split('T')[0];
+
+        // Calculate 'Last Night' (Night Started Date)
+        const lastNight = new Date(now);
+        lastNight.setDate(lastNight.getDate() - 1);
+        const lastNightStr = lastNight.toISOString().split('T')[0];
+
+        console.log("System Today:", todayStr);
+        console.log("Targeting Log from:", lastNightStr);
 
         const sortedLogs = Object.values(logs).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-        const latestLogDate = sortedLogs[0]?.date;
+        
+        // Data Validation: Check if log exists for lastNightStr
+        const hasLastNightLog = logs[lastNightStr];
 
-        if (latestLogDate !== todayStr && latestLogDate !== yesterdayStr) {
-          setDailyBrief("I don't see a log for last night yet. Please log your sleep so I can provide your briefing!");
+        if (!hasLastNightLog) {
+          setDailyBrief(`I don't see a log for last night (${lastNightStr}) yet. Did you forget to record it?`);
           setIsBriefLoading(false);
           return;
         }
@@ -11335,7 +11373,8 @@ export default function Dashboard({
           Object.values(logs),
           userProfile.tier,
           dataMaturity,
-          todayStr
+          todayStr, // Pass todayStr
+          lastNightStr // Pass lastNightStr for context
         );
         if (response.status === 'success') {
           setDailyBrief(response.content);
@@ -11380,24 +11419,6 @@ export default function Dashboard({
     };
     fetchInsights();
   }, [user?.uid]);
-
-  useEffect(() => {
-    if (!user || dataMaturity.level < 2 || patternTeaser) return;
-
-    const fetchTeaser = async () => {
-      setIsLoadingTeaser(true);
-      try {
-        const teaser = await AIService.generatePatternTeaser(user.uid, Object.values(logs), today);
-        setPatternTeaser(teaser);
-      } catch (e) {
-        console.error("Teaser Error:", e);
-      } finally {
-        setIsLoadingTeaser(false);
-      }
-    };
-
-    fetchTeaser();
-  }, [user, dataMaturity, logs, today]);
 
   // Check for first visit
   useEffect(() => {
@@ -11903,14 +11924,29 @@ export default function Dashboard({
               </div>
             </div>
             
-            {dataMaturity.level >= 3 ? (
-              <div className="space-y-4">
-                <p className="text-zinc-200 leading-relaxed text-sm font-medium">
-                  {isAiLoading ? "Analyzing recent logs..." : (aiInsight ? aiInsight : "No insights available yet.")}
-                </p>
-                {!isAiLoading && aiInsight && (
-                  <p className="text-[10px] text-zinc-500 italic leading-tight">{DISCLAIMER}</p>
+            {dataMaturity.level >= 2 ? (
+              <div className="space-y-6">
+                <div className="font-serif italic text-zinc-200 leading-relaxed text-sm">
+                  {isAiLoading ? (
+                     <div className="flex items-center gap-2">
+                       <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
+                       Synthesizing your patterns...
+                     </div>
+                  ) : (aiInsight || "No insights available yet.")}
+                </div>
+                
+                {!isAiLoading && (
+                  <button 
+                    onClick={() => onViewChange('ai')} 
+                    className="text-indigo-600 font-bold hover:underline text-xs"
+                  >
+                    EXPLORE THIS PATTERN IN DETAIL →
+                  </button>
                 )}
+
+                <div className="text-[10px] text-slate-400">
+                  Last analyzed: {new Date().toLocaleDateString()} • Next update in 14h
+                </div>
               </div>
             ) : (
               <div className="space-y-4">
@@ -11982,45 +12018,6 @@ export default function Dashboard({
             <ChevronRight size={24} className="text-white group-hover:translate-x-1 transition-transform" />
           </Card>
 
-          {dataMaturity.level >= 2 && (
-            isLoadingTeaser ? (
-              <Card className="bg-zinc-900 border border-zinc-800 p-6 rounded-3xl min-h-[15svh] flex items-center justify-center">
-                 <Loader2 className="animate-spin text-zinc-500" />
-              </Card>
-            ) : userProfile?.tier === 'Basic' ? (
-              <div className="relative w-full group">
-                <div className="absolute inset-0 bg-gradient-to-r from-zinc-900 via-zinc-800 to-zinc-900 rounded-3xl opacity-50 blur-sm" />
-                <Card
-                  onClick={() => onViewChange('account')}
-                  className="relative bg-zinc-950/80 border border-indigo-500/30 p-6 flex flex-col justify-start rounded-3xl min-h-[15svh] group cursor-pointer hover:border-indigo-500/50 backdrop-blur-sm"
-                >
-                  <div className="flex items-center gap-3 mb-4">
-                    <Sparkles className="text-zinc-500" size={16} />
-                    <span className="text-[10px] font-black uppercase text-zinc-500 tracking-widest">SIA INSIGHT TEASER</span>
-                  </div>
-                  <p className="text-zinc-500 font-bold text-sm leading-relaxed mb-6">Unlock deeper sleep patterns and trends with an Enhanced or Pro subscription.</p>
-                  <div className="mt-auto">
-                      <span className="text-indigo-400 text-[10px] font-black uppercase tracking-widest hover:underline">UPGRADE TO UNLOCK →</span>
-                  </div>
-                </Card>
-              </div>
-            ) : patternTeaser ? (
-              <Card
-                id="ai-analysis-card"
-                onClick={() => onViewChange('ai')}
-                className="relative bg-zinc-900/50 border border-indigo-500/20 p-6 flex flex-col justify-start rounded-3xl min-h-[15svh] group cursor-pointer hover:border-indigo-500/40"
-              >
-                <div className="flex items-center gap-3 mb-4">
-                  <Sparkles className="text-amber-400" size={16} />
-                  <span className="text-[10px] font-black uppercase text-amber-500 tracking-widest">SIA INSIGHT TEASER</span>
-                </div>
-                <p className="text-zinc-300 font-bold text-sm leading-relaxed mb-6">{patternTeaser}</p>
-                <div className="mt-auto">
-                    <span className="text-indigo-400 text-[10px] font-black uppercase tracking-widest hover:underline group-hover:text-indigo-300">READ FULL ANALYSIS →</span>
-                </div>
-              </Card>
-            ) : null
-          )}
           {/* Deep Analysis Card (Placeholder/Locked or Active) */}
           {userProfile?.tier === 'Basic' ? (
             <div className="relative w-full group">
@@ -14316,11 +14313,11 @@ export default function App() {
                   {/* Stress Level */}
                   <SliderInput 
                     id="log-info-stress"
-                    label="Stress Level (0-10)" 
-                    value={currentLog.factors.stressLevel} 
+                    label="Stress Level" 
+                    value={currentLog.factors.stressLevel || 3} 
                     onChange={(val) => updateFactors({ stressLevel: val })} 
-                    min={0}
-                    max={10}
+                    min={1}
+                    max={5}
                     icon={Brain}
                   />
 

@@ -15,12 +15,12 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
       name: 'Header Section',
       tag: 'section',
       description: 'Main dashboard header',
-      path: '/src/components/Dashboard.tsx',
+      path: '/src/features/dashboard/DashboardView.tsx',
       children: [
-        { id: 'sia-avatar', name: 'SIA Avatar', tag: 'comp', description: 'AvatarFrame component', path: '/src/components/Dashboard.tsx' },
-        { id: 'intel-badge', name: 'Intelligence Agent Badge', tag: 'comp', description: 'Pill label above greeting', path: '/src/components/Dashboard.tsx' },
-        { id: 'greeting-h1', name: 'Greeting Heading', tag: 'comp', description: 'Time-aware greeting', path: '/src/components/Dashboard.tsx' },
-        { id: 'greeting-subtext', name: 'Greeting Subtext', tag: 'comp', description: 'Context line', path: '/src/components/Dashboard.tsx' },
+        { id: 'sia-avatar', name: 'SIA Avatar', tag: 'comp', description: 'AvatarFrame component', path: '/src/features/dashboard/DashboardView.tsx' },
+        { id: 'intel-badge', name: 'Intelligence Agent Badge', tag: 'comp', description: 'Pill label above greeting', path: '/src/features/dashboard/DashboardView.tsx' },
+        { id: 'greeting-h1', name: 'Greeting Heading', tag: 'comp', description: 'Time-aware greeting', path: '/src/features/dashboard/DashboardView.tsx' },
+        { id: 'greeting-subtext', name: 'Greeting Subtext', tag: 'comp', description: 'Context line', path: '/src/features/dashboard/DashboardView.tsx' },
       ]
     },
     { id: 'dev-switchboard-mini', name: 'Dev Switchboard Mini', tag: 'comp', description: 'Collapsible dev switchboard.', path: '/src/components/DevSwitchboardMini.tsx' },
@@ -36,12 +36,12 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
       name: 'Morning Briefing Section',
       tag: 'section',
       description: 'AI-generated morning briefing container',
-      path: '/src/components/Dashboard.tsx',
+      path: '/src/features/dashboard/DashboardView.tsx',
       children: [
-        { id: 'morning-brief-card', name: 'Morning Briefing Card', tag: 'card', description: 'Tier-coloured container', path: '/src/components/Dashboard.tsx', children: [
-          { id: 'brief-body', name: 'Brief Body Text', tag: 'comp', description: 'AI-generated briefing', path: '/src/components/Dashboard.tsx' },
-          { id: 'discuss-btn', name: 'Discuss with SIA Button', tag: 'btn', description: 'Navigates to AI view via onViewChange(ai).', path: '/src/components/Dashboard.tsx' },
-          { id: 'fallback-ui', name: 'Static Fallback UI', tag: 'comp', description: 'Displays dynamic countdown to 7-day unlock.', path: '/src/components/Dashboard.tsx' },
+        { id: 'morning-brief-card', name: 'Morning Briefing Card', tag: 'card', description: 'Tier-coloured container', path: '/src/features/dashboard/DashboardView.tsx', children: [
+          { id: 'brief-body', name: 'Brief Body Text', tag: 'comp', description: 'AI-generated briefing', path: '/src/features/dashboard/DashboardView.tsx' },
+          { id: 'discuss-btn', name: 'Discuss with SIA Button', tag: 'btn', description: 'Navigates to AI view via onViewChange(ai).', path: '/src/features/dashboard/DashboardView.tsx' },
+          { id: 'fallback-ui', name: 'Static Fallback UI', tag: 'comp', description: 'Displays dynamic countdown to 7-day unlock.', path: '/src/features/dashboard/DashboardView.tsx' },
         ]}
       ]
     },
@@ -50,13 +50,13 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
       name: 'SIA Pattern Decoder Section',
       tag: 'section',
       description: 'Correlation analysis and clinical feed',
-      path: '/src/components/Dashboard.tsx',
+      path: '/src/features/dashboard/DashboardView.tsx',
       children: [
-        { id: 'pattern-decoder-card', name: 'Pattern Decoder Card', tag: 'card', description: 'Full-width clickable card, navigates to AI view', path: '/src/components/Dashboard.tsx', children: [
-          { id: 'insight-body', name: 'Decoder Body Text', tag: 'comp', description: 'AI-generated correlation', path: '/src/components/Dashboard.tsx' },
-          { id: 'disclaimer-text', name: 'Disclaimer Text', tag: 'comp', description: 'Italic disclaimer', path: '/src/components/Dashboard.tsx' },
+        { id: 'pattern-decoder-card', name: 'Pattern Decoder Card', tag: 'card', description: 'Full-width clickable card, navigates to AI view', path: '/src/features/dashboard/DashboardView.tsx', children: [
+          { id: 'insight-body', name: 'Decoder Body Text', tag: 'comp', description: 'AI-generated correlation', path: '/src/features/dashboard/DashboardView.tsx' },
+          { id: 'disclaimer-text', name: 'Disclaimer Text', tag: 'comp', description: 'Italic disclaimer', path: '/src/features/dashboard/DashboardView.tsx' },
         ]},
-        { id: 'clinical-insights-feed', name: 'Clinical Insights Feed', tag: 'section', description: 'List of insights', path: '/src/components/Dashboard.tsx' }
+        { id: 'clinical-insights-feed', name: 'Clinical Insights Feed', tag: 'section', description: 'List of insights', path: '/src/features/dashboard/DashboardView.tsx' }
       ]
     },
     {
@@ -64,10 +64,10 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
       name: 'Engagement & Actions Section',
       tag: 'section',
       description: 'Log, fix, AI buttons',
-      path: '/src/components/Dashboard.tsx',
+      path: '/src/features/dashboard/DashboardView.tsx',
       children: [
-        { id: 'log-last-night-card', name: 'Log Last Night Card', tag: 'btn', description: 'Navigates to Log view via onLogClick', path: '/src/components/Dashboard.tsx' },
-        { id: 'fix-missing-data-btn', name: 'Fix Missing Data Button', tag: 'btn', description: 'Shown only when correctionsCount > 0, navigates to corrections', path: '/src/components/Dashboard.tsx' },
+        { id: 'log-last-night-card', name: 'Log Last Night Card', tag: 'btn', description: 'Navigates to Log view via onLogClick', path: '/src/features/dashboard/DashboardView.tsx' },
+        { id: 'fix-missing-data-btn', name: 'Fix Missing Data Button', tag: 'btn', description: 'Shown only when correctionsCount > 0, navigates to corrections', path: '/src/features/dashboard/DashboardView.tsx' },
       ]
     },
     {
@@ -75,7 +75,7 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
       name: 'Growth Hub Section',
       tag: 'section',
       description: 'Educational resources',
-      path: '/src/components/Dashboard.tsx',
+      path: '/src/features/dashboard/DashboardView.tsx',
       children: [
         { id: 'sleep-guide-card', name: 'SleepGuideCard', tag: 'comp', description: 'Opens SleepGuideInteractive via onOpenSleepGuide', path: '/src/components/SleepGuideCard.tsx' },
       ]
@@ -85,9 +85,9 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
       name: 'SIA Intelligence Feed Section',
       tag: 'section',
       description: 'Diagnostic monitoring',
-      path: '/src/components/Dashboard.tsx',
+      path: '/src/features/dashboard/DashboardView.tsx',
       children: [
-        { id: 'sia-intel-feed-card', name: 'SIA Intelligence Feed Card', tag: 'card', description: 'Diagnostic monitoring', path: '/src/components/Dashboard.tsx' },
+        { id: 'sia-intel-feed-card', name: 'SIA Intelligence Feed Card', tag: 'card', description: 'Diagnostic monitoring', path: '/src/features/dashboard/DashboardView.tsx' },
       ]
     },
     {
@@ -95,7 +95,7 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
       name: 'Data Maturity Section',
       tag: 'section',
       description: 'Progress bar for data calibration',
-      path: '/src/components/Dashboard.tsx',
+      path: '/src/features/dashboard/DashboardView.tsx',
       children: [
         { id: 'maturity-tracker', name: 'Data Maturity Tracker', tag: 'comp', description: 'Multi-bar roadmap for data calibration', path: '/src/components/DataMaturityTracker.tsx' },
       ]

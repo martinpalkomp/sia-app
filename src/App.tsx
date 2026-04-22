@@ -109,18 +109,19 @@ import { calculateSafeAverage } from './utils/statsEngine';
 import Legal from './components/Legal';
 import { DevSwitchboardMini } from './components/DevSwitchboardMini';
 import CorrectionHub from './components/CorrectionHub';
-const AIInsightsAgent = lazy(() => import('./components/AIInsightsAgent'));
-const Dashboard = lazy(() => import('./components/Dashboard'));
+const AIInsightsAgent = lazy(() => import('./features/ai/AIInsightsAgent'));
+const DashboardContainer = lazy(() => import('./features/dashboard/DashboardContainer'));
 const PersonalizationWizard = lazy(() => import('./components/PersonalizationWizard'));
 import AccountPage from './components/AccountPage';
 import SleepRibbon from './components/SleepRibbon';
 import SleepPatternCard from './components/SleepPatternCard';
-import { SleepWindow } from './components/SleepWindow';
+import { SleepWindow } from './features/sleep/SleepWindow';
 import DataImporter from './components/DataImporter';
 import { AvatarFrame, MetricDisplay } from './components/UI';
 import { Navbar } from './components/Navbar';
 import { SiaPatternReview } from './components/SiaPatternReview';
 import { UserProvider } from './context/UserContext';
+import { useSleepStore } from './store/useSleepStore';
 
 import { saveLog, validateLogMetrics } from './services/sleepService';
 import { getSuggestedLog, AICorrection, SuggestionResult } from './utils/patternEngine';
@@ -225,12 +226,9 @@ export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [loginError, setLoginError] = useState<string | null>(null);
-  const [logs, setLogs] = useState<Record<string, DailyLog>>({});
-  const [selectedDate, setSelectedDate] = useState(() => {
-    const d = new Date();
-    d.setDate(d.getDate() - 1);
-    return d.toISOString().split('T')[0];
-  });
+  
+  const { logs, setLogs, selectedDate, setSelectedDate, updateLogLocally, saveLogFromState, deleteLog } = useSleepStore();
+  
   const [direction, setDirection] = useState(0);
   const [view, setView] = useState<'dashboard' | 'log' | 'weekly' | 'monthly' | 'custom' | 'ai' | 'corrections' | 'legal' | 'account' | 'import' | 'dev-map'>('dashboard');
   const [customRange, setCustomRange] = useState({ start: getTodayDate(), end: getTodayDate() });
@@ -533,8 +531,8 @@ export default function App() {
     // Ensure nulls are 0 or false
     const sanitizedLog = {
       ...newLogData,
-      source: 'predicted',
-      type: 'log',
+      source: 'predicted' as const,
+      type: 'log' as const,
       factors: {
         ...newLogData.factors,
         caffeine: {
@@ -560,11 +558,11 @@ export default function App() {
       }
     };
     
-    await setDoc(logRef, sanitizedLog, { merge: true });
+    // Ensure accurate syncing using saveLogFromState
+    updateLogLocally(logId, sanitizedLog);
+    await saveLogFromState(user.uid, logId, 'predicted');
 
     // Trigger UI update
-    updateLog(newLogData);
-    
     setToast({ message: 'Routine applied & saved!', type: 'success' });
     setShowPatternReview(false);
     setPendingSuggestion(null);
@@ -788,152 +786,91 @@ export default function App() {
   const saveLogs = async (newLogs: Record<string, DailyLog>, dateToUpdate?: string) => {
     if (!user) return;
     
-    // If we have a specific date to update, only update that one in Firestore
     if (dateToUpdate) {
-      const log = newLogs[dateToUpdate];
-      if (log) {
-        // Determine if visualTimeline has been manually modified
-        const isManuallyModified = log.source === 'manual';
-        
-        // Prioritize manual timeline, reverse-map to sleepEvents if modified
-        let visualTimeline = log.visualTimeline;
-        let sleepEvents = log.sleepEvents;
-        
-        if (isManuallyModified && visualTimeline && visualTimeline.length === 96) {
-          sleepEvents = convertGridToEvents(visualTimeline, log.date);
-        } else {
-          visualTimeline = getGridFromEvents(log.sleepEvents || []);
+      try {
+        const log = newLogs[dateToUpdate];
+        if (!log) {
+          await deleteLog(user.uid, dateToUpdate);
+          return;
         }
-        
-        // Calculate durations from events/timeline
-        const sleepDuration = calculateSleepDuration(sleepEvents || log.timeline || []);
-        const timeInBed = calculateTimeInBed(sleepEvents || log.timeline || []);
 
-        // Populate summaryMetrics before saving
-        const summaryMetrics = {
-          sleep_quality: log.sleep_quality,
-          morning_alertness: log.morning_alertness,
-          daytime_energy: log.daytime_energy,
-          importedDuration: sleepDuration,
-          importedInBed: timeInBed,
-          sleep_efficiency: timeInBed > 0 ? (sleepDuration / timeInBed) * 100 : 0,
-        };
+        // Handle AI corrections learning trigger if prefill was used
+        if (prefillUsed && originalSuggestion) {
+          const correctionsToLog: any[] = [];
+          const sanitizeValue = (val: any) => (val === undefined ? null : val);
 
-        try {
-          // Learning Trigger: Detect corrections if prefill was used
-          if (prefillUsed && originalSuggestion) {
-            const correctionsToLog: any[] = [];
-            
-            const sanitizeValue = (val: any) => (val === undefined ? null : val);
-
-            // Check caffeine amount
-            if (log.factors.caffeine.amount !== originalSuggestion.factors?.caffeine?.amount) {
-              correctionsToLog.push({
-                field: 'factors.caffeine.amount',
-                suggestedValue: sanitizeValue(originalSuggestion.factors?.caffeine?.amount),
-                actualValue: log.factors.caffeine.amount
-              });
-            }
-            
-            // Check caffeine time
-            if (log.factors.caffeine.lastIntake !== originalSuggestion.factors?.caffeine?.lastIntake) {
-              correctionsToLog.push({
-                field: 'factors.caffeine.lastIntake',
-                suggestedValue: sanitizeValue(originalSuggestion.factors?.caffeine?.lastIntake),
-                actualValue: log.factors.caffeine.lastIntake
-              });
-            }
-
-            // Check exercise
-            if (log.factors.exercise.completed !== originalSuggestion.factors?.exercise?.completed) {
-              correctionsToLog.push({
-                field: 'factors.exercise.completed',
-                suggestedValue: sanitizeValue(originalSuggestion.factors?.exercise?.completed),
-                actualValue: log.factors.exercise.completed
-              });
-            }
-
-            if (log.factors.alcohol.consumed !== originalSuggestion.factors?.alcohol?.consumed)
-              correctionsToLog.push({ field: 'factors.alcohol.consumed', suggestedValue: sanitizeValue(originalSuggestion.factors?.alcohol?.consumed), actualValue: log.factors.alcohol.consumed });
-
-            if (log.factors.screensInBed !== originalSuggestion.factors?.screensInBed)
-              correctionsToLog.push({ field: 'factors.screensInBed', suggestedValue: sanitizeValue(originalSuggestion.factors?.screensInBed), actualValue: log.factors.screensInBed });
-
-            if (log.factors.stressLevel !== originalSuggestion.factors?.stressLevel)
-              correctionsToLog.push({ field: 'factors.stressLevel', suggestedValue: sanitizeValue(originalSuggestion.factors?.stressLevel), actualValue: log.factors.stressLevel });
-
-            if (log.factors.lastMealTime !== originalSuggestion.factors?.lastMealTime)
-              correctionsToLog.push({ field: 'factors.lastMealTime', suggestedValue: sanitizeValue(originalSuggestion.factors?.lastMealTime), actualValue: log.factors.lastMealTime });
-
-            if (log.factors.naturalWake !== originalSuggestion.factors?.naturalWake)
-              correctionsToLog.push({ field: 'factors.naturalWake', suggestedValue: sanitizeValue(originalSuggestion.factors?.naturalWake), actualValue: log.factors.naturalWake });
-
-            if (log.factors.moodScore !== originalSuggestion.factors?.moodScore)
-              correctionsToLog.push({ field: 'factors.moodScore', suggestedValue: sanitizeValue(originalSuggestion.factors?.moodScore), actualValue: log.factors.moodScore });
-
-            if (log.morning_alertness !== originalSuggestion.morning_alertness)
-              correctionsToLog.push({ field: 'morning_alertness', suggestedValue: sanitizeValue(originalSuggestion.morning_alertness), actualValue: log.morning_alertness });
-
-            if (log.daytime_energy !== originalSuggestion.daytime_energy)
-              correctionsToLog.push({ field: 'daytime_energy', suggestedValue: sanitizeValue(originalSuggestion.daytime_energy), actualValue: log.daytime_energy });
-
-            if (correctionsToLog.length > 0) {
-              const correctionsRef = collection(db, 'users', user.uid, 'ai_corrections');
-              for (const corr of correctionsToLog) {
-                await addDoc(correctionsRef, {
-                  ...corr,
-                  date: selectedDate,
-                  createdAt: serverTimestamp()
-                });
-              }
-              console.log(`Logged ${correctionsToLog.length} AI corrections.`);
-            }
-          }
-
-          if (!validateLogMetrics(summaryMetrics)) {
-            console.error('saveLog blocked — invalid metrics:', summaryMetrics);
-            setSaveStatus('idle');
-            setToast({ message: 'Log not saved: metric values out of range.', type: 'error' });
-            return;
-          }
-
-          await saveLog(user.uid, {
-            ...log,
-            type: 'log',
-            summaryMetrics,
-            isIgnored: log.isIgnored || false,
-          });
+          if (log.factors.caffeine.amount !== originalSuggestion.factors?.caffeine?.amount)
+            correctionsToLog.push({ field: 'factors.caffeine.amount', suggestedValue: sanitizeValue(originalSuggestion.factors?.caffeine?.amount), actualValue: log.factors.caffeine.amount });
           
-          // Update maturity info after successful save
-          AIService.getUserDataMaturity(user.uid).then(setMaturity);
-          setSaveStatus('saved');
-          setTimeout(() => setSaveStatus('idle'), 2000);
-        } catch (error: any) {
-          console.error("Save failed:", error);
-          setSaveStatus('idle');
-          alert(error.code === 'permission-denied' 
-            ? "SIA Permission Error: Check Firestore Rules pathing." 
-            : "Failed to save log. Please check your connection.");
+          if (log.factors.caffeine.lastIntake !== originalSuggestion.factors?.caffeine?.lastIntake)
+            correctionsToLog.push({ field: 'factors.caffeine.lastIntake', suggestedValue: sanitizeValue(originalSuggestion.factors?.caffeine?.lastIntake), actualValue: log.factors.caffeine.lastIntake });
+
+          if (log.factors.exercise.completed !== originalSuggestion.factors?.exercise?.completed)
+            correctionsToLog.push({ field: 'factors.exercise.completed', suggestedValue: sanitizeValue(originalSuggestion.factors?.exercise?.completed), actualValue: log.factors.exercise.completed });
+
+          if (log.factors.alcohol.consumed !== originalSuggestion.factors?.alcohol?.consumed)
+            correctionsToLog.push({ field: 'factors.alcohol.consumed', suggestedValue: sanitizeValue(originalSuggestion.factors?.alcohol?.consumed), actualValue: log.factors.alcohol.consumed });
+
+          if (log.factors.screensInBed !== originalSuggestion.factors?.screensInBed)
+            correctionsToLog.push({ field: 'factors.screensInBed', suggestedValue: sanitizeValue(originalSuggestion.factors?.screensInBed), actualValue: log.factors.screensInBed });
+
+          if (log.factors.stressLevel !== originalSuggestion.factors?.stressLevel)
+            correctionsToLog.push({ field: 'factors.stressLevel', suggestedValue: sanitizeValue(originalSuggestion.factors?.stressLevel), actualValue: log.factors.stressLevel });
+
+          if (log.factors.lastMealTime !== originalSuggestion.factors?.lastMealTime)
+            correctionsToLog.push({ field: 'factors.lastMealTime', suggestedValue: sanitizeValue(originalSuggestion.factors?.lastMealTime), actualValue: log.factors.lastMealTime });
+
+          if (log.factors.naturalWake !== originalSuggestion.factors?.naturalWake)
+            correctionsToLog.push({ field: 'factors.naturalWake', suggestedValue: sanitizeValue(originalSuggestion.factors?.naturalWake), actualValue: log.factors.naturalWake });
+
+          if (log.factors.moodScore !== originalSuggestion.factors?.moodScore)
+            correctionsToLog.push({ field: 'factors.moodScore', suggestedValue: sanitizeValue(originalSuggestion.factors?.moodScore), actualValue: log.factors.moodScore });
+
+          if (log.morning_alertness !== originalSuggestion.morning_alertness)
+            correctionsToLog.push({ field: 'morning_alertness', suggestedValue: sanitizeValue(originalSuggestion.morning_alertness), actualValue: log.morning_alertness });
+
+          if (log.daytime_energy !== originalSuggestion.daytime_energy)
+            correctionsToLog.push({ field: 'daytime_energy', suggestedValue: sanitizeValue(originalSuggestion.daytime_energy), actualValue: log.daytime_energy });
+
+          if (correctionsToLog.length > 0) {
+            const correctionsRef = collection(db, 'users', user.uid, 'ai_corrections');
+            for (const corr of correctionsToLog) {
+              await addDoc(correctionsRef, {
+                ...corr,
+                date: selectedDate,
+                createdAt: serverTimestamp()
+              });
+            }
+            console.log(`Logged ${correctionsToLog.length} AI corrections.`);
+          }
         }
-      } else {
-        // If log is missing for that date, it was deleted
-        await deleteDoc(doc(db, 'users', user.uid, 'sleep_logs', dateToUpdate));
+
+        // Delegate save logic to Zustand'store
+        await saveLogFromState(user.uid, dateToUpdate, log.source as any || 'manual');
+        
+        AIService.getUserDataMaturity(user.uid).then(setMaturity);
+        setSaveStatus('saved');
+        setTimeout(() => setSaveStatus('idle'), 2000);
+      } catch (error: any) {
+        console.error("Save failed:", error);
+        setSaveStatus('idle');
+        alert(error.code === 'permission-denied' 
+          ? "SIA Permission Error: Check Firestore Rules pathing." 
+          : "Failed to save log. Please check your connection.");
       }
     }
   };
 
   const updateLog = (updates: Partial<DailyLog> | ((prevLog: DailyLog) => Partial<DailyLog>)) => {
-    setLogs(prevLogs => {
-      const currentLogForDate = prevLogs[selectedDate] || getDefaultLog(selectedDate);
-      const newUpdates = typeof updates === 'function' ? updates(currentLogForDate) : updates;
-      const newLog = { ...currentLogForDate, ...newUpdates };
+    const currentLogForDate = logs[selectedDate] || getDefaultLog(selectedDate);
+    const newUpdates = typeof updates === 'function' ? updates(currentLogForDate) : updates;
+    const newLog = { ...currentLogForDate, ...newUpdates };
 
-      if (newLog.source === 'import') {
-        newLog.source = 'manual';
-      }
+    if (newLog.source === 'import') {
+      newLog.source = 'manual';
+    }
 
-      return { ...prevLogs, [selectedDate]: newLog };
-    });
+    updateLogLocally(selectedDate, newLog);
     pendingSave.current = true;
     setSaveStatus('saving');
   };
@@ -977,8 +914,8 @@ export default function App() {
   const setSlotState = (index: number, state: SleepState) => {
     const newVisualTimeline = [...currentLog.visualTimeline];
     newVisualTimeline[index] = state;
-    const newEvents = convertGridToEvents(newVisualTimeline);
-    updateLog({ sleepEvents: newEvents });
+    const newEvents = convertGridToEvents(newVisualTimeline, selectedDate);
+    updateLog({ visualTimeline: newVisualTimeline, sleepEvents: newEvents });
   };
 
   const handleMouseDown = (index: number) => {
@@ -1035,6 +972,7 @@ export default function App() {
     if (initialTimeline && initialMetrics) {
       updateLog({ 
         visualTimeline: initialTimeline,
+        sleepEvents: convertGridToEvents(initialTimeline, selectedDate),
         ...initialMetrics
       });
     }
@@ -1126,16 +1064,16 @@ export default function App() {
         const fetchedLogs: Record<string, DailyLog> = { ...prevLogs };
         snapshot.forEach((doc) => {
           const data = doc.data() as DailyLog;
-          // Ensure timeline exists
-          if (!data.timeline) {
-            data.timeline = Array(TOTAL_SLOTS).fill('awake-out');
+          // Ensure visualTimeline exists
+          if (!data.visualTimeline) {
+            data.visualTimeline = data.timeline || Array(TOTAL_SLOTS).fill('awake-out');
           }
-          // Normalize logs to ensure correct timeline length
-          if (data.timeline.length !== TOTAL_SLOTS) {
-            if (data.timeline.length < TOTAL_SLOTS) {
-              data.timeline = [...data.timeline, ...Array(TOTAL_SLOTS - data.timeline.length).fill('awake-out')];
+          // Normalize logs to ensure correct visualTimeline length
+          if (data.visualTimeline.length !== TOTAL_SLOTS) {
+            if (data.visualTimeline.length < TOTAL_SLOTS) {
+              data.visualTimeline = [...data.visualTimeline, ...Array(TOTAL_SLOTS - data.visualTimeline.length).fill('awake-out')];
             } else {
-              data.timeline = data.timeline.slice(0, TOTAL_SLOTS);
+              data.visualTimeline = data.visualTimeline.slice(0, TOTAL_SLOTS);
             }
           }
           fetchedLogs[doc.id] = data;
@@ -1462,12 +1400,11 @@ export default function App() {
                   }}
                 >
                   <Suspense fallback={<div className="flex items-center justify-center h-64"><div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"/></div>}>
-                    <Dashboard 
+                    <DashboardContainer 
                       logs={logs} 
                       user={user}
                       userProfile={{ ...userProfile, tier: derivedTier }}
                       selectedDate={selectedDate}
-                      correctionsCount={correctionsCount}
                       personalizationProfile={personalizationProfile}
                       onLogClick={() => {
                         const yesterday = new Date();
@@ -1660,8 +1597,9 @@ export default function App() {
                               <button 
                                 onClick={() => {
                                   if (initialTimeline && initialMetrics) {
-                                    const newEvents = convertGridToEvents(initialTimeline);
+                                    const newEvents = convertGridToEvents(initialTimeline, selectedDate);
                                     updateLog({ 
+                                      visualTimeline: initialTimeline,
                                       sleepEvents: newEvents,
                                       ...initialMetrics
                                     });

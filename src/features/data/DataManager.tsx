@@ -10,7 +10,7 @@ import {
   doc, 
   writeBatch,
   where
-} from '../lib/firebase';
+} from '../../lib/firebase';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Database, 
@@ -27,10 +27,10 @@ import {
   CheckCircle2
 } from 'lucide-react';
 import { format } from 'date-fns';
-import { Card } from './UI';
-import { exportUserData } from '../utils/DataExporter';
+import { Card } from '../../components/UI';
+import { exportUserData } from '../../utils/DataExporter';
 
-import { DailyLog, PersonalizationProfile } from '../types';
+import { DailyLog, PersonalizationProfile } from '../../types';
 
 interface DataManagerProps {
   user: User;

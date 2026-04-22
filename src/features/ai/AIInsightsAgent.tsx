@@ -15,9 +15,10 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { DailyLog, PersonalizationProfile, Insight, UnstructuredData, UserProfile } from '../types';
-import { buildClinicalBrief } from '../lib/aiContextBuilder';
-import { AIService } from '../services/aiService';
+import { DailyLog, PersonalizationProfile, Insight, UnstructuredData, UserProfile } from '../../types';
+import { buildClinicalBrief } from '../../lib/aiContextBuilder';
+import { AIService } from '../../services/aiService';
+import { chatWithSIA } from '../../services/ai/chat';
 import { 
   db, 
   User, 
@@ -33,15 +34,15 @@ import {
   doc, 
   limit,
   updateDoc
-} from '../lib/firebase';
+} from '../../lib/firebase';
 import Markdown from 'react-markdown';
-import { useUser } from '../context/UserContext';
-import { getAIPageTheme } from '../utils/themeUtils';
+import { useUser } from '../../context/UserContext';
+import { getAIPageTheme } from '../../utils/themeUtils';
 import { Type } from "@google/genai";
 
-import { AvatarFrame } from './UI';
-import { getGridFromEvents } from '../utils/sleepUtils';
-import { calculateAge } from '../utils/dateUtils';
+import { AvatarFrame } from '../../components/UI';
+import { getGridFromEvents } from '../../utils/sleepUtils';
+import { calculateAge } from '../../utils/dateUtils';
 
 const DISCLAIMER = "SIA provides lifestyle recommendations based on patterns. This is not a medical diagnosis. Consult a professional for clinical concerns.";
 
@@ -276,7 +277,7 @@ export default function AIInsightsAgent() {
       const logsInLastMonthCount = logsArray.filter(log => new Date(log.date) >= oneMonthAgo).length;
       const today = format(new Date(), 'yyyy-MM-dd');
 
-      const response = await AIService.chatWithSIA(
+      const response = await chatWithSIA(
         user.uid,
         text,
         userProfile.tier,

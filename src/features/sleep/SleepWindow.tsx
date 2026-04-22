@@ -1,6 +1,6 @@
 import React from 'react';
-import { SleepState } from '../types';
-import { SLEEP_STATES, getSlotLabel } from '../constants';
+import { SleepState } from '../../types';
+import { SLEEP_STATES, getSlotLabel } from '../../constants';
 
 interface SleepWindowProps {
   timeline: SleepState[];

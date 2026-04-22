@@ -174,7 +174,7 @@ export interface DailyLog extends Partial<FullLog>, Partial<SummaryLog> {
     };
   };
   modifiedBySync?: boolean[];
-  source?: 'manual' | 'import';
+  source?: 'manual' | 'import' | 'predicted' | 'ai-adjusted';
   visualTimeline?: SleepState[];
   bedTime?: string | null;
   wakeTime?: string | null;

@@ -1,7 +1,7 @@
 import React from 'react';
 import { ArrowRight, BookOpen } from 'lucide-react';
 import { motion } from 'motion/react';
-import { Card } from './UI';
+import { Card } from '../../components/UI';
 
 interface SleepGuideCardProps {
   onClick: () => void;

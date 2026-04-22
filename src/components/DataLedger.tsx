@@ -42,7 +42,7 @@ export default function DataLedger({ logs, userId }: DataLedgerProps) {
         const source = getSourceInfo(log);
         const Icon = source.icon;
         return (
-          <Card key={log.id} className="p-4 flex items-center justify-between border border-zinc-800 bg-zinc-900/40">
+          <Card key={log.date} className="p-4 flex items-center justify-between border border-zinc-800 bg-zinc-900/40">
             <div className="flex items-center gap-4">
               <Icon size={16} className={source.color} />
               <div>
@@ -53,7 +53,7 @@ export default function DataLedger({ logs, userId }: DataLedgerProps) {
               </div>
             </div>
             <button 
-              onClick={() => handleDelete(log.id)}
+              onClick={() => handleDelete(log.date)}
               className="text-red-500 hover:text-red-400 text-xs font-bold uppercase tracking-widest"
             >
               Delete

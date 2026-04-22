@@ -1,5 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { useUser } from '../context/UserContext';
+import React from 'react';
 import { 
   Moon, 
   Sun, 
@@ -9,66 +8,28 @@ import {
   Zap, 
   Clock,
   TrendingUp,
-  AlertCircle,
   Brain,
   Sparkles,
   Loader2,
-  Settings,
-  Ghost,
-  FileText,
-  Activity,
-  Lock
+  Activity
 } from 'lucide-react';
-import { 
-  ResponsiveContainer, 
-  AreaChart, 
-  Area, 
-  XAxis, 
-  YAxis, 
-  Tooltip, 
-  CartesianGrid 
-} from 'recharts';
 import { motion, AnimatePresence } from 'motion/react';
-import { getPendingCorrections } from '../utils/correctionLogic';
-import { DailyLog, SleepState, SleepEvent, Insight, UserProfile } from '../types';
-import { GoogleGenAI } from "@google/genai";
-import { Card, AvatarFrame, MetricDisplay, CircadianWaveform } from './UI';
-import { calculateSleepDuration, calculateSleepEfficiency, formatDuration, getGridFromEvents, getMinutesFrom2000 } from '../utils/sleepUtils';
-import { calculateSafeAverage } from '../utils/statsEngine';
-import { getSlotLabel } from '../constants';
-import { PersonalizationProfile } from '../types';
-import { AIService, MaturityInfo } from '../services/aiService';
-import { 
-  db, 
-  User, 
-  collection, 
-  query, 
-  where, 
-  orderBy, 
-  limit, 
-  getDocs,
-  doc,
-  setDoc,
-  deleteDoc
-} from '../lib/firebase';
-import { getTodayDate, formatDisplayDate } from '../utils/dateUtils';
-import SleepGuideCard from './SleepGuideCard';
-import { SleepWindow } from './SleepWindow';
-import SleepPatternCard from './SleepPatternCard';
-import { Header } from './Header';
-import { InsightCard } from './InsightCard';
-import { LockedFeatureCard } from './LockedFeatureCard';
-import DataMaturityTracker from './DataMaturityTracker';
-import { DevSwitchboardMini } from './DevSwitchboardMini';
-import { format } from 'date-fns';
+import { DailyLog, Insight, UserProfile } from '../../types';
+import { User } from '../../lib/firebase';
+import { MaturityInfo } from '../../services/aiService';
+import { Card, MetricDisplay, CircadianWaveform } from '../../components/UI';
+import { formatDuration } from '../../utils/sleepUtils';
+import SleepGuideCard from '../sleep/SleepGuideCard';
+import { Header } from '../../components/Header';
+import { InsightCard } from '../../components/InsightCard';
+import { LockedFeatureCard } from '../../components/LockedFeatureCard';
+import DataMaturityTracker from '../data/DataMaturityTracker';
+import { DevSwitchboardMini } from '../../components/DevSwitchboardMini';
 
-interface DashboardProps {
-  logs: Record<string, DailyLog>;
+interface DashboardViewProps {
   user: User | null;
   userProfile: UserProfile | null;
   selectedDate: string;
-  correctionsCount: number;
-  personalizationProfile: PersonalizationProfile | null;
   onLogClick: () => void;
   onViewChange: (view: any) => void;
   onOpenPersonalization: () => void;
@@ -76,7 +37,26 @@ interface DashboardProps {
   onDateChange: (date: string | number) => void;
   refreshAllData: () => void;
   isRefreshing: boolean;
-  maturity?: MaturityInfo | null;
+  dataMaturity: MaturityInfo;
+  dataDepth: any; 
+  correctionsCount: number;
+  insightTeaser: string | null;
+  setInsightTeaser: (val: string | null) => void;
+  dailyBrief: string | null;
+  isAiLoading: boolean;
+  setIsAiLoading: (val: boolean) => void;
+  isBriefLoading: boolean;
+  isDeepAnalysis: boolean;
+  handleDeepAnalysis: () => void;
+  isFirstVisit: boolean;
+  setIsFirstVisit: (val: boolean) => void;
+  getCachedInsight: () => string | null;
+  setCachedInsight: (val: string) => void;
+  logs: Record<string, DailyLog>;
+  stats: any;
+  insights: any[];
+  greeting: any;
+  recentGadgets: string[];
 }
 
 const StaticFallbackUI = ({ dataDepth }: { dataDepth: any }) => {
@@ -90,150 +70,44 @@ const StaticFallbackUI = ({ dataDepth }: { dataDepth: any }) => {
   );
 };
 
-const DEMO_INSIGHTS: Insight[] = [
-  {
-    id: 'demo-1',
-    type: 'Pattern',
-    confidence: 0.8,
-    aiConfidence: 0.8,
-    computedConfidence: 0.8,
-    summary: 'Circadian Alignment: Your sleep onset is shifting earlier by 15 minutes each week, aligning better with your natural rhythm.',
-    linkedDates: [],
-    createdAt: new Date(),
-    occurrences: 1
-  },
-  {
-    id: 'demo-2',
-    type: 'Pattern',
-    confidence: 0.7,
-    aiConfidence: 0.7,
-    computedConfidence: 0.7,
-    summary: 'Recovery Efficiency: Your deep sleep phases are most consistent on days you engage in light activity before 6 PM.',
-    linkedDates: [],
-    createdAt: new Date(),
-    occurrences: 1
-  }
-];
-
-export default function Dashboard({ 
-  logs, 
+export default function DashboardView({
   user,
   userProfile,
   selectedDate,
-  personalizationProfile,
-  onLogClick, 
+  onLogClick,
   onViewChange,
   onOpenPersonalization,
   onOpenSleepGuide,
   onDateChange,
   refreshAllData,
   isRefreshing,
-  maturity: externalMaturity
-}: DashboardProps) {
-  const { dataDepth, maturity: contextMaturity } = useUser();
-  const dataMaturity = useMemo(() => {
-    // externalMaturity comes from App.tsx via a full Firestore count (not view-filtered)
-    // contextMaturity is the internal fetch — also full count but may lag on load
-    // Never fall back to Object.keys(logs).length — logs is view-filtered (7 or 30 days)
-    const source = externalMaturity || contextMaturity;
-    if (source) return source as MaturityInfo;
-    // Still loading — show 0 rather than a misleading view-filtered count
-    return { level: 1, count: 0, label: 'Baseline', nextThreshold: 7 } as MaturityInfo;
-  }, [externalMaturity, contextMaturity]);
-  const [aiInsight, setAiInsight] = useState<string | null>(null);
-  const [dailyBrief, setDailyBrief] = useState<string | null>(null);
-  const [insights, setInsights] = useState<Insight[]>([]);
-  const [isAiLoading, setIsAiLoading] = useState(false);
-  const [isBriefLoading, setIsBriefLoading] = useState(false);
-  const [isDeepAnalysis, setIsDeepAnalysis] = useState(false);
-  const [isFirstVisit, setIsFirstVisit] = useState(false);
-  const [showUnlockEnhanced, setShowUnlockEnhanced] = useState(false);
-
-  const correctionsCount = useMemo(() => {
-    const trackingStartDate = format(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd');
-    return getPendingCorrections(logs, trackingStartDate).length;
-  }, [logs]);
-
-  const rephraseGuardrailMessage = (reason: string): string => {
-    if (reason.includes("Already generated today")) {
-      return "Your daily brief is ready and waiting. SIA only analyses once per day to give your data time to breathe.";
-    }
-    if (reason.includes("still calibrating")) {
-      return "SIA is still getting to know you. Log a few more nights to unlock your personalised brief.";
-    }
-    if (reason.includes("Pro tier") || reason.includes("90 days")) {
-      return "Deep Analysis unlocks at 90 days of data and Pro tier. SIA is building towards it.";
-    }
-    return reason;
+  dataMaturity,
+  dataDepth,
+  correctionsCount,
+  insightTeaser,
+  setInsightTeaser,
+  dailyBrief,
+  isAiLoading,
+  setIsAiLoading,
+  isBriefLoading,
+  isDeepAnalysis,
+  handleDeepAnalysis,
+  isFirstVisit,
+  setIsFirstVisit,
+  getCachedInsight,
+  setCachedInsight,
+  logs,
+  stats,
+  insights,
+  greeting,
+  recentGadgets
+}: DashboardViewProps) {
+  const DISCLAIMER = "SIA provides lifestyle recommendations based on patterns. This is not a medical diagnosis. Consult a professional for clinical concerns.";
+  const isEnhanced = userProfile?.tier === 'Enhanced' || userProfile?.tier === 'Pro';
+  const FEATURE_FLAGS = {
+    showClinicalInsights: true,
+    showSiaIntelligence: true
   };
-
-  // Fetch/Generate Daily Brief
-  const today = getTodayDate();
-  const getInsightCacheKey = () => `sia_insight_${user?.uid}_${today}`;
-  const getCachedInsight = () => sessionStorage.getItem(getInsightCacheKey());
-  const setCachedInsight = (content: string) => sessionStorage.setItem(getInsightCacheKey(), content);
-
-  useEffect(() => {
-    if (!user || !userProfile || !logs || dataMaturity.count === 0 || !dataMaturity) return;
-
-    const briefCacheKey = `sia_brief_${user.uid}_${today}`;
-
-    // Session cache hit — skip Firestore read entirely
-    const sessionCached = sessionStorage.getItem(briefCacheKey);
-    if (sessionCached) {
-      setDailyBrief(sessionCached);
-      return;
-    }
-
-    const fetchBrief = async () => {
-      setIsBriefLoading(true);
-      try {
-        const now = new Date();
-        // Format today as YYYY-MM-DD
-        const todayStr = now.toISOString().split('T')[0];
-
-        // Calculate 'Last Night' (Night Started Date)
-        const lastNight = new Date(now);
-        lastNight.setDate(lastNight.getDate() - 1);
-        const lastNightStr = lastNight.toISOString().split('T')[0];
-
-        console.log("System Today:", todayStr);
-        console.log("Targeting Log from:", lastNightStr);
-
-        const sortedLogs = Object.values(logs).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-        
-        // Data Validation: Check if log exists for lastNightStr
-        const hasLastNightLog = logs[lastNightStr];
-
-        if (!hasLastNightLog) {
-          setDailyBrief(`I don't see a log for last night (${lastNightStr}) yet. Did you forget to record it?`);
-          setIsBriefLoading(false);
-          return;
-        }
-
-        const response = await AIService.generateDailyBrief(
-          user.uid,
-          Object.values(logs),
-          userProfile.tier,
-          dataMaturity,
-          todayStr, // Pass todayStr
-          lastNightStr // Pass lastNightStr for context
-        );
-        if (response.status === 'success') {
-          setDailyBrief(response.content);
-          if (response.content) sessionStorage.setItem(briefCacheKey, response.content);
-        } else {
-          setDailyBrief(rephraseGuardrailMessage(response.reason));
-        }
-      } catch (err) {
-        console.error('Brief Error:', err);
-      } finally {
-        setIsBriefLoading(false);
-      }
-    };
-
-    fetchBrief();
-  }, [user?.uid, userProfile?.tier, today, contextMaturity]);
 
   const getTierColors = (tier: string) => {
     switch (tier) {
@@ -242,342 +116,6 @@ export default function Dashboard({
       default: return "bg-zinc-600/10 border-zinc-500/30";
     }
   };
-
-
-  // Fetch insights from Firestore
-  useEffect(() => {
-    if (!user) return;
-    const fetchInsights = async () => {
-      try {
-        const q = query(
-          collection(db, 'users', user.uid, 'insights'),
-          orderBy('createdAt', 'desc'),
-          limit(6)
-        );
-        const snapshot = await getDocs(q);
-        const fetched: Insight[] = [];
-        snapshot.forEach(doc => fetched.push({ id: doc.id, ...doc.data() } as Insight));
-        setInsights(fetched);
-      } catch (e) { console.error('Insights fetch error:', e); }
-    };
-    fetchInsights();
-  }, [user?.uid]);
-
-  // Check for first visit
-  useEffect(() => {
-    const hasVisited = localStorage.getItem('sia_has_visited');
-    if (!hasVisited) {
-      setIsFirstVisit(true);
-      localStorage.setItem('sia_has_visited', 'true');
-    }
-  }, []);
-
-  // Calculate average bedtime
-  const averageBedtime = useMemo(() => {
-    const sleepLogs = Object.values(logs).filter(log => {
-      const sleepData = log.sleepEvents || log.timeline || [];
-      if (Array.isArray(sleepData) && sleepData.length > 0 && typeof sleepData[0] === 'string') {
-        return (sleepData as SleepState[]).some(s => s === 'sleep');
-      }
-      return (sleepData as SleepEvent[]).some(e => e.type === 'sleep');
-    });
-    if (sleepLogs.length === 0) return "22:00";
-
-    const relativeMinutesArray = sleepLogs.map(log => {
-      if (log.sleepEvents && log.sleepEvents.length > 0) {
-        const firstSleepEvent = log.sleepEvents.find(e => e.type === 'sleep');
-        if (firstSleepEvent) {
-          return getMinutesFrom2000(firstSleepEvent.start);
-        }
-      }
-      const timeline = log.timeline || [];
-      const firstSleepIndex = timeline.findIndex(s => s === 'sleep');
-      return firstSleepIndex !== -1 ? firstSleepIndex * 15 : 0;
-    });
-
-    const avgRelativeMinutes = relativeMinutesArray.reduce((a, b) => a + b, 0) / relativeMinutesArray.length;
-    const totalMinutesFromMidnight = (20 * 60 + avgRelativeMinutes) % (24 * 60);
-    const h = Math.floor(totalMinutesFromMidnight / 60);
-    const m = Math.round((totalMinutesFromMidnight % 60) / 15) * 15; // Round to nearest 15 mins
-    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
-  }, [logs]);
-
-  // Get last 7 days of logs relative to selectedDate
-  const periodDates = useMemo(() => {
-    const dates = [];
-    const baseDate = new Date(selectedDate);
-    for (let i = 0; i < 7; i++) {
-      const d = new Date(baseDate);
-      d.setDate(d.getDate() - i);
-      dates.push(d.toISOString().split('T')[0]);
-    }
-    return dates;
-  }, [selectedDate]);
-
-  const stats = useMemo(() => {
-    const periodLogs = periodDates.map(d => logs[d]).filter(Boolean);
-    if (periodLogs.length === 0) return null;
-
-    return {
-      avgSq: calculateSafeAverage(periodLogs, 'sleep_quality').average,
-      avgR: calculateSafeAverage(periodLogs, 'morning_alertness').average,
-      avgL: calculateSafeAverage(periodLogs, 'daytime_energy').average,
-      avgDuration: calculateSafeAverage(periodLogs, 'sleepDuration').average,
-      avgEfficiency: calculateSafeAverage(periodLogs, 'efficiency').average
-    };
-  }, [logs, periodDates]);
-
-  const chartData = useMemo(() => {
-    return periodDates.slice().reverse().map(date => {
-      const log = logs[date];
-      return {
-        date: date.split('-')[2], // Just the day
-        sq: log ? log.sleep_quality : 0,
-        r: log ? log.morning_alertness : 0,
-        l: log ? log.daytime_energy : 0
-      };
-    });
-  }, [logs, periodDates]);
-
-  const latestLog = useMemo(() => {
-    const sortedDates = Object.keys(logs).sort((a, b) => b.localeCompare(a));
-    return logs[sortedDates[0]] || null;
-  }, [logs]);
-
-    const greeting = useMemo(() => {
-      const isNewUser = Object.keys(logs).length === 0;
-      const todayStr = format(new Date(), 'yyyy-MM-dd');
-      const hasLoggedToday = !!logs[todayStr];
-      const hour = new Date().getHours();
-
-      let prefix = "";
-      let suffix = "";
-      let showLogLink = false;
-
-      if (isNewUser) {
-        return {
-          prefix: "Welcome",
-          suffix: "I am SIA. Let's begin establishing your sleep baseline."
-        };
-      }
-
-      if (hour >= 0 && hour < 5) {
-        prefix = "The midnight hour";
-        suffix = "Recovery is active. Your cognitive architecture requires deep rest to consolidate today’s data.";
-      } else if (hour >= 5 && hour < 12) {
-        prefix = "Morning";
-        if (hasLoggedToday) {
-          suffix = "Data ingested. Your sleep metrics are ready for analysis. Let's optimize your biological potential.";
-        } else {
-          suffix = "A new cycle has begun. Please capture your sleep metrics while the data fidelity is at its peak.";
-          showLogLink = true;
-        }
-      } else if (hour >= 12 && hour < 17) {
-        prefix = "Good afternoon";
-        suffix = "Your circadian rhythm is stable. We are monitoring your energy flux for optimal performance.";
-      } else if (hour >= 17 && hour < 21) {
-        prefix = "Evening";
-        suffix = "Your sleep gate is projected for " + averageBedtime + ". Prepare your environment for optimal transition.";
-      } else {
-        prefix = "Wind down";
-        suffix = "Consistency is the key to architecture. Aim for your " + averageBedtime + " target to maintain your baseline.";
-      }
-
-      return { prefix, suffix, showLogLink, onLogClick };
-    }, [logs, user, averageBedtime, onLogClick]);
-
-  const insightDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const generatePatternDecoder = async () => {
-    if (!logs || Object.keys(logs).length < 1 || !user || !userProfile || !dataMaturity || aiInsight) return;
-
-    // Check session cache first — avoid Firestore call entirely
-    const cached = getCachedInsight();
-    if (cached) {
-      setAiInsight(cached);
-      return;
-    }
-
-    setIsAiLoading(true);
-    try {
-      const response = await AIService.generatePatternDecoder(
-        user.uid,
-        Object.values(logs),
-        userProfile.tier,
-        dataMaturity,
-        today  // ← was hardcoded null — now passes today's date so guardrail can check "already generated"
-      );
-      if (response.status === 'success') {
-        setAiInsight(response.content);
-        if (response.content) setCachedInsight(response.content);
-      } else {
-        setAiInsight(rephraseGuardrailMessage(response.reason));
-      }
-    } catch (e) {
-      console.error('Dashboard AI Error:', e);
-    } finally {
-      setIsAiLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (!user || !userProfile || !dataMaturity) return;
-
-    const logCount = Object.keys(logs).length;
-    const today = format(new Date(), 'yyyy-MM-dd');
-    const thresholdKey = `sia_insight_threshold_${user.uid}_${today}`;
-
-    // Read the log count at last insight generation
-    const lastCountStr = sessionStorage.getItem(thresholdKey);
-    const lastCount = lastCountStr ? parseInt(lastCountStr, 10) : 0;
-
-    // Only re-fetch if we have a session cache miss OR 3+ new logs since last fetch
-    const sessionCached = sessionStorage.getItem(`sia_insight_${user.uid}_${today}`);
-    const newLogsSinceLast = logCount - lastCount;
-
-    if (sessionCached && newLogsSinceLast < 3) return;
-
-    if (insightDebounceRef.current) clearTimeout(insightDebounceRef.current);
-    insightDebounceRef.current = setTimeout(async () => {
-      await generatePatternDecoder();
-      // Record the log count at time of this generation
-      sessionStorage.setItem(thresholdKey, String(logCount));
-    }, 2000);
-
-    return () => { if (insightDebounceRef.current) clearTimeout(insightDebounceRef.current); };
-  }, [logs, user, userProfile, dataMaturity]);
-
-  const handleSaveLog = async (logData: any) => {
-    if (!user) {
-      console.error("No user found for save");
-      return;
-    }
-
-    // 1. Force 'saving' status for UI feedback
-    setSaveStatus('saving');
-
-    try {
-      const logId = logData.id || `log_${Date.now()}`;
-      
-      // Preserve existing visualTimeline if present in logData
-      const visualTimeline = logData.visualTimeline || [];
-      
-      const updatedLog = {
-        ...logData,
-        id: logId,
-        userId: user.uid,
-        updatedAt: new Date().toISOString(),
-        source: 'manual',
-        type: 'log',
-        visualTimeline, // Explicitly include preserved timeline
-        factors: {
-          ...logData.factors,
-          caffeine: {
-            consumed: !!logData.factors?.caffeine?.consumed,
-            amount: logData.factors?.caffeine?.amount || 0,
-            lastIntake: logData.factors?.caffeine?.lastIntake || '08:00'
-          },
-          alcohol: {
-            consumed: !!logData.factors?.alcohol?.consumed,
-            drinks: logData.factors?.alcohol?.drinks || 0,
-            lastIntake: logData.factors?.alcohol?.lastIntake || '20:00'
-          },
-          medication: {
-            taken: !!logData.factors?.medication?.taken,
-            type: logData.factors?.medication?.type || '',
-            time: logData.factors?.medication?.time || '08:00'
-          },
-          exercise: {
-            completed: !!logData.factors?.exercise?.completed,
-            type: logData.factors?.exercise?.type || '',
-            time: logData.factors?.exercise?.time || '08:00'
-          }
-        }
-      };
-
-      // 2. THE DIRECT STRIKE: Write to Firestore immediately
-      // This bypasses all loops and ensures persistence before refresh
-      const logRef = doc(db, 'users', user.uid, 'sleep_logs', logId);
-      await setDoc(logRef, updatedLog);
-
-      // 3. Update local state ONLY after DB success
-      setLogs(prev => ({
-        ...prev,
-        [logId]: updatedLog
-      }));
-
-      setSaveStatus('saved');
-      setTimeout(() => setSaveStatus('idle'), 2000);
-      setView('main'); // Return to dashboard
-      
-    } catch (error) {
-      console.error("SIA Persistence Error:", error);
-      setSaveStatus('error');
-    }
-  };
-
-  const handleDeepAnalysis = async () => {
-    if (!user || !userProfile || isAiLoading || !dataMaturity) return;
-    
-    setIsAiLoading(true);
-    setIsDeepAnalysis(true);
-    try {
-      const daysCount = personalizationProfile ? 90 : 30;
-      const logsRef = collection(db!, 'users', user.uid, 'sleep_logs');
-      
-      const querySnapshot = await getDocs(query(logsRef, where('type', '==', 'log'), orderBy('date', 'desc'), limit(daysCount)));
-      
-      const historicalLogs: DailyLog[] = [];
-      querySnapshot.forEach(doc => {
-        const data = doc.data() as DailyLog;
-        historicalLogs.push(data);
-      });
-
-      const response = await AIService.generateDeepAnalysis(
-        user.uid,
-        historicalLogs,
-        userProfile.tier,
-        dataMaturity,
-        today // Changed null to today
-      );
-
-      if (response.status === 'success') {
-        setAiInsight(response.content);
-      } else {
-        setAiInsight(rephraseGuardrailMessage(response.reason));
-      }
-    } catch (e) {
-      console.error("Deep Analysis Error:", e);
-    } finally {
-      setIsDeepAnalysis(false);
-      setIsAiLoading(false);
-    }
-  };
-
-  // Removed dataMaturity definition from here
-
-  const DISCLAIMER = "SIA provides lifestyle recommendations based on patterns. This is not a medical diagnosis. Consult a professional for clinical concerns.";
-
-  const isEnhanced = userProfile?.tier === 'Enhanced' || userProfile?.tier === 'Pro';
-  const isPro = userProfile?.tier === 'Pro';
-
-  const FEATURE_FLAGS = {
-    showClinicalInsights: true,
-    showSiaIntelligence: true
-  };
-
-  const recentGadgets = useMemo(() => {
-    const counts = new Map<string, number>();
-    Object.values(logs).slice(-7).forEach(log => {
-      log.factors?.sleepGadgets?.forEach(g => {
-        counts.set(g.type, (counts.get(g.type) ?? 0) + 1);
-      });
-    });
-    return Array.from(counts.entries())
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 4)
-      .map(([type]) => type);
-  }, [logs]);
 
   return (
     <div className="space-y-8 pb-12 relative">
@@ -770,20 +308,22 @@ export default function Dashboard({
             {dataMaturity.level >= 2 ? (
               <div className="space-y-6">
                 <div className="font-serif italic text-zinc-200 leading-relaxed text-sm">
-                  {isAiLoading ? (
+                  {insightTeaser ? (
+                    insightTeaser
+                  ) : (
                      <div className="flex items-center gap-2">
                        <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
-                       Synthesizing your patterns...
+                       SIA is currently decoding your last 14 nights to identify sleep-quality correlations...
                      </div>
-                  ) : (aiInsight || "No insights available yet.")}
+                  )}
                 </div>
                 
                 {!isAiLoading && (
                   <button 
                     onClick={() => onViewChange('ai')} 
-                    className="text-indigo-600 font-bold hover:underline text-xs"
+                    className="flex items-center text-indigo-400 font-bold hover:text-indigo-300 hover:underline text-xs"
                   >
-                    EXPLORE THIS PATTERN IN DETAIL →
+                    EXPLORE THIS PATTERN IN DETAIL <span className="ml-1">→</span>
                   </button>
                 )}
 
@@ -867,19 +407,21 @@ export default function Dashboard({
               <div className="absolute inset-0 bg-gradient-to-r from-zinc-900 via-zinc-800 to-zinc-900 rounded-3xl opacity-50 blur-sm" />
               <Card 
                 onClick={() => onViewChange('account')}
-                className="relative bg-zinc-950/80 border border-indigo-500/30 p-6 flex items-center justify-between cursor-pointer hover:border-indigo-500/50 transition-all min-h-[15svh] rounded-3xl backdrop-blur-sm"
+                className="group relative bg-zinc-950/80 border border-indigo-500/20 p-6 flex flex-col md:flex-row items-start md:items-center justify-between cursor-pointer hover:border-indigo-500 hover:bg-zinc-900/80 transition-all duration-500 min-h-[15svh] rounded-[24px] backdrop-blur-sm overflow-hidden"
               >
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-indigo-500/10 rounded-2xl flex items-center justify-center text-indigo-400 border border-indigo-500/20">
+                <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/0 via-indigo-500/0 to-indigo-500/5 group-hover:to-indigo-500/10 transition-colors duration-500" />
+                <div className="flex items-center gap-4 relative z-10 w-full md:w-auto">
+                  <div className="w-12 h-12 bg-zinc-950 rounded-xl flex items-center justify-center text-indigo-400 border border-indigo-500/30 group-hover:bg-indigo-500/10 group-hover:scale-105 group-hover:rotate-3 transition-all duration-500">
                     <Sparkles size={24} />
                   </div>
                   <div className="text-left">
-                    <p className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em]">Deep Analysis</p>
-                    <p className="text-xs text-zinc-400 font-medium mt-0.5">90 days of data + Enhanced/Pro required</p>
+                    <p className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em] mb-1">Unlock Deep Analysis</p>
+                    <p className="text-xs text-zinc-400 font-medium">90 days of data + Enhanced/Pro required</p>
                   </div>
                 </div>
-                <div className="px-4 py-2 bg-indigo-500/10 text-indigo-400 text-[10px] font-black uppercase tracking-widest rounded-xl border border-indigo-500/20">
-                  Upgrade →
+                <div className="relative z-10 mt-4 md:mt-0 flex items-center gap-3 px-5 py-2.5 bg-zinc-900 border-2 border-indigo-500/40 text-indigo-300 text-xs font-black uppercase tracking-[0.2em] rounded-full group-hover:bg-indigo-500 group-hover:text-white group-hover:border-indigo-400 transition-all duration-300 shadow-xl shadow-black/40">
+                  <span>Upgrade</span>
+                  <span className="transform group-hover:translate-x-1.5 transition-transform duration-300">→</span>
                 </div>
               </Card>
             </div>

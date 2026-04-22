@@ -22,10 +22,10 @@ import {
   Layers
 } from 'lucide-react';
 import { Card, AvatarFrame } from './UI';
-import DataMaturityTracker from './DataMaturityTracker';
+import DataMaturityTracker from '../features/data/DataMaturityTracker';
 import EthicalDataPledge from './EthicalDataPledge';
 import { purgeUserData } from '../utils/devTools';
-import DataManager from './DataManager';
+import DataManager from '../features/data/DataManager';
 import FeedbackForm from './FeedbackForm';
 import AdminFeedback from './AdminFeedback';
 import DevElementMap from './DevElementMap';
