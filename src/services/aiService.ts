@@ -34,6 +34,9 @@ export interface MaturityInfo {
   nextThreshold: number;
 }
 
+const MANDATE_MODEL = 'gemini-2.5-flash';
+const STABLE_MODEL = 'gemini-1.5-flash';
+
 export interface AIResponse {
   content: string | null;
   status: 'success' | 'skipped';
@@ -42,6 +45,21 @@ export interface AIResponse {
 
 export class AIService {
   private static apiKey = process.env.GEMINI_API_KEY || "";
+  private static genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
+
+  static async getGenerativeModelWithFallback(prompt: string) {
+    try {
+      const model = this.genAI.getGenerativeModel({ model: MANDATE_MODEL });
+      return await model.generateContent(prompt);
+    } catch (error: any) {
+      if (error.status === 503 || error.status === 404) {
+        console.warn(`SIA: Mandate model ${MANDATE_MODEL} failed. Falling back to ${STABLE_MODEL}`);
+        const fallbackModel = this.genAI.getGenerativeModel({ model: STABLE_MODEL });
+        return await fallbackModel.generateContent(prompt);
+      }
+      throw error;
+    }
+  }
 
   static getModelForTier(tier: UserTier): string {
     return SIA_AI_MODEL;
@@ -179,19 +197,31 @@ export class AIService {
       ${tier === 'Enhanced' ? 'Include a recommendation for "Circadian Advice" (e.g., optimized light exposure at a specific time).' : ''}
     `;
 
-    const callModel = async (model: string) => {
-      return await ai.models.generateContent({
-        model: model,
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        config: {
-          systemInstruction: "You are SIA, a Sleep Intelligence Agent. Provide a brief, professional daily summary.",
-          temperature: 0.7
+    const callModel = async (prompt: string, config: any) => {
+      try {
+        return await AIService.genAI.models.generateContent({
+          model: MANDATE_MODEL,
+          contents: [{ role: "user", parts: [{ text: prompt }] }],
+          config
+        });
+      } catch (error: any) {
+        if (error.status === 503 || error.status === 404) {
+          console.warn(`SIA: Mandate model ${MANDATE_MODEL} failed. Falling back to ${STABLE_MODEL}`);
+          return await AIService.genAI.models.generateContent({
+            model: STABLE_MODEL,
+            contents: [{ role: "user", parts: [{ text: prompt }] }],
+            config
+          });
         }
-      });
+        throw error;
+      }
     };
 
     try {
-      const response = await callModel(modelName);
+      const response = await callModel(prompt, {
+          systemInstruction: "You are SIA, a Sleep Intelligence Agent. Provide a brief, professional daily summary.",
+          temperature: 0.7
+      });
       const content = response.text || "Unable to generate brief.";
       
       // Check for partial logs
@@ -216,42 +246,6 @@ export class AIService {
     }
   }
 
-  static async generatePatternTeaser(userId: string, logs: DailyLog[], currentDate: string): Promise<string> {
-    const cacheRef = collection(db!, 'users', userId, 'analysis_cache');
-    const q = query(cacheRef, where('date', '==', currentDate), where('type', '==', 'teaser'), limit(1));
-    const snap = await getDocs(q);
-    
-    if (!snap.empty) {
-      return snap.docs[0].data().content;
-    }
-
-    const ai = new GoogleGenAI({ apiKey: this.apiKey });
-    const prompt = `
-      Analyze the following sleep logs (last 30 days): ${JSON.stringify(logs.slice(0, 30))}
-      Identify the single most significant trend or correlation.
-      Provide a concise 5-sentence summary written in a supportive yet direct tone.
-      Briefly mention the date range this reflects based on the log dates.
-      Do not give all the details; leave the user curious to read the full report.
-    `;
-    
-    const response = await ai.models.generateContent({
-      model: this.getModelForTier('Basic'),
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-      config: { systemInstruction: "You are SIA Teaser bot. Keep insights under 5 sentences.", temperature: 0.7 }
-    });
-    
-    const content = response.text || "Your nightly insights are ready to be explored.";
-    
-    await addDoc(cacheRef, {
-      date: currentDate,
-      content: content,
-      type: 'teaser',
-      createdAt: serverTimestamp()
-    });
-    
-    return content;
-  }
-
   static async generateDeepAnalysis(userId: string, logs: DailyLog[], tier: UserTier, maturity: MaturityInfo, lastGeneratedDate: string | null): Promise<AIResponse> {
     const today = format(new Date(), 'yyyy-MM-dd');
     
@@ -274,19 +268,31 @@ export class AIService {
       Format: "📊 SIA Monthly Analysis: [Your analysis here]"
     `;
 
-    const callModel = async (model: string) => {
-      return await ai.models.generateContent({
-        model: model,
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        config: {
-          systemInstruction: "You are 'SIA', a Sleep Intelligence Agent. Provide deep, structured, data-backed long-term sleep analysis.",
-          temperature: 0.7
+    const callModel = async (prompt: string, config: any) => {
+      try {
+        return await AIService.genAI.models.generateContent({
+          model: MANDATE_MODEL,
+          contents: [{ role: "user", parts: [{ text: prompt }] }],
+          config
+        });
+      } catch (error: any) {
+        if (error.status === 503 || error.status === 404) {
+          console.warn(`SIA: Mandate model ${MANDATE_MODEL} failed. Falling back to ${STABLE_MODEL}`);
+          return await AIService.genAI.models.generateContent({
+            model: STABLE_MODEL,
+            contents: [{ role: "user", parts: [{ text: prompt }] }],
+            config
+          });
         }
-      });
+        throw error;
+      }
     };
 
     try {
-      const response = await callModel(modelName);
+      const response = await callModel(prompt, {
+          systemInstruction: "You are 'SIA', a Sleep Intelligence Agent. Provide deep, structured, data-backed long-term sleep analysis.",
+          temperature: 0.7
+        });
 
       const content = response.text || "Unable to generate analysis.";
       const finalContent = `${content}\n\n***\n\n${DISCLAIMER}`;
@@ -331,19 +337,31 @@ export class AIService {
       promptText += `Return a single sentence about the most frequent sleep factor affect your sleep quality.`;
     }
 
-    const callModel = async (model: string) => {
-      return await ai.models.generateContent({
-        model: model,
-        contents: [{ role: "user", parts: [{ text: promptText }] }],
-        config: {
-          systemInstruction: "You are SIA, a clinical Sleep Intelligence Agent. Provide deep correlation insights.",
-          temperature: 0.7
+    const callModel = async (promptText: string, config: any) => {
+      try {
+        return await AIService.genAI.models.generateContent({
+          model: MANDATE_MODEL,
+          contents: [{ role: "user", parts: [{ text: promptText }] }],
+          config
+        });
+      } catch (error: any) {
+        if (error.status === 503 || error.status === 404) {
+          console.warn(`SIA: Mandate model ${MANDATE_MODEL} failed. Falling back to ${STABLE_MODEL}`);
+          return await AIService.genAI.models.generateContent({
+            model: STABLE_MODEL,
+            contents: [{ role: "user", parts: [{ text: promptText }] }],
+            config
+          });
         }
-      });
+        throw error;
+      }
     };
 
     try {
-      const response = await callModel(modelName);
+      const response = await callModel(promptText, {
+          systemInstruction: "You are SIA, a clinical Sleep Intelligence Agent. Provide deep correlation insights.",
+          temperature: 0.7
+        });
 
       const content = response.text || "Unable to generate insight.";
       const finalContent = `${content}\n\n***\n\n${DISCLAIMER}`;
@@ -507,14 +525,34 @@ export class AIService {
       }
     `;
 
-    const callModel = async (model: string) => {
-      return await ai.models.generateContent({
-        model: model,
-        contents: [
-          ...context.history,
-          { role: "user", parts: [{ text: userMessage }] }
-        ],
-        config: {
+    const callModel = async (userMessage: string, config: any) => {
+      try {
+        return await AIService.genAI.models.generateContent({
+          model: MANDATE_MODEL,
+          contents: [
+            ...context.history,
+            { role: "user", parts: [{ text: userMessage }] }
+          ],
+          config
+        });
+      } catch (error: any) {
+        if (error.status === 503 || error.status === 404) {
+          console.warn(`SIA: Mandate model ${MANDATE_MODEL} failed. Falling back to ${STABLE_MODEL}`);
+          return await AIService.genAI.models.generateContent({
+            model: STABLE_MODEL,
+            contents: [
+              ...context.history,
+              { role: "user", parts: [{ text: userMessage }] }
+            ],
+            config
+          });
+        }
+        throw error;
+      }
+    };
+
+    try {
+      const response = await callModel(userMessage, {
           systemInstruction,
           temperature: 0.7,
           responseMimeType: "application/json",
@@ -542,12 +580,7 @@ export class AIService {
             },
             required: ["answer", "sleep_quality", "morning_alertness", "daytime_energy"]
           }
-        }
-      });
-    };
-
-    try {
-      const response = await callModel(modelName);
+        });
 
       const result = JSON.parse(response.text || '{}');
       const answer = result.answer || "I'm sorry, I couldn't process that.";

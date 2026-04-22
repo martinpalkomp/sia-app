@@ -148,8 +148,6 @@ export default function Dashboard({
   const [isDeepAnalysis, setIsDeepAnalysis] = useState(false);
   const [isFirstVisit, setIsFirstVisit] = useState(false);
   const [showUnlockEnhanced, setShowUnlockEnhanced] = useState(false);
-  const [patternTeaser, setPatternTeaser] = useState<string | null>(null);
-  const [isLoadingTeaser, setIsLoadingTeaser] = useState(false);
 
   const correctionsCount = useMemo(() => {
     const trackingStartDate = format(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd');
@@ -264,24 +262,6 @@ export default function Dashboard({
     };
     fetchInsights();
   }, [user?.uid]);
-
-  useEffect(() => {
-    if (!user || dataMaturity.level < 2 || patternTeaser) return;
-
-    const fetchTeaser = async () => {
-      setIsLoadingTeaser(true);
-      try {
-        const teaser = await AIService.generatePatternTeaser(user.uid, Object.values(logs), today);
-        setPatternTeaser(teaser);
-      } catch (e) {
-        console.error("Teaser Error:", e);
-      } finally {
-        setIsLoadingTeaser(false);
-      }
-    };
-
-    fetchTeaser();
-  }, [user, dataMaturity, logs, today]);
 
   // Check for first visit
   useEffect(() => {
@@ -787,14 +767,29 @@ export default function Dashboard({
               </div>
             </div>
             
-            {dataMaturity.level >= 3 ? (
-              <div className="space-y-4">
-                <p className="text-zinc-200 leading-relaxed text-sm font-medium">
-                  {isAiLoading ? "Analyzing recent logs..." : (aiInsight ? aiInsight : "No insights available yet.")}
-                </p>
-                {!isAiLoading && aiInsight && (
-                  <p className="text-[10px] text-zinc-500 italic leading-tight">{DISCLAIMER}</p>
+            {dataMaturity.level >= 2 ? (
+              <div className="space-y-6">
+                <div className="font-serif italic text-zinc-200 leading-relaxed text-sm">
+                  {isAiLoading ? (
+                     <div className="flex items-center gap-2">
+                       <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
+                       Synthesizing your patterns...
+                     </div>
+                  ) : (aiInsight || "No insights available yet.")}
+                </div>
+                
+                {!isAiLoading && (
+                  <button 
+                    onClick={() => onViewChange('ai')} 
+                    className="text-indigo-600 font-bold hover:underline text-xs"
+                  >
+                    EXPLORE THIS PATTERN IN DETAIL →
+                  </button>
                 )}
+
+                <div className="text-[10px] text-slate-400">
+                  Last analyzed: {new Date().toLocaleDateString()} • Next update in 14h
+                </div>
               </div>
             ) : (
               <div className="space-y-4">
@@ -866,28 +861,6 @@ export default function Dashboard({
             <ChevronRight size={24} className="text-white group-hover:translate-x-1 transition-transform" />
           </Card>
 
-          {dataMaturity.level >= 2 && (
-            isLoadingTeaser ? (
-              <Card className="bg-zinc-900 border border-zinc-800 p-6 rounded-3xl min-h-[15svh] flex items-center justify-center">
-                 <Loader2 className="animate-spin text-zinc-500" />
-              </Card>
-            ) : patternTeaser ? (
-              <Card
-                id="ai-analysis-card"
-                onClick={() => onViewChange('ai')}
-                className="relative bg-zinc-900/50 border border-indigo-500/20 p-6 flex flex-col justify-start rounded-3xl min-h-[15svh] group cursor-pointer hover:border-indigo-500/40"
-              >
-                <div className="flex items-center gap-3 mb-4">
-                  <Sparkles className="text-amber-400" size={16} />
-                  <span className="text-[10px] font-black uppercase text-amber-500 tracking-widest">SIA INSIGHT TEASER</span>
-                </div>
-                <p className="text-zinc-300 font-bold text-sm leading-relaxed mb-6">{patternTeaser}</p>
-                <div className="mt-auto">
-                    <span className="text-indigo-400 text-[10px] font-black uppercase tracking-widest hover:underline group-hover:text-indigo-300">READ FULL ANALYSIS →</span>
-                </div>
-              </Card>
-            ) : null
-          )}
           {/* Deep Analysis Card (Placeholder/Locked or Active) */}
           {userProfile?.tier === 'Basic' ? (
             <div className="relative w-full group">

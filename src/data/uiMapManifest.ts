@@ -68,7 +68,6 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
       children: [
         { id: 'log-last-night-card', name: 'Log Last Night Card', tag: 'btn', description: 'Navigates to Log view via onLogClick', path: '/src/components/Dashboard.tsx' },
         { id: 'fix-missing-data-btn', name: 'Fix Missing Data Button', tag: 'btn', description: 'Shown only when correctionsCount > 0, navigates to corrections', path: '/src/components/Dashboard.tsx' },
-        { id: 'ai-analysis-card', name: 'AI Analysis Card', tag: 'btn', description: 'Navigates to AI view via onViewChange(ai)', path: '/src/components/Dashboard.tsx' },
       ]
     },
     {
