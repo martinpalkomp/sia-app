@@ -391,6 +391,7 @@ export default function DashboardContainer({
       insightTeaser={insightTeaser}
       setInsightTeaser={setInsightTeaser}
       dailyBrief={dailyBrief}
+      isEnhanced={userProfile?.tier !== 'Basic'}
       isAiLoading={isAiLoading}
       setIsAiLoading={setIsAiLoading}
       isBriefLoading={isBriefLoading}

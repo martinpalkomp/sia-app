@@ -23,7 +23,28 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
         { id: 'greeting-subtext', name: 'Greeting Subtext', tag: 'comp', description: 'Context line', path: '/src/features/dashboard/DashboardView.tsx' },
       ]
     },
+    {
+      id: 'db-sleep-gate',
+      name: 'Sleep Gate Hero Section',
+      tag: 'section',
+      description: 'Projected bedtime and wind-down window',
+      path: '/src/features/dashboard/SleepGateHero.tsx',
+    },
     { id: 'dev-switchboard-mini', name: 'Dev Switchboard Mini', tag: 'comp', description: 'Collapsible dev switchboard.', path: '/src/components/DevSwitchboardMini.tsx' },
+    {
+      id: 'metric-sparkline-card',
+      name: 'Metric Sparkline Card',
+      tag: 'card',
+      description: 'Metric card with trend sparkline',
+      path: '/src/components/MetricSparklineCard.tsx',
+    },
+    {
+      id: 'db-sia-pattern-decoder',
+      name: 'SIA Pattern Decoder Card',
+      tag: 'card',
+      description: 'Full-width visual decoder card',
+      path: '/src/features/dashboard/DashboardView.tsx',
+    },
     {
       id: 'db-data-ledger',
       name: 'Unified Data Audit Trail',
