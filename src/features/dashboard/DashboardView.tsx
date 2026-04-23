@@ -3,7 +3,6 @@ import { motion } from 'motion/react';
 import { Activity, Sun, Zap, Clock, BarChart3, Moon, TrendingUp, Sparkles, Brain, Plus, ChevronRight } from 'lucide-react';
 import { Card } from '../../components/UI';
 import { MetricSparklineCard } from '../../components/MetricSparklineCard';
-import { Header } from '../../components/Header';
 import { SleepGateHero } from './SleepGateHero';
 import { InsightCard } from '../../components/InsightCard';
 import DataMaturityTracker from '../data/DataMaturityTracker';
@@ -76,7 +75,6 @@ export const DashboardView: React.FC<{
 }) => {
   return (
     <div className="space-y-8">
-      <Header user={user} greeting={greeting} />
       <SleepGateHero logs={{}} userName={userProfile?.displayName} />
 
       <div className="grid md:grid-cols-2 gap-6">
@@ -221,6 +219,11 @@ export const DashboardView: React.FC<{
             </div>
           </div>
         </motion.button>
+      </section>
+
+      {/* Section: Data Maturity */}
+      <section className="space-y-4 pt-6 border-t border-zinc-800" id="acc-maturity-tracker">
+        <DataMaturityTracker maturity={dataMaturity} />
       </section>
     </div>
   );

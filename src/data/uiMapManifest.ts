@@ -118,7 +118,7 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
       description: 'Progress bar for data calibration',
       path: '/src/features/dashboard/DashboardView.tsx',
       children: [
-        { id: 'maturity-tracker', name: 'Data Maturity Tracker', tag: 'comp', description: 'Multi-bar roadmap for data calibration', path: '/src/components/DataMaturityTracker.tsx' },
+        { id: 'maturity-tracker', name: 'Data Maturity Tracker', tag: 'comp', description: 'Multi-bar roadmap for data calibration', path: '/src/features/data/DataMaturityTracker.tsx' },
       ]
     },
   ],

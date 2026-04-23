@@ -52,7 +52,7 @@ export const Navbar: React.FC<NavbarProps> = ({ user, view, setView, handleLogou
 
   return (
     <header className={`fixed top-0 left-0 right-0 z-50 backdrop-blur-md bg-clinical-bg/70 ${getTierStyles('border')}`}>
-      <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
         {/* Logo Group (Desktop) */}
         <button onClick={() => setView('dashboard')} className="hidden md:flex items-center gap-3 hover:opacity-80 transition-opacity">
           <AvatarFrame 

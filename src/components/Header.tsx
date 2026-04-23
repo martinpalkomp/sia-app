@@ -13,21 +13,7 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({ user, greeting }) => {
   return (
     <section className="flex items-center gap-6">
-      <motion.div 
-        initial={{ opacity: 0, scale: 0.8 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="relative"
-      >
-        <AvatarFrame 
-          src="https://i.imgur.com/MnI5hn3.png" 
-          alt="SIA Avatar" 
-          size="md"
-          className="shadow-xl aspect-square object-cover rounded-full w-16 h-16 shadow-indigo-500/10 border-zinc-800/50"
-        />
-      </motion.div>
-
       <div className="flex flex-col items-start space-y-0.5 min-w-0 flex-1">
-        <span className="bg-indigo-600 text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wide font-semibold text-zinc-50 shrink-0">Sleep Intelligence Agent</span>
         <motion.h1 
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
