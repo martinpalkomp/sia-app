@@ -82,7 +82,7 @@ export const DashboardView: React.FC<{
       </div>
 
       {/* Section: Status Report */}
-      <section className="space-y-4">
+      <section className="space-y-4 relative z-30">
         <h2 className="font-black text-xs tracking-widest text-zinc-50 uppercase mb-4">Status Report</h2>
         <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
           <MetricSparklineCard 

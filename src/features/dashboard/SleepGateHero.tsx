@@ -36,11 +36,11 @@ export const SleepGateHero: React.FC<SleepGateHeroProps> = ({ logs, userName }) 
   const getBackgroundImage = () => {
     const hour = new Date().getHours();
     if (hour >= 6 && hour <= 15) {
-      return "https://raw.githubusercontent.com/martinpalko/sia-app/refs/heads/main/sia_morning.jpg";
+      return "https://raw.githubusercontent.com/martinpalkomp/sia-app/main/sia_morning.jpg";
     } else if (hour > 15 && hour <= 21) {
-      return "https://raw.githubusercontent.com/martinpalko/sia-app/refs/heads/main/sia_evening.jpg";
+      return "https://raw.githubusercontent.com/martinpalkomp/sia-app/main/sia_evening.jpg";
     } else {
-      return "https://raw.githubusercontent.com/martinpalko/sia-app/refs/heads/main/sia_night.jpg";
+      return "https://raw.githubusercontent.com/martinpalkomp/sia-app/main/sia_night.jpg";
     }
   };
 
@@ -48,18 +48,18 @@ export const SleepGateHero: React.FC<SleepGateHeroProps> = ({ logs, userName }) 
     <motion.section 
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="relative w-full min-h-[400px] overflow-hidden rounded-[2rem] p-6 lg:p-10 text-white flex flex-col"
+      className="relative w-full min-h-[600px] overflow-hidden p-6 lg:p-10 text-white flex flex-col -mb-30 z-10"
     >
       <img
         src={getBackgroundImage()}
         alt="Atmospheric landscape"
-        className="absolute inset-0 w-full h-full object-cover z-0"
+        className="absolute inset-0 w-full h-full object-cover -z-10"
       />
       
-      <div className="absolute inset-0 z-1 bg-gradient-to-r from-zinc-950/90 via-zinc-950/60 to-zinc-900/20" />
+      <div className="absolute inset-0 z-0 bg-gradient-to-t from-zinc-950 via-zinc-950/20 to-transparent" />
 
       {/* Top Bar: Avatar and Badge */}
-      <div className="relative z-10 flex items-center gap-3 mb-8">
+      <div className="relative z-20 flex items-center gap-3 mb-8">
         <img 
           src="https://i.imgur.com/MnI5hn3.png" 
           alt="SIA Avatar" 
@@ -70,7 +70,7 @@ export const SleepGateHero: React.FC<SleepGateHeroProps> = ({ logs, userName }) 
         </span>
       </div>
 
-      <div className="relative z-10 grid md:grid-cols-2 gap-8 items-center w-full py-6 flex-1">
+      <div className="relative z-20 grid md:grid-cols-2 gap-8 items-center w-full py-6 flex-1">
         <div className="order-2 md:order-1">
           <h2 className="text-4xl lg:text-5xl font-black font-sans tracking-tighter mb-3 text-white">{greeting}</h2>
           <p className="text-zinc-200 mb-8 font-medium text-lg leading-relaxed max-w-md">
