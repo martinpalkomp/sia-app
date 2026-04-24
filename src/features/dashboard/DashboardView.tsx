@@ -75,10 +75,39 @@ export const DashboardView: React.FC<{
 }) => {
   return (
     <div className="space-y-8">
-      <SleepGateHero logs={{}} userName={userProfile?.displayName} />
+      <SleepGateHero logs={{}} userName={userProfile?.displayName} className="-mt-16" />
 
       <div className="grid md:grid-cols-2 gap-6">
-        {/* Placeholder for Quick Action & Morning Briefing */}
+        <Card className="bg-zinc-900 border-zinc-800 p-6 flex flex-col justify-between">
+          <div className="space-y-2">
+            <h3 className="text-zinc-400 text-xs font-black uppercase tracking-widest">Next Step</h3>
+            <p className="text-white font-bold">{greeting.prefix}, {userProfile?.displayName?.split(' ')[0] || 'SIA User'}.</p>
+          </div>
+          {greeting.showLogLink && (
+            <button
+              onClick={greeting.onLogClick}
+              className="mt-4 w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-black uppercase tracking-widest flex items-center justify-center gap-2"
+            >
+              <Plus size={14} /> Log Last Night
+            </button>
+          )}
+        </Card>
+        
+        <Card className="bg-zinc-900 border-zinc-800 p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <Sparkles className="text-indigo-400" size={16} />
+            <h3 className="text-indigo-400 text-xs font-black uppercase tracking-widest">Daily Briefing</h3>
+          </div>
+          {isBriefLoading ? (
+            <div className="animate-pulse flex space-x-4">
+              <div className="h-12 w-full bg-zinc-800 rounded"></div>
+            </div>
+          ) : dailyBrief ? (
+            <p className="text-zinc-300 text-xs italic leading-relaxed">{dailyBrief.substring(0, 150)}...</p>
+          ) : (
+             <p className="text-zinc-600 text-xs italic">SIA is calibrating for your next brief.</p>
+          )}
+        </Card>
       </div>
 
       {/* Section: Status Report */}

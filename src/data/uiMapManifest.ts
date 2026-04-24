@@ -407,36 +407,36 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
       name: 'Account View', 
       tag: 'view', 
       description: 'User account and subscription management', 
-      path: '/src/components/AccountPage.tsx',
+      path: '/src/features/account/AccountPage.tsx',
       children: [
-        { id: 'acc-header', name: 'Header Section', tag: 'section', description: 'User avatar and profile info', path: '/src/components/AccountPage.tsx', children: [
-          { id: 'acc-back-btn', name: 'Back Button', tag: 'btn', description: 'Navigates back to Dashboard.', path: '/src/components/AccountPage.tsx' },
+        { id: 'acc-header', name: 'Header Section', tag: 'section', description: 'User avatar and profile info', path: '/src/features/account/AccountPage.tsx', children: [
+          { id: 'acc-back-btn', name: 'Back Button', tag: 'btn', description: 'Navigates back to Dashboard.', path: '/src/features/account/AccountPage.tsx' },
         ]},
-        { id: 'acc-tier-section', name: 'Intelligence Tier Section', tag: 'section', description: 'Display and upgrade for SIA tiers', path: '/src/components/AccountPage.tsx', children: [
-          { id: 'tier-option-basic', name: 'Basic Tier Option', tag: 'comp', description: 'Basic tier details and activation.', path: '/src/components/AccountPage.tsx' },
-          { id: 'tier-option-enhanced', name: 'Enhanced Tier Option', tag: 'comp', description: 'Enhanced tier details and activation.', path: '/src/components/AccountPage.tsx' },
-          { id: 'tier-option-pro', name: 'Pro Tier Option', tag: 'comp', description: 'Pro tier details and activation.', path: '/src/components/AccountPage.tsx' },
+        { id: 'acc-tier-section', name: 'Intelligence Tier Section', tag: 'section', description: 'Display and upgrade for SIA tiers', path: '/src/features/account/AccountPage.tsx', children: [
+          { id: 'tier-option-basic', name: 'Basic Tier Option', tag: 'comp', description: 'Basic tier details and activation.', path: '/src/features/account/AccountPage.tsx' },
+          { id: 'tier-option-enhanced', name: 'Enhanced Tier Option', tag: 'comp', description: 'Enhanced tier details and activation.', path: '/src/features/account/AccountPage.tsx' },
+          { id: 'tier-option-pro', name: 'Pro Tier Option', tag: 'comp', description: 'Pro tier details and activation.', path: '/src/features/account/AccountPage.tsx' },
         ]},
-        { id: 'acc-data-overview', name: 'Data Overview Section', tag: 'section', description: 'Sleep goals and demographics', path: '/src/components/AccountPage.tsx', children: [
-          { id: 'acc-maturity-tracker', name: 'Data Maturity Tracker', tag: 'comp', description: 'Multi-bar roadmap for data calibration. Source is Firestore count.', path: '/src/components/DataMaturityTracker.tsx' },
-          { id: 'acc-goals-list', name: 'Goals List', tag: 'comp', description: 'List of sleep goals', path: '/src/components/AccountPage.tsx' },
-          { id: 'acc-health-tags', name: 'Health Tags', tag: 'comp', description: 'Health tags', path: '/src/components/AccountPage.tsx' },
-          { id: 'acc-demographics-row', name: 'Demographics Row', tag: 'comp', description: 'Age, Sex, Work, etc.', path: '/src/components/AccountPage.tsx' },
-          { id: 'acc-anonymized-toggle', name: 'Anonymized Sharing Toggle', tag: 'input', description: 'Writes to personalizationProfile.allowsAnonymizedSharing.', path: '/src/components/AccountPage.tsx' },
+        { id: 'acc-data-overview', name: 'Data Overview Section', tag: 'section', description: 'Sleep goals and demographics', path: '/src/features/account/AccountPage.tsx', children: [
+          { id: 'acc-maturity-tracker', name: 'Data Maturity Tracker', tag: 'comp', description: 'Multi-bar roadmap for data calibration. Source is Firestore count.', path: '/src/features/data/DataMaturityTracker.tsx' },
+          { id: 'acc-goals-list', name: 'Goals List', tag: 'comp', description: 'List of sleep goals', path: '/src/features/account/AccountPage.tsx' },
+          { id: 'acc-health-tags', name: 'Health Tags', tag: 'comp', description: 'Health tags', path: '/src/features/account/AccountPage.tsx' },
+          { id: 'acc-demographics-row', name: 'Demographics Row', tag: 'comp', description: 'Age, Sex, Work, etc.', path: '/src/features/account/AccountPage.tsx' },
+          { id: 'acc-anonymized-toggle', name: 'Anonymized Sharing Toggle', tag: 'input', description: 'Writes to personalizationProfile.allowsAnonymizedSharing.', path: '/src/features/account/AccountPage.tsx' },
         ]},
-        { id: 'acc-actions', name: 'Actions Section', tag: 'section', description: 'Ledger, Assessment, Logout, Feedback, Element Map', path: '/src/components/AccountPage.tsx', children: [
-          { id: 'acc-element-map-btn', name: 'Element Map Button', tag: 'btn', description: 'Navigates to Element Map view.', path: '/src/components/AccountPage.tsx' },
-          { id: 'acc-modify-assessment-btn', name: 'Modify Assessment Button', tag: 'btn', description: 'Modify assessment', path: '/src/components/AccountPage.tsx' },
-          { id: 'acc-export-summary-btn', name: 'Export Summary Button', tag: 'btn', description: 'Downloads daily_trends_summary.csv.', path: '/src/components/AccountPage.tsx' },
-          { id: 'acc-export-deep-btn', name: 'Export Deep Architecture Button', tag: 'btn', description: 'Downloads deep_architecture.csv. Disabled for Basic tier.', path: '/src/components/AccountPage.tsx' },
-          { id: 'acc-delete-account-btn', name: 'Delete Account Button', tag: 'btn', description: 'Delete account', path: '/src/components/AccountPage.tsx' },
+        { id: 'acc-actions', name: 'Actions Section', tag: 'section', description: 'Ledger, Assessment, Logout, Feedback, Element Map', path: '/src/features/account/AccountPage.tsx', children: [
+          { id: 'acc-element-map-btn', name: 'Element Map Button', tag: 'btn', description: 'Navigates to Element Map view.', path: '/src/features/account/AccountPage.tsx' },
+          { id: 'acc-modify-assessment-btn', name: 'Modify Assessment Button', tag: 'btn', description: 'Modify assessment', path: '/src/features/account/AccountPage.tsx' },
+          { id: 'acc-export-summary-btn', name: 'Export Summary Button', tag: 'btn', description: 'Downloads daily_trends_summary.csv.', path: '/src/features/account/AccountPage.tsx' },
+          { id: 'acc-export-deep-btn', name: 'Export Deep Architecture Button', tag: 'btn', description: 'Downloads deep_architecture.csv. Disabled for Basic tier.', path: '/src/features/account/AccountPage.tsx' },
+          { id: 'acc-delete-account-btn', name: 'Delete Account Button', tag: 'btn', description: 'Delete account', path: '/src/features/account/AccountPage.tsx' },
         ]},
-        { id: 'acc-dev-tools', name: 'Developer Tools Section', tag: 'section', description: 'Admin-only debugging and data management', path: '/src/components/AccountPage.tsx', children: [
-          { id: 'dev-clear-local', name: 'Clear All Local Data Button', tag: 'btn', description: 'Wipes localStorage.', path: '/src/components/AccountPage.tsx' },
-          { id: 'dev-switchboard-container', name: 'Dev Switchboard', tag: 'section', description: 'Dev Environment Only / Admin only.', path: '/src/components/AccountPage.tsx', children: [
-            { id: 'dev-tier-buttons', name: 'Tier Toggle Buttons', tag: 'btn', description: 'Dev Environment Only.', path: '/src/components/AccountPage.tsx' },
-            { id: 'dev-maturity-buttons', name: 'Maturity Toggle Buttons', tag: 'btn', description: 'Dev Environment Only.', path: '/src/components/AccountPage.tsx' },
-            { id: 'dev-reset-btn', name: 'Reset Button', tag: 'btn', description: 'Clears dev overrides.', path: '/src/components/AccountPage.tsx' },
+        { id: 'acc-dev-tools', name: 'Developer Tools Section', tag: 'section', description: 'Admin-only debugging and data management', path: '/src/features/account/AccountPage.tsx', children: [
+          { id: 'dev-clear-local', name: 'Clear All Local Data Button', tag: 'btn', description: 'Wipes localStorage.', path: '/src/features/account/AccountPage.tsx' },
+          { id: 'dev-switchboard-container', name: 'Dev Switchboard', tag: 'section', description: 'Dev Environment Only / Admin only.', path: '/src/features/account/AccountPage.tsx', children: [
+            { id: 'dev-tier-buttons', name: 'Tier Toggle Buttons', tag: 'btn', description: 'Dev Environment Only.', path: '/src/features/account/AccountPage.tsx' },
+            { id: 'dev-maturity-buttons', name: 'Maturity Toggle Buttons', tag: 'btn', description: 'Dev Environment Only.', path: '/src/features/account/AccountPage.tsx' },
+            { id: 'dev-reset-btn', name: 'Reset Button', tag: 'btn', description: 'Clears dev overrides.', path: '/src/features/account/AccountPage.tsx' },
           ]},
         ]},
       ]

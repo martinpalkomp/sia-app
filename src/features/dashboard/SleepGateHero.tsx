@@ -6,6 +6,7 @@ import { DailyLog } from '../../types';
 interface SleepGateHeroProps {
   logs: Record<string, DailyLog>;
   userName?: string;
+  className?: string;
 }
 
 const CircularTimer = () => (
@@ -30,25 +31,18 @@ const CircularTimer = () => (
   </div>
 );
 
-export const SleepGateHero: React.FC<SleepGateHeroProps> = ({ logs, userName }) => {
+export const SleepGateHero: React.FC<SleepGateHeroProps> = ({ logs, userName, className }) => {
   const greeting = userName ? `Evening, ${userName}` : 'Good Evening';
 
   const getBackgroundImage = () => {
-    const hour = new Date().getHours();
-    if (hour >= 6 && hour <= 15) {
-      return "https://raw.githubusercontent.com/martinpalkomp/sia-app/main/sia_morning.jpg";
-    } else if (hour > 15 && hour <= 21) {
-      return "https://raw.githubusercontent.com/martinpalkomp/sia-app/main/sia_evening.jpg";
-    } else {
-      return "https://raw.githubusercontent.com/martinpalkomp/sia-app/main/sia_night.jpg";
-    }
+    return "https://raw.githubusercontent.com/martinpalkomp/sia-app/refs/heads/main/sia_all.jpg";
   };
 
   return (
     <motion.section 
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="relative w-full min-h-[600px] overflow-hidden p-6 lg:p-10 text-white flex flex-col -mb-30 z-10"
+      className={`relative w-full min-h-[600px] overflow-hidden p-6 lg:p-10 text-white flex flex-col -mb-30 z-10 ${className || ''}`}
     >
       <img
         src={getBackgroundImage()}

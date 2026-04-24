@@ -48,7 +48,9 @@ import {
   Circle,
   Watch,
   Activity,
-  Sparkles
+  Sparkles,
+  Zap,
+  Clock
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { GoogleGenAI } from "@google/genai";
@@ -58,6 +60,7 @@ import {
   SLEEP_STATES, 
   getSlotLabel
 } from './constants';
+import { MetricSummaryCard } from './components/MetricSummaryCard';
 
 const getDefaultLog = (date: string): DailyLog => ({
   date: date,
@@ -112,7 +115,7 @@ import CorrectionHub from './components/CorrectionHub';
 const AIInsightsAgent = lazy(() => import('./features/ai/AIInsightsAgent'));
 const DashboardContainer = lazy(() => import('./features/dashboard/DashboardContainer'));
 const PersonalizationWizard = lazy(() => import('./components/PersonalizationWizard'));
-import AccountPage from './components/AccountPage';
+import AccountPage from './features/account/AccountPage';
 import SleepRibbon from './components/SleepRibbon';
 import SleepPatternCard from './components/SleepPatternCard';
 import { SleepWindow } from './features/sleep/SleepWindow';
@@ -1356,16 +1359,15 @@ export default function App() {
   }
 
   return (
-    <UserProvider
-      logs={logs}
-      user={user}
-      userProfile={userProfile}
-      personalizationProfile={personalizationProfile}
-      isProfileLoading={isProfileLoading}
-      tier={derivedTier}
-      maturity={maturity}
-      highlightTier={highlightTier}
-    >
+        <UserProvider
+          user={user}
+          userProfile={userProfile}
+          personalizationProfile={personalizationProfile}
+          isProfileLoading={isProfileLoading}
+          tier={derivedTier}
+          maturity={maturity}
+          highlightTier={highlightTier}
+        >
       <div className={`min-h-screen bg-clinical-bg text-clinical-text font-sans selection:bg-indigo-500/30 max-w-[100vw] overflow-x-hidden ${personalizationProfile ? 'enhanced-mode' : ''}`}>
         {/* Navbar */}
         <Navbar 
@@ -1401,7 +1403,6 @@ export default function App() {
                 >
                   <Suspense fallback={<div className="flex items-center justify-center h-64"><div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"/></div>}>
                     <DashboardContainer 
-                      logs={logs} 
                       user={user}
                       userProfile={{ ...userProfile, tier: derivedTier }}
                       selectedDate={selectedDate}
@@ -2559,34 +2560,44 @@ export default function App() {
               {/* Averages Grid */}
               {averageStats ? (
                 <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
-                  <MetricDisplay 
+                  <MetricSummaryCard 
                     title="Avg Quality" 
                     value={Math.round(averageStats.sq)} 
                     unit="/10" 
-                    className="bg-zinc-900/50 border border-zinc-800 p-5 rounded-3xl" 
+                    icon={<Activity />}
+                    color="text-indigo-400"
+                    delta={{ value: 1, label: 'vs prev 7 days' }}
                   />
-                  <MetricDisplay 
+                  <MetricSummaryCard 
                     title="Avg Rested" 
                     value={Math.round(averageStats.r)} 
                     unit="/10" 
-                    className="bg-zinc-900/50 border border-zinc-800 p-5 rounded-3xl" 
+                    icon={<Sun />}
+                    color="text-amber-400"
+                    delta={{ value: -1, label: 'vs prev 7 days' }}
                   />
-                  <MetricDisplay 
+                  <MetricSummaryCard 
                     title="Avg Energy" 
                     value={Math.round(averageStats.l)} 
                     unit="/10" 
-                    className="bg-zinc-900/50 border border-zinc-800 p-5 rounded-3xl" 
+                    icon={<Zap />}
+                    color="text-emerald-400"
+                    delta={{ value: 1, label: 'vs prev 7 days' }}
                   />
-                  <MetricDisplay 
+                  <MetricSummaryCard 
                     title="Avg Sleep" 
                     value={formatDuration(averageStats.duration)} 
-                    className="bg-zinc-900/50 border border-zinc-800 p-5 rounded-3xl" 
+                    icon={<Clock />}
+                    color="text-violet-400"
+                    delta={{ value: -15, label: 'vs prev 7 days' }}
                   />
-                  <MetricDisplay 
+                  <MetricSummaryCard 
                     title="Avg Efficiency" 
                     value={Math.round(averageStats.efficiency)} 
                     unit="%" 
-                    className="bg-zinc-900/50 border border-zinc-800 p-5 rounded-3xl" 
+                    icon={<BarChart3 />}
+                    color="text-blue-400"
+                    delta={{ value: 2, label: 'vs prev 7 days' }}
                   />
                 </div>
               ) : (

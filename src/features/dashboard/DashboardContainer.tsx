@@ -7,6 +7,7 @@ import { DailyLog, UserProfile, PersonalizationProfile, SleepState, SleepEvent }
 import { User, collection, query, where, orderBy, limit, getDocs } from '../../lib/firebase';
 import { db } from '../../lib/firebase';
 import { MaturityInfo, AIService } from '../../services/aiService';
+import { useSleepStore } from '../../store/useSleepStore';
 import { generateDailyBrief, getCachedDailyBrief } from '../../services/ai/dailyBrief';
 import { generatePatternTeaser } from '../../services/ai/patternTeaser';
 import { generateDeepAnalysis } from '../../services/ai/deepAnalysis';
@@ -31,7 +32,6 @@ interface DashboardContainerProps {
 }
 
 export default function DashboardContainer({
-  logs,
   user,
   userProfile,
   selectedDate,
@@ -44,8 +44,9 @@ export default function DashboardContainer({
   refreshAllData,
   isRefreshing,
   maturity: externalMaturity
-}: DashboardContainerProps) {
+}: Omit<DashboardContainerProps, 'logs'>) {
   const { dataDepth, maturity: contextMaturity } = useUser();
+  const { logs } = useSleepStore();
   const dataMaturity = useMemo(() => {
     const source = externalMaturity || contextMaturity;
     if (source) return source as MaturityInfo;

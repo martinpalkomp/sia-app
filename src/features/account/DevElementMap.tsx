@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { UI_MAP_DATA, UIElement } from '../data/uiMapManifest';
-import { Card } from './UI';
+import { UI_MAP_DATA, UIElement } from '../../data/uiMapManifest';
+import { Card } from '../../components/UI';
 import { FileCode, Layers, ChevronRight, ChevronDown, Search, Copy, Check, X } from 'lucide-react';
 
 const TAG_COLORS: Record<string, string> = {

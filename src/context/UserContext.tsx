@@ -2,6 +2,7 @@ import React, { createContext, useContext, useMemo, useState, useEffect } from '
 import { DailyLog, PersonalizationProfile, UserProfile } from '../types';
 import { MaturityInfo } from '../services/aiService';
 import { User } from '../lib/firebase';
+import { useSleepStore } from '../store/useSleepStore';
 
 interface UserContextType {
   logs: Record<string, DailyLog>;
@@ -25,7 +26,6 @@ const UserContext = createContext<UserContextType | undefined>(undefined);
 
 export const UserProvider: React.FC<{
   children: React.ReactNode;
-  logs: Record<string, DailyLog>;
   user: User | null;
   userProfile: UserProfile | null;
   personalizationProfile: PersonalizationProfile | null;
@@ -33,15 +33,16 @@ export const UserProvider: React.FC<{
   tier: string;
   maturity: MaturityInfo | null;
   highlightTier: boolean;
-}> = ({ children, logs, user, userProfile, personalizationProfile, isProfileLoading, tier, maturity, highlightTier }) => {
+}> = ({ children, user, userProfile, personalizationProfile, isProfileLoading, tier, maturity, highlightTier }) => {
   
   const [mockLogs, setMockLogs] = useState<Record<string, DailyLog> | null>(null);
+  const { logs: storeLogs } = useSleepStore();
 
   useEffect(() => {
     // mockLogs removed
   }, [mockLogs]);
 
-  const activeLogs = logs;
+  const activeLogs = mockLogs || storeLogs;
 
   const dataDepth = useMemo(() => {
     const params = new URLSearchParams(window.location.search);

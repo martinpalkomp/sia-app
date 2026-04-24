@@ -15,9 +15,9 @@ import {
   ChevronDown,
   Database
 } from 'lucide-react';
-import { getFeedback, updateFeedbackStatus, deleteFeedback, FeedbackData } from '../services/feedbackService';
+import { getFeedback, updateFeedbackStatus, deleteFeedback, FeedbackData } from '../../services/feedbackService';
 import { format } from 'date-fns';
-import { Card } from './UI';
+import { Card } from '../../components/UI';
 
 interface AdminFeedbackProps {
   onBack: () => void;

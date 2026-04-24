@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Shield, X, Info, ExternalLink, CheckCircle2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Card } from './UI';
+import { Card } from '../../components/UI';
 
 interface EthicalDataPledgeProps {
   agreed: boolean;

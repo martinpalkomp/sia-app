@@ -1,7 +1,7 @@
 import React from 'react';
-import { useUser } from '../context/UserContext';
-import { DevModal } from './DevModal';
-import { signOut, auth, db, doc, setDoc, onSnapshot, updateDoc } from '../lib/firebase';
+import { useUser } from '../../context/UserContext';
+import { DevModal } from '../../components/DevModal';
+import { signOut, auth, db, doc, setDoc, onSnapshot, updateDoc } from '../../lib/firebase';
 import { motion } from 'motion/react';
 import { 
   LogOut, 
@@ -21,16 +21,16 @@ import {
   Rocket,
   Layers
 } from 'lucide-react';
-import { Card, AvatarFrame } from './UI';
-import DataMaturityTracker from '../features/data/DataMaturityTracker';
+import { Card, AvatarFrame } from '../../components/UI';
+import DataMaturityTracker from '../data/DataMaturityTracker';
 import EthicalDataPledge from './EthicalDataPledge';
-import { purgeUserData } from '../utils/devTools';
-import DataManager from '../features/data/DataManager';
+import { purgeUserData } from '../../utils/devTools';
+import DataManager from '../data/DataManager';
 import FeedbackForm from './FeedbackForm';
 import AdminFeedback from './AdminFeedback';
 import DevElementMap from './DevElementMap';
-import { calculateAge, getAgeDecade } from '../utils/dateUtils';
-import { AIService } from '../services/aiService';
+import { calculateAge, getAgeDecade } from '../../utils/dateUtils';
+import { AIService } from '../../services/aiService';
 
 export default function AccountPage({ onModifyAssessment, onRefresh }: { onModifyAssessment: () => void; onRefresh?: () => void; }) {
   const { user, personalizationProfile, logs, maturity, highlightTier, tier, userProfile, setMockLogs } = useUser();
@@ -207,56 +207,84 @@ export default function AccountPage({ onModifyAssessment, onRefresh }: { onModif
       className="space-y-8 pb-12"
     >
       {/* Header Section */}
-      <div className="flex flex-col items-center text-center space-y-4">
+      <div className="flex flex-col md:flex-row items-center gap-8 text-center md:text-left bg-zinc-900 border border-zinc-800 p-8 rounded-3xl">
         <AvatarFrame 
           src={user.photoURL || "https://i.imgur.com/MnI5hn3.png"} 
           alt={user.displayName || "User"} 
           size="lg"
-          className="shadow-2xl shadow-clinical-primary/20 border-clinical-primary/30"
+          className="shadow-2xl shadow-indigo-500/20 border-2 border-zinc-800 w-32 h-32"
         />
-        <div>
-          <h2 className="text-3xl md:text-5xl font-bold text-zinc-50 tracking-tight leading-[0.95]">{user.displayName}</h2>
-          <p className="text-zinc-400 text-xs font-medium tracking-wide mt-1.5">{user.email}</p>
+        <div className="flex-1 space-y-4">
+          <div className="space-y-1">
+            <h2 className="text-4xl font-black text-zinc-50 tracking-tighter">Good evening, {user.displayName?.split(' ')[0]} 🌙</h2>
+            <p className="text-zinc-500 text-sm font-medium">Manage your account and sleep intelligence preferences.</p>
+          </div>
+          <div className="space-y-0.5">
+            <h3 className="text-2xl font-black text-zinc-100 tracking-tighter">{user.displayName}</h3>
+            <p className="text-zinc-400 text-xs font-medium tracking-wide uppercase">{user.email}</p>
+          </div>
         </div>
       </div>
 
       {/* Intelligence Tier Section */}
-      <div className={`space-y-4 transition-all duration-500 ${highlightTier ? 'ring-2 ring-indigo-500/50 rounded-3xl p-2 shadow-[0_0_20px_rgba(99,102,241,0.2)]' : ''}`}>
+      <div id="acc-tier-section" className={`space-y-6 ${highlightTier ? 'ring-2 ring-indigo-500/50 rounded-3xl p-2 shadow-[0_0_20px_rgba(99,102,241,0.2)]' : ''}`}>
         <div className="flex items-center justify-between px-1">
-          <h3 className="text-[10px] font-medium uppercase tracking-wide text-slate-400">My Intelligence Tier</h3>
-          <span className="text-[10px] font-semibold text-indigo-400 uppercase tracking-wide">Upgrade Your Sleep Intelligence</span>
+          <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400">My Intelligence Tier</h3>
+          <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest cursor-pointer hover:underline">Compare tiers</span>
         </div>
         
-        <div className="grid grid-cols-1 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {['Basic', 'Enhanced', 'Pro'].map((tierOption) => {
             const isActive = derivedTier === tierOption;
             const config = {
-              Basic: { icon: Shield, label: 'Basic', desc: 'Standard sleep tracking and baseline metrics.', color: 'green' },
-              Enhanced: { icon: Sparkles, label: 'Enhanced', desc: 'Clinical-grade analysis and personalized insights.', color: 'indigo' },
-              Pro: { icon: Rocket, label: 'Pro', desc: 'Advanced predictive modeling and full SIA intelligence.', color: 'violet' },
+              Basic: { 
+                icon: Shield, 
+                desc: 'Standard sleep tracking and baseline metrics.',
+                features: ['Daily sleep tracking', 'Baseline metrics', 'Basic insights']
+              },
+              Enhanced: { 
+                icon: Sparkles, 
+                desc: 'Clinical-grade analysis and personalized insights.',
+                features: ['Everything in Basic', 'Pattern detection', 'Personalized recommendations', 'Historical trends']
+              },
+              Pro: { 
+                icon: Rocket, 
+                desc: 'Advanced predictive modeling and full SIA intelligence.',
+                features: ['Everything in Enhanced', 'Predictive insights', 'What-if simulations', 'Priority support']
+              },
             }[tierOption as 'Basic' | 'Enhanced' | 'Pro'];
 
             return (
-              <div key={tierOption} className={`p-4 rounded-2xl border transition-all flex items-center justify-between ${isActive ? `bg-zinc-900 border-${config.color}-500` : 'bg-zinc-900/50 border-zinc-800 opacity-60'}`}>
-                <div className="flex items-center gap-4">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isActive ? `bg-${config.color}-500/20 text-${config.color}-400` : 'bg-zinc-800 text-zinc-400'}`}>
-                    <config.icon size={20} />
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-bold text-zinc-50 tracking-tight">{config.label}</h4>
-                    <p className="text-xs text-zinc-400 leading-relaxed">{config.desc}</p>
-                  </div>
+              <div key={tierOption} className={`p-6 rounded-3xl border transition-all flex flex-col ${isActive ? 'bg-zinc-900 border-indigo-500/50' : 'bg-zinc-900 border-zinc-800'}`}>
+                <div className="flex justify-between items-start mb-4">
+                  <config.icon className={isActive ? 'text-indigo-400' : 'text-zinc-500'} size={24} />
+                  {isActive ? (
+                    <span className="text-[10px] font-black bg-indigo-600 text-white px-3 py-1 rounded-full uppercase tracking-widest">Active</span>
+                  ) : (
+                    <button 
+                      onClick={() => handleTierChange(tierOption)}
+                      className="text-[10px] font-black bg-zinc-800 hover:bg-zinc-700 text-white px-3 py-1 rounded-full uppercase tracking-widest transition-all"
+                    >
+                      Activate
+                    </button>
+                  )}
                 </div>
-                {isActive ? (
-                  <span className={`text-[10px] font-semibold bg-${config.color}-500 text-black px-2 py-1 rounded uppercase tracking-wide`}>Active</span>
-                ) : (
-                  <button 
-                    onClick={() => handleTierChange(tierOption)}
-                    className="py-2 px-4 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-[10px] font-semibold uppercase tracking-wide transition-all"
-                  >
-                    Activate
-                  </button>
-                )}
+                
+                <h4 className="text-lg font-black text-zinc-50 tracking-tighter mb-2">{tierOption}</h4>
+                <p className="text-xs text-zinc-400 mb-6 leading-relaxed">{config.desc}</p>
+                
+                <div className="flex-1 space-y-3 mb-6">
+                  {config.features.map(feature => (
+                    <div key={feature} className="flex gap-2 items-center text-xs text-zinc-300">
+                      <ShieldCheck size={14} className="text-indigo-500 flex-shrink-0" />
+                      {feature}
+                    </div>
+                  ))}
+                </div>
+
+                <div className="text-[10px] font-black text-indigo-400 uppercase tracking-widest cursor-pointer hover:underline flex items-center gap-1">
+                  Learn more <ChevronRight size={12} />
+                </div>
               </div>
             );
           })}
@@ -265,67 +293,84 @@ export default function AccountPage({ onModifyAssessment, onRefresh }: { onModif
 
       {/* Data Overview */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="md:col-span-2">
-          <DataMaturityTracker maturity={maturity || { count: 0, level: 1, nextThreshold: 7 }} />
-        </div>
-        <div className="md:col-span-2">
-          <EthicalDataPledge 
-            agreed={!!personalizationProfile?.allowsAnonymizedSharing}
-            onToggle={toggleSharing}
-            isEnhanced={isEnhanced}
-          />
+        <div className="md:col-span-2 bg-zinc-900 border border-zinc-800 rounded-3xl p-8 flex items-center justify-between">
+          <div className="flex gap-6 items-center">
+            <div className="w-16 h-16 rounded-2xl bg-zinc-800 flex items-center justify-center text-zinc-500">
+              <Shield size={32} />
+            </div>
+            <div>
+              <h3 className="text-sm font-black text-white tracking-tighter">Ethical Data Pledge</h3>
+              <p className="text-xs text-zinc-400 mt-1">Your privacy is our priority. We anonymize your trends to fund research and keep SIA free for everyone.</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-4">
+            <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Powers your free AI tokens</span>
+            <button 
+              onClick={toggleSharing}
+              className={`w-14 h-8 rounded-full p-1 transition-all ${personalizationProfile?.allowsAnonymizedSharing ? 'bg-indigo-600' : 'bg-zinc-700'}`}
+            >
+              <div className={`w-6 h-6 rounded-full bg-white transition-all ${personalizationProfile?.allowsAnonymizedSharing ? 'translate-x-6' : ''}`} />
+            </button>
+          </div>
         </div>
 
-        <Card className="bg-zinc-900/50 border-zinc-800">
-          <div className="flex items-center gap-3 mb-6">
-            <Target className="text-clinical-primary" size={20} />
-            <h3 className="text-[10px] font-medium uppercase tracking-wide text-slate-400">Sleep Goals</h3>
+        <Card className="bg-zinc-900 border-zinc-800 p-8">
+          <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center gap-3">
+              <Target className="text-indigo-400" size={18} />
+              <h3 className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Sleep Goals</h3>
+            </div>
+            <button className="text-[10px] font-black text-indigo-400 uppercase tracking-widest hover:underline">Edit</button>
           </div>
           {personalizationProfile?.goals && personalizationProfile.goals.length > 0 ? (
             <div className="flex flex-wrap gap-2">
               {personalizationProfile.goals.map(goal => (
-                <span key={goal} className="px-3 py-1.5 bg-zinc-800 border border-zinc-700 rounded-xl text-[9px] font-bold text-zinc-300 uppercase tracking-widest">
+                <span key={goal} className="px-3 py-1.5 bg-zinc-800/50 border border-zinc-700/50 rounded-lg text-[9px] font-black text-zinc-300 uppercase tracking-widest">
                   {goal.replace(/-/g, ' ')}
                 </span>
               ))}
             </div>
           ) : (
-            <p className="text-sm text-zinc-600 italic">No goals set. Complete the assessment to personalize SIA.</p>
+            <div className="text-center py-6">
+              <p className="text-[11px] text-zinc-500 italic mb-4">No goals set yet.</p>
+              <button 
+                onClick={onModifyAssessment}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-[10px] font-black uppercase tracking-widest transition-all"
+              >
+                Set Your Goals
+              </button>
+            </div>
           )}
         </Card>
 
-        <Card className="bg-zinc-900/50 border-zinc-800">
-          <div className="flex items-center gap-3 mb-6">
-            <Calendar className="text-clinical-primary" size={20} />
-            <h3 className="text-[10px] font-medium uppercase tracking-wide text-slate-400">Demographics</h3>
+        <Card className="bg-zinc-900 border-zinc-800 p-8">
+          <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center gap-3">
+              <Calendar className="text-indigo-400" size={18} />
+              <h3 className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Demographics</h3>
+            </div>
+            <button className="text-[10px] font-black text-indigo-400 uppercase tracking-widest hover:underline">Edit</button>
           </div>
           <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <span className="text-xs font-medium text-zinc-400">Age</span>
-              <span className="text-sm font-normal text-zinc-300">
-                {personalizationProfile?.demographics?.dateOfBirth 
-                  ? getAgeDecade(personalizationProfile.demographics.dateOfBirth) 
-                  : 'Not set'}
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-xs font-medium text-zinc-400">Country</span>
-              <span className="text-sm font-normal text-zinc-300">{personalizationProfile?.demographics?.country || 'Not set'}</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-xs font-medium text-zinc-400">Biological Sex</span>
-              <span className="text-sm font-normal text-zinc-300">{personalizationProfile?.demographics?.sex || 'Not set'}</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-xs font-medium text-zinc-400">Work Schedule</span>
-              <span className="text-sm font-normal text-zinc-300">{personalizationProfile?.demographics?.workSchedule || 'Not set'}</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-xs font-medium text-zinc-400">Environment</span>
-              <span className="text-sm font-normal text-zinc-300 text-right max-w-[150px]">{personalizationProfile?.demographics?.environmentType || 'Not set'}</span>
-            </div>
+            {[
+              { label: 'Age', val: personalizationProfile?.demographics?.dateOfBirth ? getAgeDecade(personalizationProfile.demographics.dateOfBirth) : 'Not set' },
+              { label: 'Country', val: personalizationProfile?.demographics?.country || 'Not set' },
+              { label: 'Biological Sex', val: personalizationProfile?.demographics?.sex || 'Not set' },
+              { label: 'Work Schedule', val: personalizationProfile?.demographics?.workSchedule || 'Not set' },
+              { label: 'Environment', val: personalizationProfile?.demographics?.environmentType || 'Not set' }
+            ].map(item => (
+              <div key={item.label} className="flex justify-between items-center text-xs pb-3 border-b border-zinc-800/50 last:border-b-0 last:pb-0">
+                <span className="font-medium text-zinc-500">{item.label}</span>
+                <span className="font-black text-zinc-200 uppercase tracking-tight">{item.val}</span>
+              </div>
+            ))}
           </div>
         </Card>
+
+        {/* Data Maturity Tracker moved below */}
+        <div className="md:col-span-2">
+          <DataMaturityTracker maturity={maturity || { count: 0, level: 1, nextThreshold: 7 }} />
+        </div>
       </div>
 
       {/* Actions */}

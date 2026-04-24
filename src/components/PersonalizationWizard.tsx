@@ -21,7 +21,7 @@ import {
 import { User, db, doc, setDoc, serverTimestamp } from '../lib/firebase';
 import { PersonalizationProfile } from '../types';
 import { calculateAge } from '../utils/dateUtils';
-import EthicalDataPledge from './EthicalDataPledge';
+import EthicalDataPledge from '../features/account/EthicalDataPledge';
 
 interface PersonalizationWizardProps {
   user: User;
