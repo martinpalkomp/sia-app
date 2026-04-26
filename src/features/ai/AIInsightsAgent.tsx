@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { subDays, parseISO, format } from 'date-fns';
-import { GoogleGenAI } from "@google/genai";
+
 import { 
   Sparkles, 
   Send, 

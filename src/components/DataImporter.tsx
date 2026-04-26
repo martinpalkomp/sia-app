@@ -3,7 +3,7 @@ import Papa from 'papaparse';
 import { read, utils, writeFile } from 'xlsx';
 import ExcelJS from 'exceljs';
 import { parse, format, isValid, subDays, parseISO } from 'date-fns';
-import { GoogleGenAI } from "@google/genai";
+import { siaClient } from '../services/ai/SiaClient';
 import { 
   Upload, 
   FileText, 
@@ -160,22 +160,14 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
     // Step 1: Try AI extraction — failure must never block Step 2
     let extracted = { summary: null, estimatedDateRange: null, extractedInsights: [], rawDataType: 'unknown' };
     try {
-      const apiKey = process.env.GEMINI_API_KEY;
-      if (apiKey) {
-        const ai = new GoogleGenAI({ apiKey });
-        const aiPromise = ai.models.generateContent({
-          model: SIA_AI_MODEL,
-          config: {
-            systemInstruction: "Extract sleep insights from this text. Return only valid JSON: { summary, estimatedDateRange, extractedInsights (string array), rawDataType }.",
-            temperature: 0.4
-          },
-          contents: content.slice(0, 8000)
-        });
+      const aiPromise = siaClient.generateContent(content.slice(0, 8000), {
+        systemInstruction: "Extract sleep insights from this text. Return only valid JSON: { summary, estimatedDateRange, extractedInsights (string array), rawDataType }.",
+        temperature: 0.4
+      });
 
-        const response = await withTimeout(aiPromise, 15000, "AI extraction timed out");
-        const clean = (response.text ?? '').replace(/```json|```/g, '').trim();
-        extracted = JSON.parse(clean);
-      }
+      const response = await withTimeout(aiPromise, 15000, "AI extraction timed out");
+      const clean = (response?.text ?? '').replace(/```json|```/g, '').trim();
+      extracted = JSON.parse(clean);
     } catch (aiError) {
       console.warn('AI extraction skipped — continuing with null metadata:', aiError);
     }
@@ -460,11 +452,7 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
   };
 
   const normalizeRowsWithAI = async (invalidRows: any[]) => {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) return [];
-    
     try {
-      const ai = new GoogleGenAI({ apiKey });
       const prompt = `
         The following data rows failed validation for a sleep tracking app. 
         Please attempt to normalize them into valid sleep log entries.
@@ -487,10 +475,8 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
         Return ONLY a JSON array of objects. If a row cannot be normalized, omit it from the array.
       `;
 
-      const aiPromise = ai.models.generateContent({
-        model: SIA_AI_MODEL,
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        config: { temperature: 0.4 }
+      const aiPromise = siaClient.generateContent(prompt, {
+        temperature: 0.4
       });
 
       const response = await withTimeout(aiPromise, 25000, "AI normalization timed out");

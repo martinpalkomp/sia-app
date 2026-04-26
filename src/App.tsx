@@ -53,7 +53,7 @@ import {
   Clock
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { GoogleGenAI } from "@google/genai";
+
 import { DailyLog, SleepState, PersonalizationProfile } from './types';
 import { 
   TOTAL_SLOTS, 
