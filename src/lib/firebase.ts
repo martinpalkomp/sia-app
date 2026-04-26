@@ -65,12 +65,12 @@ const getOptionalEnv = (key: string): string => {
 };
 
 const firebaseConfig = {
-  apiKey:            getRequiredEnv('VITE_FIREBASE_API_KEY'),
-  authDomain:        getRequiredEnv('VITE_FIREBASE_AUTH_DOMAIN'),
-  projectId:         getRequiredEnv('VITE_FIREBASE_PROJECT_ID'),
-  storageBucket:     getRequiredEnv('VITE_FIREBASE_STORAGE_BUCKET'),
-  messagingSenderId: getRequiredEnv('VITE_FIREBASE_MESSAGING_SENDER_ID'),
-  appId:             getRequiredEnv('VITE_FIREBASE_APP_ID'),
+  apiKey:            import.meta.env.VITE_FIREBASE_API_KEY, // Ensure this is the Auth-enabled key
+  authDomain:        "sia-app-one.firebaseapp.com",
+  projectId:         "sia-app-one",
+  storageBucket:     getOptionalEnv('VITE_FIREBASE_STORAGE_BUCKET'),
+  messagingSenderId: getOptionalEnv('VITE_FIREBASE_MESSAGING_SENDER_ID'),
+  appId:             getOptionalEnv('VITE_FIREBASE_APP_ID'),
   measurementId:     getOptionalEnv('VITE_FIREBASE_MEASUREMENT_ID'),
 };
 
@@ -80,8 +80,7 @@ const firestoreDatabaseId = getOptionalEnv('VITE_FIREBASE_FIRESTORE_DATABASE_ID'
 const requiredFields = [
   'apiKey',
   'authDomain',
-  'projectId',
-  'appId'
+  'projectId'
 ];
 
 const missingFields = requiredFields.filter(key => !firebaseConfig[key as keyof typeof firebaseConfig]);
