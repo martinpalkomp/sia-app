@@ -35,14 +35,14 @@ export const SleepGateHero: React.FC<SleepGateHeroProps> = ({ logs, userName, cl
   const greeting = userName ? `Evening, ${userName}` : 'Good Evening';
 
   const getBackgroundImage = () => {
-    return "https://raw.githubusercontent.com/martinpalkomp/sia-app/refs/heads/main/sia_all.jpg";
+    return "https://raw.githubusercontent.com/martinpalkomp/sia-app/refs/heads/main/sia_all_dark.jpg";
   };
 
   return (
     <motion.section 
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`relative w-full min-h-[600px] overflow-hidden p-6 lg:p-10 text-white flex flex-col -mb-30 z-10 ${className || ''}`}
+      className={`relative w-full min-h-[600px] overflow-hidden p-6 lg:p-10 text-white flex flex-col z-10 ${className || ''}`}
     >
       <img
         src={getBackgroundImage()}

@@ -5,7 +5,7 @@ class SiaClient {
   private genAI: GoogleGenAI;
 
   constructor() {
-    this.genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
+    this.genAI = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY || "" });
   }
 
   async generateContentRaw(contents: any[], config: any) {

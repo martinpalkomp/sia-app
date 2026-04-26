@@ -242,7 +242,7 @@ export default function App() {
   const [showPersonalizationWizard, setShowPersonalizationWizard] = useState(false);
   const [activeState, setActiveState] = useState<SleepState>('sleep');
   const reportRef = useRef<HTMLDivElement>(null);
-  const pendingSave = useRef(false);
+
   const [isDragging, setIsDragging] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [initialTimeline, setInitialTimeline] = useState<SleepState[] | null>(null);
@@ -785,84 +785,7 @@ export default function App() {
     }
   };
 
-  // Save data to Firestore
-  const saveLogs = async (newLogs: Record<string, DailyLog>, dateToUpdate?: string) => {
-    if (!user) return;
-    
-    if (dateToUpdate) {
-      try {
-        const log = newLogs[dateToUpdate];
-        if (!log) {
-          await deleteLog(user.uid, dateToUpdate);
-          return;
-        }
 
-        // Handle AI corrections learning trigger if prefill was used
-        if (prefillUsed && originalSuggestion) {
-          const correctionsToLog: any[] = [];
-          const sanitizeValue = (val: any) => (val === undefined ? null : val);
-
-          if (log.factors.caffeine.amount !== originalSuggestion.factors?.caffeine?.amount)
-            correctionsToLog.push({ field: 'factors.caffeine.amount', suggestedValue: sanitizeValue(originalSuggestion.factors?.caffeine?.amount), actualValue: log.factors.caffeine.amount });
-          
-          if (log.factors.caffeine.lastIntake !== originalSuggestion.factors?.caffeine?.lastIntake)
-            correctionsToLog.push({ field: 'factors.caffeine.lastIntake', suggestedValue: sanitizeValue(originalSuggestion.factors?.caffeine?.lastIntake), actualValue: log.factors.caffeine.lastIntake });
-
-          if (log.factors.exercise.completed !== originalSuggestion.factors?.exercise?.completed)
-            correctionsToLog.push({ field: 'factors.exercise.completed', suggestedValue: sanitizeValue(originalSuggestion.factors?.exercise?.completed), actualValue: log.factors.exercise.completed });
-
-          if (log.factors.alcohol.consumed !== originalSuggestion.factors?.alcohol?.consumed)
-            correctionsToLog.push({ field: 'factors.alcohol.consumed', suggestedValue: sanitizeValue(originalSuggestion.factors?.alcohol?.consumed), actualValue: log.factors.alcohol.consumed });
-
-          if (log.factors.screensInBed !== originalSuggestion.factors?.screensInBed)
-            correctionsToLog.push({ field: 'factors.screensInBed', suggestedValue: sanitizeValue(originalSuggestion.factors?.screensInBed), actualValue: log.factors.screensInBed });
-
-          if (log.factors.stressLevel !== originalSuggestion.factors?.stressLevel)
-            correctionsToLog.push({ field: 'factors.stressLevel', suggestedValue: sanitizeValue(originalSuggestion.factors?.stressLevel), actualValue: log.factors.stressLevel });
-
-          if (log.factors.lastMealTime !== originalSuggestion.factors?.lastMealTime)
-            correctionsToLog.push({ field: 'factors.lastMealTime', suggestedValue: sanitizeValue(originalSuggestion.factors?.lastMealTime), actualValue: log.factors.lastMealTime });
-
-          if (log.factors.naturalWake !== originalSuggestion.factors?.naturalWake)
-            correctionsToLog.push({ field: 'factors.naturalWake', suggestedValue: sanitizeValue(originalSuggestion.factors?.naturalWake), actualValue: log.factors.naturalWake });
-
-          if (log.factors.moodScore !== originalSuggestion.factors?.moodScore)
-            correctionsToLog.push({ field: 'factors.moodScore', suggestedValue: sanitizeValue(originalSuggestion.factors?.moodScore), actualValue: log.factors.moodScore });
-
-          if (log.morning_alertness !== originalSuggestion.morning_alertness)
-            correctionsToLog.push({ field: 'morning_alertness', suggestedValue: sanitizeValue(originalSuggestion.morning_alertness), actualValue: log.morning_alertness });
-
-          if (log.daytime_energy !== originalSuggestion.daytime_energy)
-            correctionsToLog.push({ field: 'daytime_energy', suggestedValue: sanitizeValue(originalSuggestion.daytime_energy), actualValue: log.daytime_energy });
-
-          if (correctionsToLog.length > 0) {
-            const correctionsRef = collection(db, 'users', user.uid, 'ai_corrections');
-            for (const corr of correctionsToLog) {
-              await addDoc(correctionsRef, {
-                ...corr,
-                date: selectedDate,
-                createdAt: serverTimestamp()
-              });
-            }
-            console.log(`Logged ${correctionsToLog.length} AI corrections.`);
-          }
-        }
-
-        // Delegate save logic to Zustand'store
-        await saveLogFromState(user.uid, dateToUpdate, log.source as any || 'manual');
-        
-        AIService.getUserDataMaturity(user.uid).then(setMaturity);
-        setSaveStatus('saved');
-        setTimeout(() => setSaveStatus('idle'), 2000);
-      } catch (error: any) {
-        console.error("Save failed:", error);
-        setSaveStatus('idle');
-        alert(error.code === 'permission-denied' 
-          ? "SIA Permission Error: Check Firestore Rules pathing." 
-          : "Failed to save log. Please check your connection.");
-      }
-    }
-  };
 
   const updateLog = (updates: Partial<DailyLog> | ((prevLog: DailyLog) => Partial<DailyLog>)) => {
     const currentLogForDate = logs[selectedDate] || getDefaultLog(selectedDate);
@@ -874,7 +797,6 @@ export default function App() {
     }
 
     updateLogLocally(selectedDate, newLog);
-    pendingSave.current = true;
     setSaveStatus('saving');
   };
 
@@ -989,7 +911,9 @@ export default function App() {
     setInitialTimeline(null);
     setInitialMetrics(null);
     try {
-      await saveLogs(logs, selectedDate);
+      if (user?.uid) {
+        await saveLogFromState(user.uid, selectedDate, 'manual');
+      }
       setToast({ message: 'Changes saved', type: 'success' });
     } catch (err) {
       console.error('handleSave failed:', err);
@@ -1143,6 +1067,23 @@ export default function App() {
       setActiveSuggestion(null);
     }
   }, [view, selectedDate, logs, aiCorrections, user]);
+
+useEffect(() => {
+  if (!user || !logs[selectedDate]) return;
+  const timer = setTimeout(async () => {
+    try {
+      if (user?.uid) {
+        await saveLogFromState(user.uid, selectedDate, 'manual');
+      }
+      setSaveStatus('saved');
+      setTimeout(() => setSaveStatus('idle'), 2000);
+    } catch (err) {
+      console.error('Auto-save failed:', err);
+      setSaveStatus('idle');
+    }
+  }, 600);
+  return () => clearTimeout(timer);
+}, [logs[selectedDate], selectedDate, user?.uid]);
 
   const averageStats = useMemo(() => {
     const periodLogs = activeDates.map(d => logs[d]).filter(Boolean);
@@ -2384,7 +2325,9 @@ export default function App() {
                   onClick={async () => {
                     setSaveStatus('saving');
                     try {
-                      await saveLogs(logs, selectedDate);
+                      if (user?.uid) {
+                        await saveLogFromState(user.uid, selectedDate, 'manual');
+                      }
                       setToast({ message: 'Log saved to SIA cloud', type: 'success' });
                     } catch (err) {
                       console.error('Manual save failed:', err);
@@ -2432,11 +2375,13 @@ export default function App() {
                   </AnimatePresence>
                 </button>
                 <button 
-                  onClick={() => {
+                  onClick={async () => {
                     const newLogs = { ...logs };
                     delete newLogs[selectedDate];
                     setLogs(newLogs);
-                    saveLogs(newLogs, selectedDate);
+                    if (user?.uid) {
+                      await deleteLog(user.uid, selectedDate);
+                    }
                     setSaveStatus('idle');
                   }}
                   className="flex-1 py-4 bg-zinc-900 hover:bg-red-900/20 text-zinc-500 hover:text-red-400 rounded-2xl font-bold text-sm transition-all border border-zinc-800 flex items-center justify-center gap-2"

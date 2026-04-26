@@ -75,7 +75,7 @@ export const DashboardView: React.FC<{
 }) => {
   return (
     <div className="space-y-8">
-      <SleepGateHero logs={{}} userName={userProfile?.displayName} className="-mt-16" />
+      <SleepGateHero logs={{}} userName={userProfile?.displayName} />
 
       <div className="grid md:grid-cols-2 gap-6">
         <Card className="bg-zinc-900 border-zinc-800 p-6 flex flex-col justify-between">

@@ -19,7 +19,10 @@ import {
   Trash2,
   MessageSquare,
   Rocket,
-  Layers
+  Layers,
+  TrendingUp,
+  Moon,
+  Camera
 } from 'lucide-react';
 import { Card, AvatarFrame } from '../../components/UI';
 import DataMaturityTracker from '../data/DataMaturityTracker';
@@ -199,6 +202,10 @@ export default function AccountPage({ onModifyAssessment, onRefresh }: { onModif
 
   if (!user) return null;
 
+  const daysLogged = maturity?.count || Object.keys(logs || {}).length || 0;
+  const reportsGenerated = Math.floor(daysLogged / 7);
+  const insightsUnlocked = Math.floor(daysLogged / 14);
+
   return (
     <motion.div 
       initial={{ opacity: 0, y: 20 }}
@@ -207,21 +214,57 @@ export default function AccountPage({ onModifyAssessment, onRefresh }: { onModif
       className="space-y-8 pb-12"
     >
       {/* Header Section */}
-      <div className="flex flex-col md:flex-row items-center gap-8 text-center md:text-left bg-zinc-900 border border-zinc-800 p-8 rounded-3xl">
-        <AvatarFrame 
-          src={user.photoURL || "https://i.imgur.com/MnI5hn3.png"} 
-          alt={user.displayName || "User"} 
-          size="lg"
-          className="shadow-2xl shadow-indigo-500/20 border-2 border-zinc-800 w-32 h-32"
-        />
-        <div className="flex-1 space-y-4">
-          <div className="space-y-1">
-            <h2 className="text-4xl font-black text-zinc-50 tracking-tighter">Good evening, {user.displayName?.split(' ')[0]} 🌙</h2>
-            <p className="text-zinc-500 text-sm font-medium">Manage your account and sleep intelligence preferences.</p>
+      <div className="flex flex-col xl:flex-row gap-8 text-center xl:text-left bg-zinc-900 border border-zinc-800 p-8 rounded-[2rem]">
+        <div className="flex flex-col lg:flex-row items-center gap-8 flex-1">
+          <div className="flex flex-col items-center gap-4">
+            <AvatarFrame 
+              src={user.photoURL || "https://i.imgur.com/MnI5hn3.png"} 
+              alt={user.displayName || "User"} 
+              size="lg"
+              className="shadow-2xl shadow-indigo-500/20 shadow-[0_0_40px_rgba(99,102,241,0.2)] border border-indigo-500/30 w-32 h-32"
+            />
+            <button className="flex items-center gap-2 px-4 py-2 rounded-xl border border-zinc-700 bg-zinc-800/50 hover:bg-zinc-800 text-zinc-300 text-xs font-bold transition-colors">
+              <Camera size={14} /> Change photo
+            </button>
           </div>
-          <div className="space-y-0.5">
-            <h3 className="text-2xl font-black text-zinc-100 tracking-tighter">{user.displayName}</h3>
-            <p className="text-zinc-400 text-xs font-medium tracking-wide uppercase">{user.email}</p>
+          
+          <div className="flex-1 space-y-4">
+            <div className="space-y-1">
+              <h2 className="text-3xl font-black text-white tracking-tighter flex items-center justify-center lg:justify-start gap-2">
+                Good evening, {user.displayName?.split(' ')[0]} <Moon className="text-indigo-400" size={24} />
+              </h2>
+              <p className="text-zinc-500 text-sm font-medium">Manage your account and sleep intelligence preferences.</p>
+            </div>
+            <div className="space-y-0.5 pt-2">
+              <h3 className="text-3xl font-black text-white tracking-tighter">{user.displayName}</h3>
+              <p className="text-zinc-400 text-sm font-medium tracking-wide">{user.email}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex-1">
+          <div className="bg-zinc-900/50 border border-zinc-800 rounded-3xl p-6 h-full flex flex-col justify-between">
+            <div className="flex justify-between items-start mb-6">
+              <h4 className="text-[10px] font-black uppercase tracking-widest text-zinc-100">Your SIA Journey</h4>
+              <TrendingUp className="text-indigo-500" size={18} />
+            </div>
+            
+            <div className="grid grid-cols-3 gap-4 mb-6">
+              <div>
+                <div className="text-4xl font-black text-white tracking-tighter mb-1">{daysLogged}</div>
+                <div className="text-[10px] font-medium text-zinc-400 uppercase tracking-wide">Days logged</div>
+              </div>
+              <div>
+                <div className="text-4xl font-black text-zinc-200 tracking-tighter mb-1">{reportsGenerated}</div>
+                <div className="text-[10px] font-medium text-zinc-400 uppercase tracking-wide">Reports generated</div>
+              </div>
+              <div>
+                <div className="text-4xl font-black text-zinc-200 tracking-tighter mb-1">{insightsUnlocked}</div>
+                <div className="text-[10px] font-medium text-zinc-400 uppercase tracking-wide">Insights unlocked</div>
+              </div>
+            </div>
+
+            <p className="text-xs text-zinc-500 font-medium">Keep going, consistency is the key.</p>
           </div>
         </div>
       </div>
@@ -229,8 +272,8 @@ export default function AccountPage({ onModifyAssessment, onRefresh }: { onModif
       {/* Intelligence Tier Section */}
       <div id="acc-tier-section" className={`space-y-6 ${highlightTier ? 'ring-2 ring-indigo-500/50 rounded-3xl p-2 shadow-[0_0_20px_rgba(99,102,241,0.2)]' : ''}`}>
         <div className="flex items-center justify-between px-1">
-          <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400">My Intelligence Tier</h3>
-          <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest cursor-pointer hover:underline">Compare tiers</span>
+          <h3 className="text-[10px] font-black uppercase tracking-widest text-white">My Intelligence Tier</h3>
+          <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest cursor-pointer hover:text-zinc-300 transition-colors">Compare tiers</span>
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -257,32 +300,34 @@ export default function AccountPage({ onModifyAssessment, onRefresh }: { onModif
             return (
               <div key={tierOption} className={`p-6 rounded-3xl border transition-all flex flex-col ${isActive ? 'bg-zinc-900 border-indigo-500/50' : 'bg-zinc-900 border-zinc-800'}`}>
                 <div className="flex justify-between items-start mb-4">
-                  <config.icon className={isActive ? 'text-indigo-400' : 'text-zinc-500'} size={24} />
+                  <div className="flex items-center gap-3">
+                    <config.icon className={isActive ? 'text-indigo-400' : 'text-zinc-400'} size={24} />
+                    <h4 className="text-xl font-bold text-white tracking-tight">{tierOption}</h4>
+                  </div>
                   {isActive ? (
-                    <span className="text-[10px] font-black bg-indigo-600 text-white px-3 py-1 rounded-full uppercase tracking-widest">Active</span>
+                    <span className="text-[10px] font-black bg-indigo-600 text-white px-3 py-1.5 rounded-lg uppercase tracking-widest">Active</span>
                   ) : (
                     <button 
                       onClick={() => handleTierChange(tierOption)}
-                      className="text-[10px] font-black bg-zinc-800 hover:bg-zinc-700 text-white px-3 py-1 rounded-full uppercase tracking-widest transition-all"
+                      className="text-[10px] font-black bg-indigo-600 text-white hover:bg-indigo-500 px-3 py-1.5 rounded-lg uppercase tracking-widest transition-all"
                     >
                       Activate
                     </button>
                   )}
                 </div>
                 
-                <h4 className="text-lg font-black text-zinc-50 tracking-tighter mb-2">{tierOption}</h4>
-                <p className="text-xs text-zinc-400 mb-6 leading-relaxed">{config.desc}</p>
+                <p className="text-xs text-zinc-400 mb-6 leading-relaxed flex-1">{config.desc}</p>
                 
-                <div className="flex-1 space-y-3 mb-6">
+                <div className="space-y-3 mb-6">
                   {config.features.map(feature => (
-                    <div key={feature} className="flex gap-2 items-center text-xs text-zinc-300">
-                      <ShieldCheck size={14} className="text-indigo-500 flex-shrink-0" />
+                    <div key={feature} className="flex gap-2 items-center text-[11px] text-zinc-300">
+                      <ShieldCheck size={14} className="text-zinc-600 flex-shrink-0" />
                       {feature}
                     </div>
                   ))}
                 </div>
 
-                <div className="text-[10px] font-black text-indigo-400 uppercase tracking-widest cursor-pointer hover:underline flex items-center gap-1">
+                <div className="text-[10px] font-medium text-indigo-400 cursor-pointer hover:underline flex items-center gap-1 transition-all">
                   Learn more <ChevronRight size={12} />
                 </div>
               </div>
@@ -290,6 +335,7 @@ export default function AccountPage({ onModifyAssessment, onRefresh }: { onModif
           })}
         </div>
       </div>
+
 
       {/* Data Overview */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
