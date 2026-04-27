@@ -784,10 +784,12 @@ export default function App() {
   const handleLogin = async () => {
     setLoginError(null);
     try {
-      await signInWithRedirect(auth, googleProvider);
+      await signInWithPopup(auth, googleProvider);
     } catch (error: any) {
       console.error("Login failed", error);
-      if (error.code === 'auth/unauthorized-domain') {
+      if (error.code === 'auth/popup-blocked') {
+        setLoginError('Your browser blocked the login popup. Please allow popups for this site in your URL bar and try again.');
+      } else if (error.code === 'auth/unauthorized-domain') {
         setLoginError('This domain is not authorized in your Firebase project. Please add it to the "Authorized domains" list in the Firebase Console.');
       } else if (error.code === 'auth/operation-not-allowed') {
         setLoginError('Google Sign-In is not enabled in your Firebase project. Please enable it in the "Authentication" section of the Firebase Console.');
