@@ -8,6 +8,8 @@ import { getFunctions } from "firebase/functions";
 export { 
   onAuthStateChanged, 
   signInWithPopup, 
+  signInWithRedirect,
+  getRedirectResult,
   signOut,
   setPersistence,
   browserLocalPersistence,

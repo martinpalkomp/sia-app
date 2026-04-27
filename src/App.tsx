@@ -136,7 +136,8 @@ import {
   db, 
   isFirebaseConfigured,
   onAuthStateChanged, 
-  signInWithPopup, 
+  signInWithRedirect,
+  getRedirectResult,
   signOut, 
   User,
   collection, 
@@ -761,10 +762,29 @@ export default function App() {
     return () => unsubscribe();
   }, [user]);
 
+  useEffect(() => {
+    if (!auth) return;
+    
+    getRedirectResult(auth).then((result) => {
+      if (result) {
+        console.log("Redirect sign-in successful", result.user);
+      }
+    }).catch((error: any) => {
+      console.error("Redirect error", error);
+      if (error.code === 'auth/unauthorized-domain') {
+        setLoginError('This domain is not authorized in your Firebase project. Please add it to the "Authorized domains" list in the Firebase Console.');
+      } else if (error.code === 'auth/operation-not-allowed') {
+        setLoginError('Google Sign-In is not enabled in your Firebase project. Please enable it in the "Authentication" section of the Firebase Console.');
+      } else {
+        setLoginError('Login failed. Please try again.');
+      }
+    });
+  }, []);
+
   const handleLogin = async () => {
     setLoginError(null);
     try {
-      await signInWithPopup(auth, googleProvider);
+      await signInWithRedirect(auth, googleProvider);
     } catch (error: any) {
       console.error("Login failed", error);
       if (error.code === 'auth/unauthorized-domain') {
