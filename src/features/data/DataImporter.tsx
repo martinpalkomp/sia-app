@@ -3,7 +3,7 @@ import Papa from 'papaparse';
 import { read, utils, writeFile } from 'xlsx';
 import ExcelJS from 'exceljs';
 import { parse, format, isValid, subDays, parseISO } from 'date-fns';
-import { siaClient } from '../services/ai/SiaClient';
+import { siaClient } from '../../services/ai/SiaClient';
 import { 
   Upload, 
   FileText, 
@@ -29,11 +29,11 @@ import {
   deleteField,
   updateDoc,
   increment
-} from '../lib/firebase';
-import { DailyLog, SleepState, SleepEvent } from '../types';
-import { TOTAL_SLOTS } from '../constants';
-import { saveLog } from '../services/sleepService';
-import { SIA_AI_MODEL } from '../services/ai/aiConfig';
+} from '../../lib/firebase';
+import { DailyLog, SleepState, SleepEvent } from '../../types';
+import { TOTAL_SLOTS } from '../../constants';
+import { saveLog } from '../../services/sleepService';
+import { SIA_AI_MODEL } from '../../services/ai/aiConfig';
 import { 
   snapTo15Min, 
   timeToIndex, 
@@ -42,8 +42,8 @@ import {
   getMinutesFrom2000,
   generateSleepEventsLedger,
   addMinutes
-} from '../utils/sleepUtils';
-import { TEMPLATE_INSTRUCTIONS } from '../utils/templateInstructions';
+} from '../../utils/sleepUtils';
+import { TEMPLATE_INSTRUCTIONS } from '../../utils/templateInstructions';
 
 interface DataImporterProps {
   user: User;

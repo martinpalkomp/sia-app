@@ -14,11 +14,11 @@ import {
   Zap,
   Loader2
 } from 'lucide-react';
-import { getPendingCorrections } from '../utils/correctionLogic';
-import { DailyLog } from '../types';
-import { saveLog } from '../services/sleepService';
+import { getPendingCorrections } from '../../utils/correctionLogic';
+import { DailyLog } from '../../types';
+import { saveLog } from '../../services/sleepService';
 import { format, isAfter, parseISO, startOfDay } from 'date-fns';
-import { User } from '../lib/firebase';
+import { User } from '../../lib/firebase';
 
 interface CorrectionHubProps {
   user: User;

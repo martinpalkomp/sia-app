@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { DailyLog } from '../types';
+import { DailyLog, SleepState } from '../types';
 import { saveLog as saveLogService } from '../services/sleepService';
 import { db, doc, deleteDoc } from '../lib/firebase';
 import { convertGridToEvents, getGridFromEvents, calculateSleepDuration, calculateTimeInBed } from '../utils/sleepUtils';
@@ -7,8 +7,24 @@ import { convertGridToEvents, getGridFromEvents, calculateSleepDuration, calcula
 interface SleepStore {
   logs: Record<string, DailyLog>;
   selectedDate: string;
+  isEditing: boolean;
+  isDragging: boolean;
+  activeState: SleepState;
+  dragAction: 'paint' | 'erase';
+  initialTimeline: SleepState[] | null;
+  initialMetrics: { sleep_quality: number; morning_alertness: number; daytime_energy: number } | null;
+  saveStatus: 'idle' | 'saving' | 'saved';
+
   setLogs: (logs: Record<string, DailyLog> | ((prev: Record<string, DailyLog>) => Record<string, DailyLog>)) => void;
   setSelectedDate: (date: string) => void;
+  setIsEditing: (isEditing: boolean) => void;
+  setIsDragging: (isDragging: boolean) => void;
+  setActiveState: (state: SleepState) => void;
+  setDragAction: (action: 'paint' | 'erase') => void;
+  setInitialTimeline: (timeline: SleepState[] | null) => void;
+  setInitialMetrics: (metrics: { sleep_quality: number; morning_alertness: number; daytime_energy: number } | null) => void;
+  setSaveStatus: (status: 'idle' | 'saving' | 'saved') => void;
+
   updateLogLocally: (date: string, data: Partial<DailyLog>) => void;
   saveLogFromState: (userId: string, date: string, source: 'manual' | 'predicted') => Promise<void>;
   deleteLog: (userId: string, date: string) => Promise<void>;
@@ -17,10 +33,26 @@ interface SleepStore {
 export const useSleepStore = create<SleepStore>((set, get) => ({
   logs: {},
   selectedDate: new Date().toISOString().split('T')[0],
+  isEditing: false,
+  isDragging: false,
+  activeState: 'sleep',
+  dragAction: 'paint',
+  initialTimeline: null,
+  initialMetrics: null,
+  saveStatus: 'idle',
+
   setLogs: (logsUpdate) => set((state) => ({ 
     logs: typeof logsUpdate === 'function' ? logsUpdate(state.logs) : logsUpdate 
   })),
   setSelectedDate: (date) => set({ selectedDate: date }),
+  setIsEditing: (isEditing) => set({ isEditing }),
+  setIsDragging: (isDragging) => set({ isDragging }),
+  setActiveState: (activeState) => set({ activeState }),
+  setDragAction: (dragAction) => set({ dragAction }),
+  setInitialTimeline: (initialTimeline) => set({ initialTimeline }),
+  setInitialMetrics: (initialMetrics) => set({ initialMetrics }),
+  setSaveStatus: (saveStatus) => set({ saveStatus }),
+
   updateLogLocally: (date, data) => 
     set((state) => {
       const existing = state.logs[date] || { date };

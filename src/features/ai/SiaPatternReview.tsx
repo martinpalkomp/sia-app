@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Check } from 'lucide-react';
-import { SuggestionResult } from '../utils/patternEngine';
+import { SuggestionResult } from '../../utils/patternEngine';
 
 interface SiaPatternReviewProps {
   isOpen: boolean;

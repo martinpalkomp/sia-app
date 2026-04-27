@@ -1,7 +1,7 @@
 import React from 'react';
-import { SleepEvent } from '../types';
+import { SleepEvent } from '../../types';
 import { motion } from 'motion/react';
-import { getMinutesFrom2000 } from '../utils/sleepUtils';
+import { getMinutesFrom2000 } from '../../utils/sleepUtils';
 
 interface SleepRibbonProps {
   sleepEvents?: SleepEvent[];

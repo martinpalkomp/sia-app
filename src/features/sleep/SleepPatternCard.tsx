@@ -1,18 +1,18 @@
 import React from 'react';
-import { DailyLog, PersonalizationProfile, UserProfile } from '../types';
+import { DailyLog, PersonalizationProfile, UserProfile } from '../../types';
 import { 
   calculateBedtimeConsistency,
   calculateFragmentationIndex,
   calculateTotalSleepHours,
   calculateSocialJetlag
-} from '../utils/diagnosticEngine';
-import { Card } from './UI';
-import { LockedFeatureCard } from './LockedFeatureCard';
+} from '../../utils/diagnosticEngine';
+import { Card } from '../../components/UI';
+import { LockedFeatureCard } from '../../components/LockedFeatureCard';
 import { ClipboardCheck, Share2, Info, Printer, FileText, Sparkles, Lock } from 'lucide-react';
-import { formatDuration, getGridFromEvents, generateASCIIRibbon, generateASCIIRibbonHeader, calculateSleepEfficiency } from '../utils/sleepUtils';
+import { formatDuration, getGridFromEvents, generateASCIIRibbon, generateASCIIRibbonHeader, calculateSleepEfficiency } from '../../utils/sleepUtils';
 import { format, parseISO } from 'date-fns';
-import PrintableReport from './PrintableReport';
-import { generateDoctorReport } from '../utils/generateDoctorReport';
+import PrintableReport from '../data/PrintableReport';
+import { generateDoctorReport } from '../../utils/generateDoctorReport';
 import { User } from 'firebase/auth';
 
 interface SleepPatternCardProps {

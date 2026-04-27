@@ -18,10 +18,10 @@ import {
   Heart,
   Droplets
 } from 'lucide-react';
-import { User, db, doc, setDoc, serverTimestamp } from '../lib/firebase';
-import { PersonalizationProfile } from '../types';
-import { calculateAge } from '../utils/dateUtils';
-import EthicalDataPledge from '../features/account/EthicalDataPledge';
+import { User, db, doc, setDoc, serverTimestamp } from '../../lib/firebase';
+import { PersonalizationProfile } from '../../types';
+import { calculateAge } from '../../utils/dateUtils';
+import EthicalDataPledge from '../account/EthicalDataPledge';
 
 interface PersonalizationWizardProps {
   user: User;

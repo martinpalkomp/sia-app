@@ -1,6 +1,6 @@
 import React from 'react';
 import { useUser } from '../../context/UserContext';
-import { DevModal } from '../../components/DevModal';
+import { DevModal } from '../dev/DevModal';
 import { signOut, auth, db, doc, setDoc, onSnapshot, updateDoc } from '../../lib/firebase';
 import { motion } from 'motion/react';
 import { 

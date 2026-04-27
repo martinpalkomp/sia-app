@@ -26,22 +26,31 @@ export const generateDailyBrief = async (
   currentDate: string, 
   lastNightDate: string
 ): Promise<string> => {
+    // THE "NIGHT BEFORE" RULE
+    const lastNightLog = logs.find(log => log.date === lastNightDate);
+    
+    if (!lastNightLog) {
+      return "SIA morning brief requires last night's data. Please log your sleep for the night before to unlock today's briefing.";
+    }
+
     const prompt = `
       Today's date is ${currentDate}.
       SIA is analyzing the log for last night: ${lastNightDate}.
       Provide a briefing based specifically on the log dated ${lastNightDate}.
-      Analyze the following sleep logs: ${JSON.stringify(logs.slice(0, 7))}
       Calculate the delta between the log from ${lastNightDate} and the 7-day average.
       Provide a concise morning briefing (max 3 sentences).
       ${tier === 'Enhanced' ? 'Include a recommendation for "Circadian Advice" (e.g., optimized light exposure at a specific time).' : ''}
     `;
 
-    const response = await siaClient.generateContent(prompt, {
+    const response = await siaClient.generateContentRaw([
+      { role: "user", parts: [{ text: `Recent Logs: ${JSON.stringify(logs.slice(0, 7))}` }] },
+      { role: "user", parts: [{ text: prompt }] }
+    ], {
         systemInstruction: "You are SIA, a Sleep Intelligence Agent. Provide a brief, professional daily summary.",
         temperature: 0.7
     });
 
-    const content = response.text || "Unable to generate brief.";
+    const content = response.candidates?.[0]?.content?.parts?.[0]?.text || "Unable to generate brief.";
     
     // Check for partial logs
     const hasPartialLogs = logs.some(log => calculateLogVitality(log) < 100);

@@ -1,10 +1,10 @@
 import React, { useMemo } from 'react';
-import { DailyLog } from '../types';
+import { DailyLog } from '../../types';
 import { User, Sparkles, FileUp, Wrench, CheckCircle } from 'lucide-react';
-import { Card } from './UI';
+import { Card } from '../../components/UI';
 import { format } from 'date-fns';
 import { doc, deleteDoc } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { db } from '../../lib/firebase';
 
 interface DataLedgerProps {
   logs: Record<string, DailyLog>;

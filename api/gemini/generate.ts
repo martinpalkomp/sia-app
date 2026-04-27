@@ -1,7 +1,7 @@
 import { GoogleGenAI } from "@google/genai";
 
-const SIA_AI_MODEL = 'gemini-2.0-flash';
-const SIA_FALLBACK_MODEL = 'gemini-2.0-flash';
+const SIA_AI_MODEL = 'gemini-2.5-flash';
+const SIA_FALLBACK_MODEL = 'gemini-1.5-flash';
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') {

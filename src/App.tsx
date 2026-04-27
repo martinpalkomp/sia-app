@@ -109,22 +109,25 @@ import {
 } from './utils/sleepUtils';
 import { calculateSafeAverage } from './utils/statsEngine';
 
-import Legal from './components/Legal';
-import { DevSwitchboardMini } from './components/DevSwitchboardMini';
-import CorrectionHub from './components/CorrectionHub';
+import Legal from './features/legal/Legal';
+import { DevSwitchboardMini } from './features/dev/DevSwitchboardMini';
+import CorrectionHub from './features/data/CorrectionHub';
 const AIInsightsAgent = lazy(() => import('./features/ai/AIInsightsAgent'));
 const DashboardContainer = lazy(() => import('./features/dashboard/DashboardContainer'));
-const PersonalizationWizard = lazy(() => import('./components/PersonalizationWizard'));
+const PersonalizationWizard = lazy(() => import('./features/data/PersonalizationWizard'));
 import AccountPage from './features/account/AccountPage';
-import SleepRibbon from './components/SleepRibbon';
-import SleepPatternCard from './components/SleepPatternCard';
+import SleepRibbon from './features/sleep/SleepRibbon';
+import SleepPatternCard from './features/sleep/SleepPatternCard';
 import { SleepWindow } from './features/sleep/SleepWindow';
-import DataImporter from './components/DataImporter';
+import DataImporter from './features/data/DataImporter';
 import { AvatarFrame, MetricDisplay } from './components/UI';
 import { Navbar } from './components/Navbar';
-import { SiaPatternReview } from './components/SiaPatternReview';
+import { SiaPatternReview } from './features/ai/SiaPatternReview';
 import { UserProvider } from './context/UserContext';
 import { useSleepStore } from './store/useSleepStore';
+
+import { useUIStore } from './store/useUIStore';
+import { useAIStore } from './store/useAIStore';
 
 import { saveLog, validateLogMetrics } from './services/sleepService';
 import { getSuggestedLog, AICorrection, SuggestionResult } from './utils/patternEngine';
@@ -161,7 +164,7 @@ import {
 import { MaturityInfo, AIService } from './services/aiService';
 
 // Lazy load heavy components
-const SleepGuideInteractive = React.lazy(() => import('./components/SleepGuideInteractive'));
+const SleepGuideInteractive = React.lazy(() => import('./features/sleep/SleepGuideInteractive'));
 
 // --- Components ---
 
@@ -231,40 +234,34 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(true);
   const [loginError, setLoginError] = useState<string | null>(null);
   
-  const { logs, setLogs, selectedDate, setSelectedDate, updateLogLocally, saveLogFromState, deleteLog } = useSleepStore();
+  const { 
+    logs, setLogs, selectedDate, setSelectedDate, updateLogLocally, saveLogFromState, deleteLog,
+    isEditing, setIsEditing, isDragging, setIsDragging, activeState, setActiveState, 
+    dragAction, setDragAction, initialTimeline, setInitialTimeline, initialMetrics, setInitialMetrics,
+    saveStatus, setSaveStatus 
+  } = useSleepStore();
   
-  const [direction, setDirection] = useState(0);
-  const [view, setView] = useState<'dashboard' | 'log' | 'weekly' | 'monthly' | 'custom' | 'ai' | 'corrections' | 'legal' | 'account' | 'import' | 'dev-map'>('dashboard');
-  const [customRange, setCustomRange] = useState({ start: getTodayDate(), end: getTodayDate() });
+  const {
+    view, setView, direction, setDirection, toast, setToast, showSleepGuide, setShowSleepGuide,
+    isSleepToolsExpanded, setIsSleepToolsExpanded, highlightTier,
+    setHighlightTier, showPersonalizationWizard, setShowPersonalizationWizard,
+    customRange, setCustomRange, isRefreshing, setIsRefreshing, refreshKey, setRefreshKey,
+    isImporting, setIsImporting
+  } = useUIStore();
+
+  const {
+    aiCorrections, setAiCorrections, activeSuggestion, setActiveSuggestion, prefillUsed, setPrefillUsed,
+    originalSuggestion, setOriginalSuggestion, showPrefillConfirm, setShowPrefillConfirm,
+    showPatternReview, setShowPatternReview, pendingSuggestion, setPendingSuggestion
+  } = useAIStore();
+
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [personalizationProfile, setPersonalizationProfile] = useState<PersonalizationProfile | null>(null);
   const [userProfile, setUserProfile] = useState<any>(null);
   const [isProfileLoading, setIsProfileLoading] = useState(true);
-  const [showPersonalizationWizard, setShowPersonalizationWizard] = useState(false);
-  const [activeState, setActiveState] = useState<SleepState>('sleep');
   const reportRef = useRef<HTMLDivElement>(null);
 
-  const [isDragging, setIsDragging] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-  const [initialTimeline, setInitialTimeline] = useState<SleepState[] | null>(null);
-  const [initialMetrics, setInitialMetrics] = useState<{ sleep_quality: number; morning_alertness: number; daytime_energy: number } | null>(null);
-  const [dragAction, setDragAction] = useState<'paint' | 'erase'>('paint');
-  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
-  const [showSleepGuide, setShowSleepGuide] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [refreshKey, setRefreshKey] = useState(0);
-  const [aiCorrections, setAiCorrections] = useState<AICorrection[]>([]);
-  const [activeSuggestion, setActiveSuggestion] = useState<SuggestionResult | null>(null);
-  const [prefillUsed, setPrefillUsed] = useState(false);
-  const [originalSuggestion, setOriginalSuggestion] = useState<Partial<DailyLog> | null>(null);
-  const [isImporting, setIsImporting] = useState(false);
-  const [showPrefillConfirm, setShowPrefillConfirm] = useState(false);
   const [maturity, setMaturity] = useState<MaturityInfo | null>(null);
-  const [isSleepToolsExpanded, setIsSleepToolsExpanded] = useState(false);
-  const [showPatternReview, setShowPatternReview] = useState(false);
-  const [pendingSuggestion, setPendingSuggestion] = useState<SuggestionResult | null>(null);
-  const [highlightTier, setHighlightTier] = useState(false);
 
   // Handle hash-based navigation for dev tools
   useEffect(() => {

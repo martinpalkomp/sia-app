@@ -4,7 +4,7 @@ import { Activity, Sun, Zap, Clock, BarChart3, Moon, TrendingUp, Sparkles, Brain
 import { Card } from '../../components/UI';
 import { MetricSparklineCard } from '../../components/MetricSparklineCard';
 import { SleepGateHero } from './SleepGateHero';
-import { InsightCard } from '../../components/InsightCard';
+import { InsightCard } from './InsightCard';
 import DataMaturityTracker from '../data/DataMaturityTracker';
 import SleepGuideCard from '../sleep/SleepGuideCard';
 
@@ -179,6 +179,7 @@ export const DashboardView: React.FC<{
         whileHover={{ scale: 1.01 }}
         onClick={() => onViewChange('ai')}
         className="w-full rounded-[2rem] border border-indigo-500/20 bg-gradient-to-r from-indigo-950/50 to-zinc-900 p-8 text-left relative overflow-hidden"
+        id="ai-analysis-card"
       >
         <div className="absolute inset-0 z-0 bg-[radial-gradient(circle_at_right,rgba(99,102,241,0.15),transparent_70%)]" />
         <div className="relative z-10 flex items-center justify-between">
@@ -187,9 +188,20 @@ export const DashboardView: React.FC<{
               <Sparkles size={14} />
               SIA PATTERN DECODER
             </h3>
-            <p className="text-lg text-white leading-relaxed max-w-md">
-              Your daily brief is ready and waiting. SIA only analyses once per day to give your data time to breathe.
-            </p>
+            {isAiLoading ? (
+               <div className="animate-pulse space-y-2">
+                   <div className="h-4 bg-zinc-800 rounded w-3/4"></div>
+                   <div className="h-4 bg-zinc-800 rounded w-1/2"></div>
+               </div>
+            ) : insightTeaser ? (
+              <p className="text-lg font-serif italic text-white leading-relaxed max-w-md">
+                "{insightTeaser}"
+              </p>
+            ) : (
+              <p className="text-lg text-white leading-relaxed max-w-md">
+                Record at least 14 logs (Level 2) to unlock SIA's daily pattern analysis.
+              </p>
+            )}
             <p className="text-[10px] text-indigo-400 font-black uppercase tracking-widest pt-2">
               Explore this pattern in detail →
             </p>
@@ -198,7 +210,6 @@ export const DashboardView: React.FC<{
             </p>
           </div>
           <div className="hidden md:block w-48 h-24 opacity-60">
-             {/* Simple visualization placeholder for now - or I could use a canvas component if I had one */}
              <div className="w-full h-full bg-gradient-to-r from-indigo-900/0 via-indigo-500/20 to-indigo-900/0 rounded-full blur-xl" />
           </div>
         </div>

@@ -9,6 +9,8 @@ interface DevModalProps {
 }
 
 export const DevModal: React.FC<DevModalProps> = ({ isOpen, message, onConfirm, onCancel }) => {
+  if (!import.meta.env.DEV) return null;
+
   return (
     <AnimatePresence>
       {isOpen && (

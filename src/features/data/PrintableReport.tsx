@@ -1,8 +1,8 @@
 import React from 'react';
-import { DailyLog } from '../types';
-import { calculateTotalSleepHours } from '../utils/diagnosticEngine';
-import { calculateSleepEfficiency, formatDuration } from '../utils/sleepUtils';
-import SleepRibbon from './SleepRibbon';
+import { DailyLog } from '../../types';
+import { calculateTotalSleepHours } from '../../utils/diagnosticEngine';
+import { calculateSleepEfficiency, formatDuration } from '../../utils/sleepUtils';
+import SleepRibbon from '../sleep/SleepRibbon';
 import { format, parseISO } from 'date-fns';
 
 interface PrintableReportProps {

@@ -10,8 +10,8 @@ import {
   Moon,
   Sun
 } from 'lucide-react';
-import { Insight } from '../types';
-import { Card } from './UI';
+import { Insight } from '../../types';
+import { Card } from '../../components/UI';
 
 interface InsightCardProps {
   insight: Insight;
