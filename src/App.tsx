@@ -136,7 +136,7 @@ import {
   db, 
   isFirebaseConfigured,
   onAuthStateChanged, 
-  signInWithRedirect,
+  signInWithPopup,
   getRedirectResult,
   signOut, 
   User,
