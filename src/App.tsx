@@ -241,6 +241,8 @@ export default function App() {
     saveStatus, setSaveStatus 
   } = useSleepStore();
   
+  const isFirestoreUpdate = useRef(false);
+
   const {
     view, setView, direction, setDirection, toast, setToast, showSleepGuide, setShowSleepGuide,
     isSleepToolsExpanded, setIsSleepToolsExpanded, highlightTier,
@@ -1006,6 +1008,7 @@ export default function App() {
       // Disable Persistence Sync during import to prevent network/CORS timeouts
       if (isImporting) return;
 
+      isFirestoreUpdate.current = true;
       setLogs(prevLogs => {
         const fetchedLogs: Record<string, DailyLog> = { ...prevLogs };
         snapshot.forEach((doc) => {
@@ -1088,12 +1091,15 @@ export default function App() {
   }, [view, selectedDate, logs, aiCorrections, user]);
 
 useEffect(() => {
-  if (!user || !logs[selectedDate]) return;
+  if (!user?.uid || !logs[selectedDate]) return;
+  if (isFirestoreUpdate.current) {
+    isFirestoreUpdate.current = false;
+    return;
+  }
+  if (saveStatus !== 'saving') return;
   const timer = setTimeout(async () => {
     try {
-      if (user?.uid) {
-        await saveLogFromState(user.uid, selectedDate, 'manual');
-      }
+      await saveLogFromState(user.uid, selectedDate, 'manual');
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus('idle'), 2000);
     } catch (err) {
@@ -1102,7 +1108,7 @@ useEffect(() => {
     }
   }, 600);
   return () => clearTimeout(timer);
-}, [logs[selectedDate], selectedDate, user?.uid]);
+}, [logs[selectedDate], selectedDate, user?.uid, saveStatus]);
 
   const averageStats = useMemo(() => {
     const periodLogs = activeDates.map(d => logs[d]).filter(Boolean);

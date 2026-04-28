@@ -6,6 +6,12 @@ export interface UIElement {
   path: string;
   children?: UIElement[];
   role?: string;
+  function?: string;
+  tierDiff?: string | null;
+  maturityDiff?: string | null;
+  aiUsed?: string | null;
+  trigger?: string | null;
+  dependsOn?: string[];
 }
 
 export const UI_MAP_DATA: Record<string, UIElement[]> = {
@@ -16,11 +22,17 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
       tag: 'section',
       description: 'Main dashboard header',
       path: '/src/features/dashboard/DashboardView.tsx',
+      function: 'Displays user identity, current date, and active subscription tier.',
+      tierDiff: 'Tier badge differs by tier (Basic/Enhanced/Pro label and color).',
+      maturityDiff: null,
+      aiUsed: null,
+      trigger: null,
+      dependsOn: [],
       children: [
-        { id: 'sia-avatar', name: 'SIA Avatar', tag: 'comp', description: 'AvatarFrame component', path: '/src/features/dashboard/DashboardView.tsx' },
-        { id: 'intel-badge', name: 'Intelligence Agent Badge', tag: 'comp', description: 'Pill label above greeting', path: '/src/features/dashboard/DashboardView.tsx' },
-        { id: 'greeting-h1', name: 'Greeting Heading', tag: 'comp', description: 'Time-aware greeting', path: '/src/features/dashboard/DashboardView.tsx' },
-        { id: 'greeting-subtext', name: 'Greeting Subtext', tag: 'comp', description: 'Context line', path: '/src/features/dashboard/DashboardView.tsx' },
+        { id: 'sia-avatar', name: 'SIA Avatar', tag: 'comp', description: 'AvatarFrame component', path: '/src/features/dashboard/DashboardView.tsx', function: 'Shows visual avatar.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
+        { id: 'intel-badge', name: 'Intelligence Agent Badge', tag: 'comp', description: 'Pill label above greeting', path: '/src/features/dashboard/DashboardView.tsx', function: 'Indicates active tier.', tierDiff: 'Basic/Enhanced/Pro label and color', maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
+        { id: 'greeting-h1', name: 'Greeting Heading', tag: 'comp', description: 'Time-aware greeting', path: '/src/features/dashboard/DashboardView.tsx', function: 'Greets the user contextually based on time.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
+        { id: 'greeting-subtext', name: 'Greeting Subtext', tag: 'comp', description: 'Context line', path: '/src/features/dashboard/DashboardView.tsx', function: 'Provides system context or date.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
       ]
     },
     {
@@ -29,6 +41,12 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
       tag: 'section',
       description: 'Projected bedtime and wind-down window',
       path: '/src/features/dashboard/SleepGateHero.tsx',
+      function: 'Displays visually the optimal sleep window and projected bedtime gate.',
+      tierDiff: null,
+      maturityDiff: null,
+      aiUsed: null,
+      trigger: null,
+      dependsOn: []
     },
     {
       id: 'metric-sparkline-card',
@@ -36,6 +54,12 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
       tag: 'card',
       description: 'Metric card with trend sparkline',
       path: '/src/components/MetricSparklineCard.tsx',
+      function: 'Shows aggregated average metrics (Quality, Restedness, Energy, Duration, Efficiency) and trends.',
+      tierDiff: 'No tier gate.',
+      maturityDiff: 'Shows placeholder at level 1 (0-6 logs).',
+      aiUsed: 'No AI.',
+      trigger: null,
+      dependsOn: []
     },
     {
       id: 'db-sia-pattern-decoder',
@@ -43,6 +67,12 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
       tag: 'card',
       description: 'Full-width visual decoder card',
       path: '/src/features/dashboard/DashboardView.tsx',
+      function: 'Placeholder for visual pattern decoding chart.',
+      tierDiff: null,
+      maturityDiff: null,
+      aiUsed: null,
+      trigger: null,
+      dependsOn: []
     },
     {
       id: 'db-data-ledger',
@@ -50,6 +80,12 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
       tag: 'section',
       description: 'Audit trail of all sleep logs',
       path: '/src/features/data/DataLedger.tsx',
+      function: 'Lists historical data points for audit.',
+      tierDiff: null,
+      maturityDiff: null,
+      aiUsed: null,
+      trigger: null,
+      dependsOn: []
     },
     {
       id: 'db-morning-briefing',
@@ -57,12 +93,31 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
       tag: 'section',
       description: 'AI-generated morning briefing container',
       path: '/src/features/dashboard/DashboardView.tsx',
+      function: 'Container for the daily morning briefing based on last 14 logs.',
+      tierDiff: 'All tiers see it but Basic sees a locked overlay.',
+      maturityDiff: 'Blocked at level 1 (0-6 logs).',
+      aiUsed: 'Calls generateDailyBrief() in aiService. Reads last 14 logs and personalizationProfile.',
+      trigger: 'On mount contextually.',
+      dependsOn: ['morning-brief-card'],
       children: [
-        { id: 'morning-brief-card', name: 'Morning Briefing Card', tag: 'card', description: 'Tier-coloured container', path: '/src/features/dashboard/DashboardView.tsx', children: [
-          { id: 'brief-body', name: 'Brief Body Text', tag: 'comp', description: 'AI-generated briefing', path: '/src/features/dashboard/DashboardView.tsx' },
-          { id: 'discuss-btn', name: 'Discuss with SIA Button', tag: 'btn', description: 'Navigates to AI view via onViewChange(ai).', path: '/src/features/dashboard/DashboardView.tsx' },
-          { id: 'fallback-ui', name: 'Static Fallback UI', tag: 'comp', description: 'Displays dynamic countdown to 7-day unlock.', path: '/src/features/dashboard/DashboardView.tsx' },
-        ]}
+        { 
+          id: 'morning-brief-card', 
+          name: 'Morning Briefing Card', 
+          tag: 'card', 
+          description: 'Tier-coloured container', 
+          path: '/src/features/dashboard/DashboardView.tsx',
+          function: 'Presents the AI briefing.',
+          tierDiff: 'Basic sees locked overlay.',
+          maturityDiff: 'Blocked at level 1.',
+          aiUsed: 'generateDailyBrief() cached via sia_brief_{uid}_{date}',
+          trigger: null,
+          dependsOn: ['brief-body'],
+          children: [
+            { id: 'brief-body', name: 'Brief Body Text', tag: 'comp', description: 'AI-generated briefing', path: '/src/features/dashboard/DashboardView.tsx', function: 'Displays text from generateDailyBrief()', tierDiff: null, maturityDiff: null, aiUsed: 'generateDailyBrief()', trigger: null, dependsOn: [] },
+            { id: 'discuss-btn', name: 'Discuss with SIA Button', tag: 'btn', description: 'Navigates to AI view via onViewChange(ai).', path: '/src/features/dashboard/DashboardView.tsx', function: 'Navigates to AI chat view.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
+            { id: 'fallback-ui', name: 'Static Fallback UI', tag: 'comp', description: 'Displays dynamic countdown to 7-day unlock.', path: '/src/features/dashboard/DashboardView.tsx', function: 'Shows when maturity is too low.', tierDiff: null, maturityDiff: 'Shown at level 1.', aiUsed: null, trigger: 'Blocked at Level 1', dependsOn: [] },
+          ]
+        }
       ]
     },
     {
@@ -71,11 +126,42 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
       tag: 'section',
       description: 'Correlation analysis and clinical feed',
       path: '/src/features/dashboard/DashboardView.tsx',
+      function: 'Presents personalized macro patterns and insights.',
+      tierDiff: 'Basic tier sees LockedFeatureCard with upgrade CTA. Enhanced/Pro see AI-generated pattern teaser.',
+      maturityDiff: 'Requires 14+ logs (Level 3 or higher).',
+      aiUsed: 'Calls generateQuickInsight(). Session-cached via sia_insight_{uid}_{date}.',
+      trigger: null,
+      dependsOn: ['ai-analysis-card', 'clinical-insights-feed'],
       children: [
-        { id: 'ai-analysis-card', name: 'Pattern Decoder Card', tag: 'card', description: 'Full-width clickable card, navigates to AI view', path: '/src/features/dashboard/DashboardView.tsx', children: [
-          { id: 'insight-body', name: 'Decoder Body Text', tag: 'comp', description: 'AI-generated correlation limit to 5 lines', path: '/src/features/dashboard/DashboardView.tsx' },
-        ]},
-        { id: 'clinical-insights-feed', name: 'Clinical Insights Feed', tag: 'section', description: 'List of insights', path: '/src/features/dashboard/DashboardView.tsx' }
+        { 
+          id: 'ai-analysis-card', 
+          name: 'Pattern Decoder Card', 
+          tag: 'card', 
+          description: 'Full-width clickable card, navigates to AI view', 
+          path: '/src/features/dashboard/DashboardView.tsx', 
+          function: 'SIA Quick Insight card providing pattern teasers.',
+          tierDiff: 'Basic sees LockedFeatureCard.',
+          maturityDiff: 'Requires 14+ logs.',
+          aiUsed: 'generateQuickInsight(), re-fetches after 3+ new logs.',
+          trigger: null,
+          dependsOn: ['insight-body'],
+          children: [
+            { id: 'insight-body', name: 'Decoder Body Text', tag: 'comp', description: 'AI-generated correlation limit to 5 lines', path: '/src/features/dashboard/DashboardView.tsx', function: 'Teases insight.', tierDiff: null, maturityDiff: null, aiUsed: 'generateQuickInsight() text output', trigger: null, dependsOn: [] },
+          ]
+        },
+        { 
+          id: 'clinical-insights-feed', 
+          name: 'Clinical Insights Feed', 
+          tag: 'section', 
+          description: 'List of insights', 
+          path: '/src/features/dashboard/DashboardView.tsx',
+          function: 'Feed of past generated clinical insights.',
+          tierDiff: 'Requires isEnhanced. Basic sees LockedFeatureCard.',
+          maturityDiff: 'Requires dataMaturity.level >= 3 (14+ logs).',
+          aiUsed: 'Reads users/{uid}/insights collection via one-time getDocs on mount.',
+          trigger: 'On component mount.',
+          dependsOn: []
+        }
       ]
     },
     {
@@ -84,9 +170,16 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
       tag: 'section',
       description: 'Log, fix, AI buttons',
       path: '/src/features/dashboard/DashboardView.tsx',
+      function: 'Action buttons for log entry and deep analysis navigation.',
+      tierDiff: 'Deep Analysis and AI Analysis gated by isEnhanced.',
+      maturityDiff: 'Deep Analysis and AI Analysis gated by level 3.',
+      aiUsed: null,
+      trigger: null,
+      dependsOn: [],
       children: [
-        { id: 'log-last-night-card', name: 'Log Last Night Card', tag: 'btn', description: 'Navigates to Log view via onLogClick', path: '/src/features/dashboard/DashboardView.tsx' },
-        { id: 'fix-missing-data-btn', name: 'Fix Missing Data Button', tag: 'btn', description: 'Shown only when correctionsCount > 0, navigates to corrections', path: '/src/features/dashboard/DashboardView.tsx' },
+        { id: 'log-last-night-card', name: 'Log Last Night Card', tag: 'btn', description: 'Navigates to Log view via onLogClick', path: '/src/features/dashboard/DashboardView.tsx', function: 'Navigates to Log view.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
+        { id: 'fix-missing-data-btn', name: 'Fix Missing Data Button', tag: 'btn', description: 'Shown only when correctionsCount > 0, navigates to corrections', path: '/src/features/dashboard/DashboardView.tsx', function: 'Navigates to corrections view to fix gaps.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: 'correctionsCount > 0', dependsOn: [] },
+        { id: 'deep-analysis-btn', name: 'Deep Analysis Button', tag: 'btn', description: 'Triggers deep pattern analysis and navigation.', path: '/src/features/dashboard/DashboardView.tsx', function: 'Calls generateDeepAnalysis()', tierDiff: 'Requires isEnhanced', maturityDiff: 'Requires maturity level >= 3. Disabled below threshold.', aiUsed: 'Calls generateDeepAnalysis(), reading up to 90 full log documents.', trigger: 'User click', dependsOn: [] }
       ]
     },
     {
@@ -95,8 +188,14 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
       tag: 'section',
       description: 'Educational resources',
       path: '/src/features/dashboard/DashboardView.tsx',
+      function: 'Shows tier upgrade CTAs for Basic, personalization progress for Enhanced/Pro.',
+      tierDiff: 'Basic sees upgrade CTA, Enhanced/Pro see personalization.',
+      maturityDiff: 'No maturity gate.',
+      aiUsed: 'No AI.',
+      trigger: null,
+      dependsOn: [],
       children: [
-        { id: 'sleep-guide-card', name: 'SleepGuideCard', tag: 'comp', description: 'Opens SleepGuideInteractive via onOpenSleepGuide', path: '/src/features/sleep/SleepGuideCard.tsx' },
+        { id: 'sleep-guide-card', name: 'SleepGuideCard', tag: 'comp', description: 'Opens SleepGuideInteractive via onOpenSleepGuide', path: '/src/features/sleep/SleepGuideCard.tsx', function: 'Opens sleep guide.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: 'User click', dependsOn: [] },
       ]
     },
     {
@@ -105,8 +204,14 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
       tag: 'section',
       description: 'Diagnostic monitoring',
       path: '/src/features/dashboard/DashboardView.tsx',
+      function: 'Diagnostic monitoring feed.',
+      tierDiff: 'Requires isEnhanced.',
+      maturityDiff: 'Requires dataMaturity.level >= 3. Placeholder at level 3, activates at level 4 (90+ logs).',
+      aiUsed: 'Uses patternDecoder service.',
+      trigger: null,
+      dependsOn: [],
       children: [
-        { id: 'sia-intel-feed-card', name: 'SIA Intelligence Feed Card', tag: 'card', description: 'Diagnostic monitoring', path: '/src/features/dashboard/DashboardView.tsx' },
+        { id: 'sia-intel-feed-card', name: 'SIA Intelligence Feed Card', tag: 'card', description: 'Diagnostic monitoring', path: '/src/features/dashboard/DashboardView.tsx', function: 'Displays feed items.', tierDiff: 'Requires isEnhanced.', maturityDiff: 'Full feed at level 4.', aiUsed: 'Uses patternDecoder service.', trigger: null, dependsOn: [] },
       ]
     },
     {
@@ -115,8 +220,14 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
       tag: 'section',
       description: 'Progress bar for data calibration',
       path: '/src/features/dashboard/DashboardView.tsx',
+      function: 'Shows data mapping progress to encourage logging.',
+      tierDiff: 'None (Shows all users).',
+      maturityDiff: 'Progress bar fills across 4 thresholds: 7, 14, 90.',
+      aiUsed: 'Reads dataMaturity from Firestore via getCountFromServer.',
+      trigger: null,
+      dependsOn: ['maturity-tracker'],
       children: [
-        { id: 'maturity-tracker', name: 'Data Maturity Tracker', tag: 'comp', description: 'Multi-bar roadmap for data calibration', path: '/src/features/data/DataMaturityTracker.tsx' },
+        { id: 'maturity-tracker', name: 'Data Maturity Tracker', tag: 'comp', description: 'Multi-bar roadmap for data calibration', path: '/src/features/data/DataMaturityTracker.tsx', function: 'Visualizes log count towards thresholds 7, 14, 90+.', tierDiff: null, maturityDiff: 'Shows tiers of logged days.', aiUsed: 'Reads from dataMaturity service.', trigger: null, dependsOn: [] },
       ]
     },
   ],
@@ -127,11 +238,17 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
       tag: 'section',
       description: 'Date navigation and context',
       path: '/src/App.tsx',
+      function: 'Navigates between dates logically. selectedDate drives all other Log elements.',
+      tierDiff: 'No tier gate.',
+      maturityDiff: 'No maturity gate.',
+      aiUsed: 'No AI.',
+      trigger: null,
+      dependsOn: [],
       children: [
-        { id: 'log-date-prev', name: 'Previous Date Button', tag: 'btn', description: 'Navigates to previous day', path: '/src/App.tsx' },
-        { id: 'log-date-heading', name: 'Date Heading', tag: 'comp', description: 'Displays current date', path: '/src/App.tsx' },
-        { id: 'log-date-label', name: 'Date Label', tag: 'comp', description: 'Contextual date label', path: '/src/App.tsx' },
-        { id: 'log-date-next', name: 'Next Date Button', tag: 'btn', description: 'Navigates to next day', path: '/src/App.tsx' },
+        { id: 'log-date-prev', name: 'Previous Date Button', tag: 'btn', description: 'Navigates to previous day', path: '/src/App.tsx', function: 'Changes selectedDate to previous day.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
+        { id: 'log-date-heading', name: 'Date Heading', tag: 'comp', description: 'Displays current date', path: '/src/App.tsx', function: 'Shows active selectedDate.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
+        { id: 'log-date-label', name: 'Date Label', tag: 'comp', description: 'Contextual date label', path: '/src/App.tsx', function: 'Shows relative date like Today, Yesterday.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
+        { id: 'log-date-next', name: 'Next Date Button', tag: 'btn', description: 'Navigates to next day', path: '/src/App.tsx', function: 'Changes selectedDate to next day.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
       ]
     },
     {
@@ -140,22 +257,28 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
       tag: 'section',
       description: 'SIA learning, edit controls, sleep window grid',
       path: '/src/App.tsx',
+      function: 'User paints sleep/awake states for the date, single source of truth.',
+      tierDiff: 'No tier gate.',
+      maturityDiff: 'No maturity gate.',
+      aiUsed: 'No AI.',
+      trigger: null,
+      dependsOn: ['log-grid', 'log-state-selectors'],
       children: [
-        { id: 'log-timeline-anchor', name: 'Timeline Anchor', tag: 'comp', description: 'Container for routine, learning, and controls', path: '/src/App.tsx', children: [
-          { id: 'log-sia-routine-btn', name: 'SIA Routine Button', tag: 'btn', description: 'Toggles routine mode. Requires historyCount >= 3.', path: '/src/App.tsx' },
-          { id: 'log-sia-learning-label', name: 'SIA Learning Label', tag: 'comp', description: 'Status indicator', path: '/src/App.tsx' },
-          { id: 'log-edit-controls', name: 'Edit Controls', tag: 'comp', description: 'Undo/Cancel/Save buttons. Hidden unless isEditing is true.', path: '/src/App.tsx' },
+        { id: 'log-timeline-anchor', name: 'Timeline Anchor', tag: 'comp', description: 'Container for routine, learning, and controls', path: '/src/App.tsx', function: 'Groups routine and cancel/save controls.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [], children: [
+          { id: 'log-sia-routine-btn', name: 'SIA Routine Button', tag: 'btn', description: 'Toggles routine mode. Requires historyCount >= 3.', path: '/src/App.tsx', function: 'Triggers SIA Routine prefill popup.', tierDiff: 'Enhanced/Pro only - Basic sees locked state.', maturityDiff: 'Requires level 2+ (7+ logs).', aiUsed: 'Calls getSuggestedLog() from patternEngine.', trigger: 'User click', dependsOn: [] },
+          { id: 'log-sia-learning-label', name: 'SIA Learning Label', tag: 'comp', description: 'Status indicator', path: '/src/App.tsx', function: 'Indicates learning status based on tier.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
+          { id: 'log-edit-controls', name: 'Edit Controls', tag: 'comp', description: 'Undo/Cancel/Save buttons. Hidden unless isEditing is true.', path: '/src/App.tsx', function: 'Undo/Cancel/Save controls to revert or persist changes. Cancel restores initialTimeline and initialMetrics.', tierDiff: 'No tier gate.', maturityDiff: 'No maturity gate.', aiUsed: 'No AI.', trigger: 'Shown when isEditing = true.', dependsOn: [] },
         ]},
-        { id: 'log-state-selectors', name: 'State Selectors', tag: 'comp', description: 'Awake/Sleep state toggle. Hidden unless isEditing is true.', path: '/src/App.tsx', children: [
-          { id: 'awake-btn', name: 'Awake Button', tag: 'btn', description: 'Set state to awake', path: '/src/App.tsx' },
-          { id: 'sleep-btn', name: 'Sleep Button', tag: 'btn', description: 'Set state to sleep', path: '/src/App.tsx' },
+        { id: 'log-state-selectors', name: 'State Selectors', tag: 'comp', description: 'Awake/Sleep state toggle. Hidden unless isEditing is true.', path: '/src/App.tsx', function: 'Allows switching painting mode between sleep and awake.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [], children: [
+          { id: 'awake-btn', name: 'Awake Button', tag: 'btn', description: 'Set state to awake', path: '/src/App.tsx', function: 'Sets brush to awake.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
+          { id: 'sleep-btn', name: 'Sleep Button', tag: 'btn', description: 'Set state to sleep', path: '/src/App.tsx', function: 'Sets brush to sleep.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
         ]},
-        { id: 'log-sleep-window-container', name: 'Sleep Window Container', tag: 'comp', description: 'Container for sleep window grid', path: '/src/App.tsx', children: [
-          { id: 'log-has-data-overlay', name: 'Data Overlay', tag: 'overlay', description: 'Shown when log view is loaded', path: '/src/App.tsx' },
-          { id: 'log-grid', name: 'Sleep Window Grid', tag: 'comp', description: 'SleepWindow component', path: '/src/features/sleep/SleepWindow.tsx' },
-          { id: 'log-scroll-hint', name: 'Scroll Hint', tag: 'comp', description: 'Visual scroll indicator', path: '/src/App.tsx' },
+        { id: 'log-sleep-window-container', name: 'Sleep Window Container', tag: 'comp', description: 'Container for sleep window grid', path: '/src/App.tsx', function: 'Wraps the 96-slot interactive tracking grid.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [], children: [
+          { id: 'log-has-data-overlay', name: 'Data Overlay', tag: 'overlay', description: 'Shown when log view is loaded', path: '/src/App.tsx', function: 'Shows tracking state loading or missing.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
+          { id: 'log-grid', name: 'Sleep Window Grid', tag: 'comp', description: 'SleepWindow component', path: '/src/features/sleep/SleepWindow.tsx', function: '96-slot visualTimeline array, 15 min slots. user paints. single source of truth.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
+          { id: 'log-scroll-hint', name: 'Scroll Hint', tag: 'comp', description: 'Visual scroll indicator', path: '/src/App.tsx', function: 'Hints horizontal scroll.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
         ]},
-        { id: 'log-stats-footer', name: 'Stats Footer', tag: 'comp', description: 'Summary statistics', path: '/src/App.tsx' },
+        { id: 'log-stats-footer', name: 'Stats Footer', tag: 'comp', description: 'Summary statistics', path: '/src/App.tsx', function: 'Vitality Score computed by calculateLogVitality(). shows -- if insufficient.', tierDiff: 'No tier gate.', maturityDiff: 'No maturity gate.', aiUsed: 'No AI.', trigger: 'Requires sleepEvents.length > 0 and 1+ metric > 0.', dependsOn: [] },
       ]
     },
     {
@@ -164,12 +287,18 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
       tag: 'section',
       description: 'Slider inputs for sleep quality, restedness, and energy',
       path: '/src/App.tsx',
+      function: 'Slider inputs to rate sleep quality, restedness, energy, stress, mood. Range 1-10.',
+      tierDiff: 'No tier gate.',
+      maturityDiff: 'No maturity gate.',
+      aiUsed: 'No AI.',
+      trigger: 'Each change calls updateLog() -> updateLogLocally() -> setSaveStatus(\'saving\'). save useEffect fires after 600ms debounce.',
+      dependsOn: [],
       children: [
-        { id: 'log-info-quality', name: 'Sleep Quality Info', tag: 'comp', description: 'Interactive label and info icon for sleep quality', path: '/src/App.tsx' },
-        { id: 'log-info-restedness', name: 'Restedness Info', tag: 'comp', description: 'Interactive label and info icon for restedness', path: '/src/App.tsx' },
-        { id: 'log-info-energy', name: 'Energy Level Info', tag: 'comp', description: 'Interactive label and info icon for energy level', path: '/src/App.tsx' },
-        { id: 'log-info-stress', name: 'Stress Level Info', tag: 'comp', description: 'Interactive label and info icon for stress level', path: '/src/App.tsx' },
-        { id: 'log-info-mood', name: 'Morning Mood Info', tag: 'comp', description: 'Interactive label and info icon for morning mood', path: '/src/App.tsx' },
+        { id: 'log-info-quality', name: 'Sleep Quality Info', tag: 'comp', description: 'Interactive label and info icon for sleep quality', path: '/src/App.tsx', function: 'Sleep quality slider.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
+        { id: 'log-info-restedness', name: 'Restedness Info', tag: 'comp', description: 'Interactive label and info icon for restedness', path: '/src/App.tsx', function: 'Morning restedness slider.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
+        { id: 'log-info-energy', name: 'Energy Level Info', tag: 'comp', description: 'Interactive label and info icon for energy level', path: '/src/App.tsx', function: 'Daytime energy slider.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
+        { id: 'log-info-stress', name: 'Stress Level Info', tag: 'comp', description: 'Interactive label and info icon for stress level', path: '/src/App.tsx', function: 'Stress level slider.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
+        { id: 'log-info-mood', name: 'Morning Mood Info', tag: 'comp', description: 'Interactive label and info icon for morning mood', path: '/src/App.tsx', function: 'Morning mood slider.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
       ]
     },
     {
@@ -178,23 +307,29 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
       tag: 'section',
       description: 'Toggle rows for caffeine, alcohol, etc.',
       path: '/src/App.tsx',
+      function: 'Toggle rows for daily factors to inform the pattern engine.',
+      tierDiff: 'No tier gate.',
+      maturityDiff: 'No maturity gate.',
+      aiUsed: 'No AI. Consumed by patternEngine.',
+      trigger: null,
+      dependsOn: [],
       children: [
-        { id: 'factor-caffeine', name: 'Caffeine Toggle', tag: 'comp', description: 'Toggle row', path: '/src/App.tsx', children: [
-          { id: 'caffeine-count-input', name: 'Caffeine Count', tag: 'input', description: 'Sub-input. Visible only when factor-caffeine is toggled.', path: '/src/App.tsx' },
-          { id: 'caffeine-time-input', name: 'Caffeine Time', tag: 'input', description: 'Sub-input. Visible only when factor-caffeine is toggled.', path: '/src/App.tsx' },
+        { id: 'factor-caffeine', name: 'Caffeine Toggle', tag: 'comp', description: 'Toggle row', path: '/src/App.tsx', function: 'Caffeine consumption toggle calls updateFactors().', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [], children: [
+          { id: 'caffeine-count-input', name: 'Caffeine Count', tag: 'input', description: 'Sub-input. Visible only when factor-caffeine is toggled.', path: '/src/App.tsx', function: 'Amount of cups.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
+          { id: 'caffeine-time-input', name: 'Caffeine Time', tag: 'input', description: 'Sub-input. Visible only when factor-caffeine is toggled.', path: '/src/App.tsx', function: 'Time of last cup.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
         ]},
-        { id: 'factor-alcohol', name: 'Alcohol Toggle', tag: 'comp', description: 'Toggle row', path: '/src/App.tsx', children: [
-          { id: 'alcohol-drinks-input', name: 'Alcohol Drinks', tag: 'input', description: 'Sub-input. Visible only when factor-alcohol is toggled.', path: '/src/App.tsx' },
-          { id: 'alcohol-time-input', name: 'Alcohol Time', tag: 'input', description: 'Sub-input. Visible only when factor-alcohol is toggled.', path: '/src/App.tsx' },
+        { id: 'factor-alcohol', name: 'Alcohol Toggle', tag: 'comp', description: 'Toggle row', path: '/src/App.tsx', function: 'Alcohol consumption toggle calls updateFactors().', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [], children: [
+          { id: 'alcohol-drinks-input', name: 'Alcohol Drinks', tag: 'input', description: 'Sub-input. Visible only when factor-alcohol is toggled.', path: '/src/App.tsx', function: 'Amount of drinks.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
+          { id: 'alcohol-time-input', name: 'Alcohol Time', tag: 'input', description: 'Sub-input. Visible only when factor-alcohol is toggled.', path: '/src/App.tsx', function: 'Time of last drink.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
         ]},
-        { id: 'factor-medication', name: 'Medication Toggle', tag: 'comp', description: 'Toggle row', path: '/src/App.tsx', children: [
-          { id: 'medication-type-input', name: 'Medication Type', tag: 'input', description: 'Sub-input. Visible only when factor-medication is toggled.', path: '/src/App.tsx' },
-          { id: 'medication-time-input', name: 'Medication Time', tag: 'input', description: 'Sub-input. Visible only when factor-medication is toggled.', path: '/src/App.tsx' },
+        { id: 'factor-medication', name: 'Medication Toggle', tag: 'comp', description: 'Toggle row', path: '/src/App.tsx', function: 'Medication consumption toggle calls updateFactors().', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [], children: [
+          { id: 'medication-type-input', name: 'Medication Type', tag: 'input', description: 'Sub-input. Visible only when factor-medication is toggled.', path: '/src/App.tsx', function: 'Type of medication.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
+          { id: 'medication-time-input', name: 'Medication Time', tag: 'input', description: 'Sub-input. Visible only when factor-medication is toggled.', path: '/src/App.tsx', function: 'Time of medication.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
         ]},
-        { id: 'factor-screens-in-bed', name: 'Screens in Bed Toggle', tag: 'comp', description: 'Toggle row', path: '/src/App.tsx' },
-        { id: 'factor-stress-level', name: 'Stress Level Slider', tag: 'input', description: 'Stress level slider input', path: '/src/App.tsx' },
-        { id: 'factor-natural-wake', name: 'Natural Wake Toggle', tag: 'comp', description: 'Toggle row', path: '/src/App.tsx' },
-        { id: 'factor-morning-mood', name: 'Morning Mood Slider', tag: 'input', description: 'Morning mood slider input', path: '/src/App.tsx' },
+        { id: 'factor-screens-in-bed', name: 'Screens in Bed Toggle', tag: 'comp', description: 'Toggle row', path: '/src/App.tsx', function: 'Screens in bed usage calls updateFactors().', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
+        { id: 'factor-stress-level', name: 'Stress Level Slider', tag: 'input', description: 'Stress level slider input', path: '/src/App.tsx', function: 'Stress factor update.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
+        { id: 'factor-natural-wake', name: 'Natural Wake Toggle', tag: 'comp', description: 'Toggle row', path: '/src/App.tsx', function: 'Woke up without alarm toggle calls updateFactors().', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
+        { id: 'factor-morning-mood', name: 'Morning Mood Slider', tag: 'input', description: 'Morning mood slider input', path: '/src/App.tsx', function: 'Mood factor update.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
       ]
     },
     {
@@ -203,27 +338,33 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
       tag: 'section',
       description: 'Collapsible interventions, passive aids, tracking',
       path: '/src/App.tsx',
+      function: 'Collapsible gadgets and interventions tracking.',
+      tierDiff: 'No tier gate.',
+      maturityDiff: 'No maturity gate.',
+      aiUsed: 'No AI (Consumed by patternEngine).',
+      trigger: null,
+      dependsOn: [],
       children: [
-        { id: 'support-toggle-btn', name: 'Support Tools Toggle', tag: 'btn', description: 'Collapsible toggle button', path: '/src/App.tsx' },
-        { id: 'interventions-grid', name: 'Interventions Grid', tag: 'comp', description: 'Grid of intervention gadgets', path: '/src/App.tsx', children: [
-          { id: 'gadget-light-therapy', name: 'Light Therapy Toggle', tag: 'comp', description: 'Toggle row', path: '/src/App.tsx' },
-          { id: 'gadget-breathing-trainer', name: 'Breathing Trainer Toggle', tag: 'comp', description: 'Toggle row', path: '/src/App.tsx' },
-          { id: 'gadget-pre-sleep-heating', name: 'Pre-sleep Heating Toggle', tag: 'comp', description: 'Toggle row', path: '/src/App.tsx' },
-          { id: 'gadget-aromatherapy', name: 'Aromatherapy Toggle', tag: 'comp', description: 'Toggle row', path: '/src/App.tsx' },
-          { id: 'gadget-meditation-app', name: 'Meditation App Toggle', tag: 'comp', description: 'Toggle row', path: '/src/App.tsx' },
+        { id: 'support-toggle-btn', name: 'Support Tools Toggle', tag: 'btn', description: 'Collapsible toggle button', path: '/src/App.tsx', function: 'Expands grid.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
+        { id: 'interventions-grid', name: 'Interventions Grid', tag: 'comp', description: 'Grid of intervention gadgets', path: '/src/App.tsx', function: 'Gadgets section 1.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [], children: [
+          { id: 'gadget-light-therapy', name: 'Light Therapy Toggle', tag: 'comp', description: 'Toggle row', path: '/src/App.tsx', function: 'Calls toggleGadget() & updateGadgetDetails(). Stored in log.factors.sleepGadgets[]', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
+          { id: 'gadget-breathing-trainer', name: 'Breathing Trainer Toggle', tag: 'comp', description: 'Toggle row', path: '/src/App.tsx', function: 'Calls toggleGadget().', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
+          { id: 'gadget-pre-sleep-heating', name: 'Pre-sleep Heating Toggle', tag: 'comp', description: 'Toggle row', path: '/src/App.tsx', function: 'Calls toggleGadget().', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
+          { id: 'gadget-aromatherapy', name: 'Aromatherapy Toggle', tag: 'comp', description: 'Toggle row', path: '/src/App.tsx', function: 'Calls toggleGadget().', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
+          { id: 'gadget-meditation-app', name: 'Meditation App Toggle', tag: 'comp', description: 'Toggle row', path: '/src/App.tsx', function: 'Calls toggleGadget().', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
         ]},
-        { id: 'passive-aids-grid', name: 'Passive Aids Grid', tag: 'comp', description: 'Grid of passive aid gadgets', path: '/src/App.tsx', children: [
-          { id: 'gadget-cooling-pad', name: 'Cooling Pad Toggle', tag: 'comp', description: 'Toggle row', path: '/src/App.tsx' },
-          { id: 'gadget-white-noise', name: 'White Noise Toggle', tag: 'comp', description: 'Toggle row', path: '/src/App.tsx' },
-          { id: 'gadget-sleep-mask', name: 'Sleep Mask Toggle', tag: 'comp', description: 'Toggle row', path: '/src/App.tsx' },
-          { id: 'gadget-earplugs', name: 'Earplugs Toggle', tag: 'comp', description: 'Toggle row', path: '/src/App.tsx' },
-          { id: 'gadget-weighted-blanket', name: 'Weighted Blanket Toggle', tag: 'comp', description: 'Toggle row', path: '/src/App.tsx' },
+        { id: 'passive-aids-grid', name: 'Passive Aids Grid', tag: 'comp', description: 'Grid of passive aid gadgets', path: '/src/App.tsx', function: 'Gadgets section 2.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [], children: [
+          { id: 'gadget-cooling-pad', name: 'Cooling Pad Toggle', tag: 'comp', description: 'Toggle row', path: '/src/App.tsx', function: 'Calls toggleGadget().', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
+          { id: 'gadget-white-noise', name: 'White Noise Toggle', tag: 'comp', description: 'Toggle row', path: '/src/App.tsx', function: 'Calls toggleGadget().', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
+          { id: 'gadget-sleep-mask', name: 'Sleep Mask Toggle', tag: 'comp', description: 'Toggle row', path: '/src/App.tsx', function: 'Calls toggleGadget().', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
+          { id: 'gadget-earplugs', name: 'Earplugs Toggle', tag: 'comp', description: 'Toggle row', path: '/src/App.tsx', function: 'Calls toggleGadget().', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
+          { id: 'gadget-weighted-blanket', name: 'Weighted Blanket Toggle', tag: 'comp', description: 'Toggle row', path: '/src/App.tsx', function: 'Calls toggleGadget().', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
         ]},
-        { id: 'tracking-grid', name: 'Tracking Grid', tag: 'comp', description: 'Grid of tracking gadgets', path: '/src/App.tsx', children: [
-          { id: 'gadget-smart-ring', name: 'Smart Ring Toggle', tag: 'comp', description: 'Toggle row', path: '/src/App.tsx' },
-          { id: 'gadget-smartwatch', name: 'Smartwatch Toggle', tag: 'comp', description: 'Toggle row', path: '/src/App.tsx' },
-          { id: 'gadget-fitness-band', name: 'Fitness Band Toggle', tag: 'comp', description: 'Toggle row', path: '/src/App.tsx' },
-          { id: 'gadget-phone-app', name: 'Phone App Toggle', tag: 'comp', description: 'Toggle row', path: '/src/App.tsx' },
+        { id: 'tracking-grid', name: 'Tracking Grid', tag: 'comp', description: 'Grid of tracking gadgets', path: '/src/App.tsx', function: 'Gadgets section 3.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [], children: [
+          { id: 'gadget-smart-ring', name: 'Smart Ring Toggle', tag: 'comp', description: 'Toggle row', path: '/src/App.tsx', function: 'Calls toggleGadget().', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
+          { id: 'gadget-smartwatch', name: 'Smartwatch Toggle', tag: 'comp', description: 'Toggle row', path: '/src/App.tsx', function: 'Calls toggleGadget().', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
+          { id: 'gadget-fitness-band', name: 'Fitness Band Toggle', tag: 'comp', description: 'Toggle row', path: '/src/App.tsx', function: 'Calls toggleGadget().', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
+          { id: 'gadget-phone-app', name: 'Phone App Toggle', tag: 'comp', description: 'Toggle row', path: '/src/App.tsx', function: 'Calls toggleGadget().', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
         ]},
       ]
     },
@@ -233,8 +374,14 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
       tag: 'section',
       description: 'Daily remarks textarea',
       path: '/src/App.tsx',
+      function: 'Free-text remarks for context.',
+      tierDiff: 'No tier gate.',
+      maturityDiff: 'No maturity gate.',
+      aiUsed: 'Included in AI context for chatWithSIA.',
+      trigger: null,
+      dependsOn: [],
       children: [
-        { id: 'log-remarks-textarea', name: 'Remarks Textarea', tag: 'input', description: 'Textarea for daily notes', path: '/src/App.tsx' },
+        { id: 'log-remarks-textarea', name: 'Remarks Textarea', tag: 'input', description: 'Textarea for daily notes', path: '/src/App.tsx', function: 'Calls updateLog({ daily_remarks }).', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
       ]
     },
     {
@@ -243,11 +390,17 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
       tag: 'section',
       description: 'Import external data',
       path: '/src/App.tsx',
+      function: 'Bulk import data points.',
+      tierDiff: null,
+      maturityDiff: null,
+      aiUsed: null,
+      trigger: null,
+      dependsOn: [],
       children: [
-        { id: 'data-importer-comp', name: 'Data Importer', tag: 'comp', description: 'DataImporter component', path: '/src/features/data/DataImporter.tsx', children: [
-          { id: 'imp-preflight-bar', name: 'Pre-Flight Check Bar', tag: 'comp', description: 'Consolidated constraints, credits, and template download', path: '/src/features/data/DataImporter.tsx' },
-          { id: 'imp-checklist-cards', name: 'Checklist Cards', tag: 'comp', description: 'Elevated preparation guidelines', path: '/src/features/data/DataImporter.tsx' },
-          { id: 'imp-action-zone', name: 'Action Zone', tag: 'comp', description: 'Unified paste and file dropzone', path: '/src/features/data/DataImporter.tsx' },
+        { id: 'data-importer-comp', name: 'Data Importer', tag: 'comp', description: 'DataImporter component', path: '/src/features/data/DataImporter.tsx', function: 'Importer logic wrapper.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [], children: [
+          { id: 'imp-preflight-bar', name: 'Pre-Flight Check Bar', tag: 'comp', description: 'Consolidated constraints, credits, and template download', path: '/src/features/data/DataImporter.tsx', function: 'Preparation summary.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
+          { id: 'imp-checklist-cards', name: 'Checklist Cards', tag: 'comp', description: 'Elevated preparation guidelines', path: '/src/features/data/DataImporter.tsx', function: 'Instructions.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
+          { id: 'imp-action-zone', name: 'Action Zone', tag: 'comp', description: 'Unified paste and file dropzone', path: '/src/features/data/DataImporter.tsx', function: 'Inputs to submit data.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
         ]},
       ]
     },
@@ -259,17 +412,23 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
       tag: 'section',
       description: 'View title, date range, tab bar, clinical report button',
       path: '/src/App.tsx',
+      function: 'Fixed at top. Navigation between view periods (7-day, 30-day, custom range). Tab selection changes activeDates which filters logs subscription.',
+      tierDiff: 'No tier gate.',
+      maturityDiff: 'No maturity gate.',
+      aiUsed: 'No AI.',
+      trigger: null,
+      dependsOn: [],
       children: [
-        { id: 'ins-view-title', name: 'View Title', tag: 'comp', description: 'Insights title', path: '/src/App.tsx' },
-        { id: 'ins-date-range-label', name: 'Date Range Label', tag: 'comp', description: 'Selected date range', path: '/src/App.tsx' },
-        { id: 'ins-tab-bar', name: 'Tab Bar', tag: 'section', description: 'Date range navigation', path: '/src/App.tsx', children: [
-          { id: 'ins-tab-7d', name: '7-Day Tab', tag: 'btn', description: 'Select 7-day range. Triggers 7d view state.', path: '/src/App.tsx' },
-          { id: 'ins-tab-30d', name: '30-Day Tab', tag: 'btn', description: 'Select 30-day range. Triggers 30d view state.', path: '/src/App.tsx' },
-          { id: 'ins-tab-custom', name: 'Custom Tab', tag: 'btn', description: 'Select custom range. Triggers custom view state.', path: '/src/App.tsx' },
+        { id: 'ins-view-title', name: 'View Title', tag: 'comp', description: 'Insights title', path: '/src/App.tsx', function: 'Displays view title.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
+        { id: 'ins-date-range-label', name: 'Date Range Label', tag: 'comp', description: 'Selected date range', path: '/src/App.tsx', function: 'Shows active selected dates.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
+        { id: 'ins-tab-bar', name: 'Tab Bar', tag: 'section', description: 'Date range navigation', path: '/src/App.tsx', function: 'Switches between view periods.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [], children: [
+          { id: 'ins-tab-7d', name: '7-Day Tab', tag: 'btn', description: 'Select 7-day range. Triggers 7d view state.', path: '/src/App.tsx', function: 'Sets view to 7-day.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
+          { id: 'ins-tab-30d', name: '30-Day Tab', tag: 'btn', description: 'Select 30-day range. Triggers 30d view state.', path: '/src/App.tsx', function: 'Sets view to 30-day.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
+          { id: 'ins-tab-custom', name: 'Custom Tab', tag: 'btn', description: 'Select custom range. Triggers custom view state.', path: '/src/App.tsx', function: 'Sets view to custom.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
         ]},
-        { id: 'ins-custom-pickers', name: 'Custom Date Pickers', tag: 'section', description: 'Visible only when view === custom', path: '/src/App.tsx', children: [
-          { id: 'ins-picker-start', name: 'Start Date Picker', tag: 'input', description: 'Start date selection', path: '/src/App.tsx' },
-          { id: 'ins-picker-end', name: 'End Date Picker', tag: 'input', description: 'End date selection', path: '/src/App.tsx' },
+        { id: 'ins-custom-pickers', name: 'Custom Date Pickers', tag: 'section', description: 'Visible only when view === custom', path: '/src/App.tsx', function: 'Sets customRange in UIStore. Gates activeDates computation.', tierDiff: 'No tier gate.', maturityDiff: null, aiUsed: 'No AI.', trigger: 'Only visible when "Custom" tab selected.', dependsOn: [], children: [
+          { id: 'ins-picker-start', name: 'Start Date Picker', tag: 'input', description: 'Start date selection', path: '/src/App.tsx', function: 'Selects start date.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
+          { id: 'ins-picker-end', name: 'End Date Picker', tag: 'input', description: 'End date selection', path: '/src/App.tsx', function: 'Selects end date.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
         ]},
       ]
     },
@@ -279,12 +438,18 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
       tag: 'section',
       description: '5 MetricDisplay components. Read-only visual components.',
       path: '/src/App.tsx',
+      function: 'Computes mean sleep_quality, morning_alertness, daytime_energy, duration, efficiency across activeDates. Reads from logs state.',
+      tierDiff: 'No tier gate.',
+      maturityDiff: 'Shows empty state at level 1.',
+      aiUsed: 'No AI.',
+      trigger: null,
+      dependsOn: [],
       children: [
-        { id: 'ins-avg-quality', name: 'Avg Quality', tag: 'comp', description: 'MetricDisplay component. Read-only visual component.', path: '/src/App.tsx' },
-        { id: 'ins-avg-restedness', name: 'Avg Restedness', tag: 'comp', description: 'MetricDisplay component. Read-only visual component.', path: '/src/App.tsx' },
-        { id: 'ins-avg-energy', name: 'Avg Energy', tag: 'comp', description: 'MetricDisplay component. Read-only visual component.', path: '/src/App.tsx' },
-        { id: 'ins-avg-duration', name: 'Avg Duration', tag: 'comp', description: 'MetricDisplay component. Read-only visual component.', path: '/src/App.tsx' },
-        { id: 'ins-avg-efficiency', name: 'Avg Efficiency', tag: 'comp', description: 'MetricDisplay component. Read-only visual component.', path: '/src/App.tsx' },
+        { id: 'ins-avg-quality', name: 'Avg Quality', tag: 'comp', description: 'MetricDisplay component. Read-only visual component.', path: '/src/App.tsx', function: 'Displays average quality.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
+        { id: 'ins-avg-restedness', name: 'Avg Restedness', tag: 'comp', description: 'MetricDisplay component. Read-only visual component.', path: '/src/App.tsx', function: 'Displays average restedness.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
+        { id: 'ins-avg-energy', name: 'Avg Energy', tag: 'comp', description: 'MetricDisplay component. Read-only visual component.', path: '/src/App.tsx', function: 'Displays average energy.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
+        { id: 'ins-avg-duration', name: 'Avg Duration', tag: 'comp', description: 'MetricDisplay component. Read-only visual component.', path: '/src/App.tsx', function: 'Displays average duration.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
+        { id: 'ins-avg-efficiency', name: 'Avg Efficiency', tag: 'comp', description: 'MetricDisplay component. Read-only visual component.', path: '/src/App.tsx', function: 'Displays average efficiency.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
       ]
     },
     {
@@ -293,10 +458,16 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
       tag: 'section',
       description: 'Daily breakdown rows with SleepRibbon',
       path: '/src/App.tsx',
+      function: 'Lists each night in the selected period with individual scores and timeline thumbnail. Reads from logs state.',
+      tierDiff: 'No tier gate.',
+      maturityDiff: 'No maturity gate.',
+      aiUsed: 'No AI.',
+      trigger: null,
+      dependsOn: [],
       children: [
-        { id: 'ins-breakdown-container', name: 'Breakdown Container', tag: 'comp', description: 'Container for daily rows', path: '/src/App.tsx', children: [
-          { id: 'ins-daily-row', name: 'Daily Row', tag: 'comp', description: 'Single day breakdown row', path: '/src/App.tsx', children: [
-            { id: 'ins-sleep-ribbon', name: 'Sleep Ribbon', tag: 'comp', description: 'SleepRibbon component. Read-only visual component.', path: '/src/features/sleep/SleepRibbon.tsx' },
+        { id: 'ins-breakdown-container', name: 'Breakdown Container', tag: 'comp', description: 'Container for daily rows', path: '/src/App.tsx', function: 'Scrollable container.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [], children: [
+          { id: 'ins-daily-row', name: 'Daily Row', tag: 'comp', description: 'Single day breakdown row', path: '/src/App.tsx', function: 'Shows a single night summary.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: 'Tapping a night navigates to that date in Log view.', dependsOn: ['setSelectedDate'], children: [
+            { id: 'ins-sleep-ribbon', name: 'Sleep Ribbon', tag: 'comp', description: 'SleepRibbon component. Read-only visual component.', path: '/src/features/sleep/SleepRibbon.tsx', function: 'Mini timeline visualization.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
           ]},
         ]},
       ]
@@ -307,6 +478,12 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
       tag: 'section',
       description: 'Sleep pattern summary and export controls',
       path: '/src/App.tsx',
+      function: 'Surfaces recurring factor patterns and export controls.',
+      tierDiff: 'Enhanced/Pro see full breakdown. Basic sees a teaser with locked details.',
+      maturityDiff: 'Requires level 2+ (7+ logs) — shows placeholder below.',
+      aiUsed: 'No direct AI call — pure algorithmic analysis. Calls patternEngine.getSuggestedLog() reading last 14-30 logs.',
+      trigger: null,
+      dependsOn: [],
       children: [
         {
           id: 'ins-pattern-summary',
@@ -314,11 +491,13 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
           tag: 'card',
           description: 'Pattern metric grid, export buttons',
           path: '/src/features/sleep/SleepPatternCard.tsx',
+          function: 'Displays repetitive pattern insights.',
+          tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [],
           children: [
-            { id: 'ins-pattern-metric-grid', name: 'Pattern Metric Grid', tag: 'comp', description: 'Grid with hover tooltips', path: '/src/features/sleep/SleepPatternCard.tsx' },
-            { id: 'ins-export-ascii-btn', name: 'Export ASCII Button', tag: 'btn', description: 'Export pattern as ASCII', path: '/src/features/sleep/SleepPatternCard.tsx' },
-            { id: 'ins-export-pdf-btn', name: 'Export PDF Button', tag: 'btn', description: 'Export pattern as PDF. Dual State: Pro = Action, Basic = Upgrade Overlay.', path: '/src/features/sleep/SleepPatternCard.tsx' },
-            { id: 'ins-pdf-lock-overlay', name: 'PDF Lock Overlay', tag: 'overlay', description: 'LockedFeatureCard shown for Basic tier', path: '/src/components/LockedFeatureCard.tsx' },
+            { id: 'ins-pattern-metric-grid', name: 'Pattern Metric Grid', tag: 'comp', description: 'Grid with hover tooltips', path: '/src/features/sleep/SleepPatternCard.tsx', function: 'Grid of insights.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
+            { id: 'ins-export-ascii-btn', name: 'Export ASCII Button', tag: 'btn', description: 'Export pattern as ASCII', path: '/src/features/sleep/SleepPatternCard.tsx', function: 'Calls DataExporter utility. Exports filtered period as ASCII text.', tierDiff: 'Enhanced/Pro only', maturityDiff: null, aiUsed: 'No AI.', trigger: null, dependsOn: [] },
+            { id: 'ins-export-pdf-btn', name: 'Export PDF Button', tag: 'btn', description: 'Export pattern as PDF. Dual State: Enhanced/Pro = Action, Basic = Upgrade Overlay.', path: '/src/features/sleep/SleepPatternCard.tsx', function: 'Calls DataExporter utility. Exports filtered period as CSV/PDF.', tierDiff: 'Enhanced/Pro only', maturityDiff: null, aiUsed: 'No AI.', trigger: null, dependsOn: [] },
+            { id: 'ins-pdf-lock-overlay', name: 'PDF Lock Overlay', tag: 'overlay', description: 'LockedFeatureCard shown for Basic tier', path: '/src/components/LockedFeatureCard.tsx', function: 'Locks PDF export for basic.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
           ]
         }
       ]
@@ -331,6 +510,12 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
       tag: 'view',
       description: 'Conversational AI analysis',
       path: '/src/features/ai/AIInsightsAgent.tsx',
+      function: 'Main AI chat interface. Fetches 14 recent logs, personalizationProfile, and 10 unstructured data entries on first message.',
+      tierDiff: null,
+      maturityDiff: 'Requires level 1+ (any data).',
+      aiUsed: 'Calls gemini-2.0-flash via aiService.',
+      trigger: null,
+      dependsOn: [],
       children: [
         {
           id: 'ai-agent-header',
@@ -338,11 +523,17 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
           tag: 'section',
           description: 'Agent avatar, title, tier label',
           path: '/src/features/ai/AIInsightsAgent.tsx',
+          function: 'Header showing agent status.',
+          tierDiff: null,
+          maturityDiff: null,
+          aiUsed: null,
+          trigger: null,
+          dependsOn: [],
           children: [
-            { id: 'ai-avatar', name: 'Agent Avatar', tag: 'comp', description: 'Agent avatar', path: '/src/features/ai/AIInsightsAgent.tsx' },
-            { id: 'ai-title-h2', name: 'Agent Title', tag: 'comp', description: 'Agent title', path: '/src/features/ai/AIInsightsAgent.tsx' },
-            { id: 'ai-tier-label', name: 'Tier Label', tag: 'comp', description: 'Agent tier label', path: '/src/features/ai/AIInsightsAgent.tsx' },
-            { id: 'ai-analyzing-indicator', name: 'Analyzing Indicator', tag: 'comp', description: 'Pulse animation, visible during isAnalyzing', path: '/src/features/ai/AIInsightsAgent.tsx' },
+            { id: 'ai-avatar', name: 'Agent Avatar', tag: 'comp', description: 'Agent avatar', path: '/src/features/ai/AIInsightsAgent.tsx', function: 'Displays avatar.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
+            { id: 'ai-title-h2', name: 'Agent Title', tag: 'comp', description: 'Agent title', path: '/src/features/ai/AIInsightsAgent.tsx', function: 'Displays title.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
+            { id: 'ai-tier-label', name: 'Tier Label', tag: 'comp', description: 'Agent tier label', path: '/src/features/ai/AIInsightsAgent.tsx', function: 'Displays current user tier.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
+            { id: 'ai-analyzing-indicator', name: 'Analyzing Indicator', tag: 'comp', description: 'Pulse animation, visible during isAnalyzing', path: '/src/features/ai/AIInsightsAgent.tsx', function: 'Shown during Gemini API call. Blocks input.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: 'Visible when isAnalyzing = true.', dependsOn: [] },
           ]
         },
         {
@@ -351,12 +542,18 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
           tag: 'section',
           description: 'Chat history area',
           path: '/src/features/ai/AIInsightsAgent.tsx',
+          function: 'Displays session chat history.',
+          tierDiff: null,
+          maturityDiff: null,
+          aiUsed: null,
+          trigger: null,
+          dependsOn: [],
           children: [
-            { id: 'ai-messages-scroll', name: 'Messages Scroll Container', tag: 'comp', description: 'Scrollable container for messages. Uses scrollRef to snap to the bottom on new messages.', path: '/src/features/ai/AIInsightsAgent.tsx', children: [
-              { id: 'ai-msg-sia', name: 'SIA Message Bubble', tag: 'comp', description: 'SIA message bubble', path: '/src/features/ai/AIInsightsAgent.tsx' },
-              { id: 'ai-msg-user', name: 'User Message Bubble', tag: 'comp', description: 'User message bubble', path: '/src/features/ai/AIInsightsAgent.tsx' },
+            { id: 'ai-messages-scroll', name: 'Messages Scroll Container', tag: 'comp', description: 'Scrollable container for messages. Uses scrollRef to snap to the bottom on new messages.', path: '/src/features/ai/AIInsightsAgent.tsx', function: 'Scroll bounds.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [], children: [
+              { id: 'ai-msg-sia', name: 'SIA Message Bubble', tag: 'comp', description: 'SIA message bubble', path: '/src/features/ai/AIInsightsAgent.tsx', function: 'Displays AI response. Can trigger insight save action to users/{uid}/insights.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
+              { id: 'ai-msg-user', name: 'User Message Bubble', tag: 'comp', description: 'User message bubble', path: '/src/features/ai/AIInsightsAgent.tsx', function: 'Displays user prompt.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
             ]},
-            { id: 'ai-fidelity-warning', name: 'Fidelity Warning', tag: 'comp', description: 'Visible only if dataMaturity.level < 2', path: '/src/features/ai/AIInsightsAgent.tsx' },
+            { id: 'ai-fidelity-warning', name: 'Fidelity Warning', tag: 'comp', description: 'Visible only if dataMaturity.level < 2', path: '/src/features/ai/AIInsightsAgent.tsx', function: 'Warns about analysis limits.', tierDiff: null, maturityDiff: 'Visible if level < 2.', aiUsed: null, trigger: null, dependsOn: [] },
           ]
         },
         {
@@ -365,13 +562,19 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
           tag: 'section',
           description: 'Quick ask toggles and pills',
           path: '/src/features/ai/AIInsightsAgent.tsx',
+          function: 'Pre-built prompt shortcuts.',
+          tierDiff: 'Enhanced/Pro see deeper diagnostic prompts.',
+          maturityDiff: 'Requires level 2+ for pattern-based pills.',
+          aiUsed: 'Selects prompt to send to Gemini.',
+          trigger: null,
+          dependsOn: [],
           children: [
-            { id: 'ai-quick-ask-panel', name: 'Quick Ask Panel', tag: 'comp', description: 'Panel for quick ask', path: '/src/features/ai/AIInsightsAgent.tsx', children: [
-              { id: 'ai-quick-ask-toggle', name: 'Quick Ask Toggle', tag: 'btn', description: 'Toggle quick ask', path: '/src/features/ai/AIInsightsAgent.tsx' },
-              { id: 'ai-maturity-label', name: 'Maturity Label', tag: 'comp', description: 'Maturity label', path: '/src/features/ai/AIInsightsAgent.tsx' },
+            { id: 'ai-quick-ask-panel', name: 'Quick Ask Panel', tag: 'comp', description: 'Panel for quick ask', path: '/src/features/ai/AIInsightsAgent.tsx', function: 'Wraps toggles.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [], children: [
+              { id: 'ai-quick-ask-toggle', name: 'Quick Ask Toggle', tag: 'btn', description: 'Toggle quick ask', path: '/src/features/ai/AIInsightsAgent.tsx', function: 'Toggles pills.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
+              { id: 'ai-maturity-label', name: 'Maturity Label', tag: 'comp', description: 'Maturity label', path: '/src/features/ai/AIInsightsAgent.tsx', function: 'Shows data maturity level.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
             ]},
-            { id: 'ai-quick-ask-pills', name: 'Quick Ask Pills', tag: 'comp', description: 'Container for quick ask pills', path: '/src/features/ai/AIInsightsAgent.tsx', children: [
-              { id: 'ai-pill-btn', name: 'Quick Ask Pill Button', tag: 'btn', description: 'Tapping a pill calls handleSend(prompt) directly. Disabled while isLoading or isAnalyzing is true.', path: '/src/features/ai/AIInsightsAgent.tsx' },
+            { id: 'ai-quick-ask-pills', name: 'Quick Ask Pills', tag: 'comp', description: 'Container for quick ask pills', path: '/src/features/ai/AIInsightsAgent.tsx', function: 'List of shortcuts.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [], children: [
+              { id: 'ai-pill-btn', name: 'Quick Ask Pill Button', tag: 'btn', description: 'Tapping a pill calls handleSend(prompt) directly. Disabled while isLoading or isAnalyzing is true.', path: '/src/features/ai/AIInsightsAgent.tsx', function: 'Calls handleSend() with preset question.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
             ]},
           ]
         },
@@ -381,16 +584,22 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
           tag: 'section',
           description: 'Input field, send button, quota info',
           path: '/src/features/ai/AIInsightsAgent.tsx',
+          function: 'Input controls and quota gating.',
+          tierDiff: null,
+          maturityDiff: null,
+          aiUsed: null,
+          trigger: null,
+          dependsOn: [],
           children: [
-            { id: 'ai-input-wrapper', name: 'Input Wrapper', tag: 'comp', description: 'Wrapper for input and send button', path: '/src/features/ai/AIInsightsAgent.tsx', children: [
-              { id: 'ai-input-field', name: 'Input Field', tag: 'input', description: 'Chat input field. Disabled while isLoading or isAnalyzing is true.', path: '/src/features/ai/AIInsightsAgent.tsx' },
-              { id: 'ai-send-btn', name: 'Send Button', tag: 'btn', description: 'Send message button. Disabled while isLoading or isAnalyzing is true.', path: '/src/features/ai/AIInsightsAgent.tsx' },
+            { id: 'ai-input-wrapper', name: 'Input Wrapper', tag: 'comp', description: 'Wrapper for input and send button', path: '/src/features/ai/AIInsightsAgent.tsx', function: 'Layout wrapper.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [], children: [
+              { id: 'ai-input-field', name: 'Input Field', tag: 'input', description: 'Chat input field. Disabled while isLoading or isAnalyzing is true.', path: '/src/features/ai/AIInsightsAgent.tsx', function: 'Captures typed message.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
+              { id: 'ai-send-btn', name: 'Send Button', tag: 'btn', description: 'Send message button. Disabled while isLoading or isAnalyzing is true.', path: '/src/features/ai/AIInsightsAgent.tsx', function: 'Fires chatWithSIA().', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: 'handleSend()', dependsOn: [] },
             ]},
-            { id: 'ai-quota-section', name: 'Quota Section', tag: 'comp', description: 'Quota info container', path: '/src/features/ai/AIInsightsAgent.tsx', children: [
-              { id: 'ai-quota-bar', name: 'Quota Bar', tag: 'comp', description: 'Quota progress bar. Calculated as: chatMessagesUsed / getQuotaLimit(tier).', path: '/src/features/ai/AIInsightsAgent.tsx' },
-              { id: 'ai-quota-label', name: 'Quota Label', tag: 'comp', description: 'Quota label', path: '/src/features/ai/AIInsightsAgent.tsx' },
+            { id: 'ai-quota-section', name: 'Quota Section', tag: 'comp', description: 'Quota info container', path: '/src/features/ai/AIInsightsAgent.tsx', function: 'Quota display based on userProfile.quota.', tierDiff: 'Pro sees "Unlimited".', maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [], children: [
+              { id: 'ai-quota-bar', name: 'Quota Bar', tag: 'comp', description: 'Quota progress bar. Calculated as: chatMessagesUsed / getQuotaLimit(tier).', path: '/src/features/ai/AIInsightsAgent.tsx', function: 'Visual quota usage.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
+              { id: 'ai-quota-label', name: 'Quota Label', tag: 'comp', description: 'Quota label', path: '/src/features/ai/AIInsightsAgent.tsx', function: 'Text quota usage.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
             ]},
-            { id: 'ai-upgrade-cta', name: 'Upgrade CTA', tag: 'comp', description: 'Visible for Basic tier only', path: '/src/features/ai/AIInsightsAgent.tsx' },
+            { id: 'ai-upgrade-cta', name: 'Upgrade CTA', tag: 'comp', description: 'Visible for Basic tier only', path: '/src/features/ai/AIInsightsAgent.tsx', function: 'Message quota gate overlay shown when exhausted.', tierDiff: 'Basic sees upgrade CTA, Enhanced sees come back tomorrow, Pro never sees.', maturityDiff: null, aiUsed: null, trigger: 'quota exhausted', dependsOn: [] },
           ]
         },
       ]
@@ -403,35 +612,41 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
       tag: 'view', 
       description: 'User account and subscription management', 
       path: '/src/features/account/AccountPage.tsx',
+      function: 'Manages user profile, data, and settings.',
+      tierDiff: null,
+      maturityDiff: null,
+      aiUsed: null,
+      trigger: null,
+      dependsOn: [],
       children: [
-        { id: 'acc-header', name: 'Header Section', tag: 'section', description: 'User avatar and profile info', path: '/src/features/account/AccountPage.tsx', children: [
-          { id: 'acc-back-btn', name: 'Back Button', tag: 'btn', description: 'Navigates back to Dashboard.', path: '/src/features/account/AccountPage.tsx' },
+        { id: 'acc-header', name: 'Header Section', tag: 'section', description: 'User avatar and profile info', path: '/src/features/account/AccountPage.tsx', function: 'Displays avatar, name, email, tier badge. Reads from userProfile.', tierDiff: 'Tier badge shows Basic/Enhanced/Pro with distinct styling.', maturityDiff: 'No maturity gate.', aiUsed: 'No AI.', trigger: null, dependsOn: [], children: [
+          { id: 'acc-back-btn', name: 'Back Button', tag: 'btn', description: 'Navigates back to Dashboard.', path: '/src/features/account/AccountPage.tsx', function: 'Navigation.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
         ]},
-        { id: 'acc-tier-section', name: 'Intelligence Tier Section', tag: 'section', description: 'Display and upgrade for SIA tiers', path: '/src/features/account/AccountPage.tsx', children: [
-          { id: 'tier-option-basic', name: 'Basic Tier Option', tag: 'comp', description: 'Basic tier details and activation.', path: '/src/features/account/AccountPage.tsx' },
-          { id: 'tier-option-enhanced', name: 'Enhanced Tier Option', tag: 'comp', description: 'Enhanced tier details and activation.', path: '/src/features/account/AccountPage.tsx' },
-          { id: 'tier-option-pro', name: 'Pro Tier Option', tag: 'comp', description: 'Pro tier details and activation.', path: '/src/features/account/AccountPage.tsx' },
+        { id: 'acc-tier-section', name: 'Intelligence Tier Section', tag: 'section', description: 'Display and upgrade for SIA tiers', path: '/src/features/account/AccountPage.tsx', function: 'Links to upgrade flow.', tierDiff: 'Basic sees Enhanced and Pro CTAs. Enhanced sees Pro CTA only. Pro sees no CTA.', maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [], children: [
+          { id: 'tier-option-basic', name: 'Basic Tier Option', tag: 'comp', description: 'Basic tier details and activation.', path: '/src/features/account/AccountPage.tsx', function: 'Basic tier info.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
+          { id: 'tier-option-enhanced', name: 'Enhanced Tier Option', tag: 'comp', description: 'Enhanced tier details and activation.', path: '/src/features/account/AccountPage.tsx', function: 'Enhanced CTA or status.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
+          { id: 'tier-option-pro', name: 'Pro Tier Option', tag: 'comp', description: 'Pro tier details and activation.', path: '/src/features/account/AccountPage.tsx', function: 'Pro CTA or status.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
         ]},
-        { id: 'acc-data-overview', name: 'Data Overview Section', tag: 'section', description: 'Sleep goals and demographics', path: '/src/features/account/AccountPage.tsx', children: [
-          { id: 'acc-maturity-tracker', name: 'Data Maturity Tracker', tag: 'comp', description: 'Multi-bar roadmap for data calibration. Source is Firestore count.', path: '/src/features/data/DataMaturityTracker.tsx' },
-          { id: 'acc-goals-list', name: 'Goals List', tag: 'comp', description: 'List of sleep goals', path: '/src/features/account/AccountPage.tsx' },
-          { id: 'acc-health-tags', name: 'Health Tags', tag: 'comp', description: 'Health tags', path: '/src/features/account/AccountPage.tsx' },
-          { id: 'acc-demographics-row', name: 'Demographics Row', tag: 'comp', description: 'Age, Sex, Work, etc.', path: '/src/features/account/AccountPage.tsx' },
-          { id: 'acc-anonymized-toggle', name: 'Anonymized Sharing Toggle', tag: 'input', description: 'Writes to personalizationProfile.allowsAnonymizedSharing.', path: '/src/features/account/AccountPage.tsx' },
+        { id: 'acc-data-overview', name: 'Data Overview Section', tag: 'section', description: 'Sleep goals and demographics', path: '/src/features/account/AccountPage.tsx', function: 'Reads from personalizationProfile. Shows completion status of PersonalizationWizard.', tierDiff: null, maturityDiff: null, aiUsed: 'No AI in display - AI uses this data in chatWithSIA.', trigger: null, dependsOn: [], children: [
+          { id: 'acc-maturity-tracker', name: 'Data Maturity Tracker', tag: 'comp', description: 'Multi-bar roadmap for data calibration. Source is Firestore count.', path: '/src/features/data/DataMaturityTracker.tsx', function: 'Progress visualizer.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
+          { id: 'acc-goals-list', name: 'Goals List', tag: 'comp', description: 'List of sleep goals', path: '/src/features/account/AccountPage.tsx', function: 'Displays configured goals.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
+          { id: 'acc-health-tags', name: 'Health Tags', tag: 'comp', description: 'Health tags', path: '/src/features/account/AccountPage.tsx', function: 'Displays health conditions.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
+          { id: 'acc-demographics-row', name: 'Demographics Row', tag: 'comp', description: 'Age, Sex, Work, etc.', path: '/src/features/account/AccountPage.tsx', function: 'Displays demographics.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
+          { id: 'acc-anonymized-toggle', name: 'Anonymized Sharing Toggle', tag: 'input', description: 'Writes to personalizationProfile.allowsAnonymizedSharing.', path: '/src/features/account/AccountPage.tsx', function: 'Toggles sharing flag.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
         ]},
-        { id: 'acc-actions', name: 'Actions Section', tag: 'section', description: 'Ledger, Assessment, Logout, Feedback, Element Map', path: '/src/features/account/AccountPage.tsx', children: [
-          { id: 'acc-element-map-btn', name: 'Element Map Button', tag: 'btn', description: 'Navigates to Element Map view.', path: '/src/features/account/AccountPage.tsx' },
-          { id: 'acc-modify-assessment-btn', name: 'Modify Assessment Button', tag: 'btn', description: 'Modify assessment', path: '/src/features/account/AccountPage.tsx' },
-          { id: 'acc-export-summary-btn', name: 'Export Summary Button', tag: 'btn', description: 'Downloads daily_trends_summary.csv.', path: '/src/features/account/AccountPage.tsx' },
-          { id: 'acc-export-deep-btn', name: 'Export Deep Architecture Button', tag: 'btn', description: 'Downloads deep_architecture.csv. Disabled for Basic tier.', path: '/src/features/account/AccountPage.tsx' },
-          { id: 'acc-delete-account-btn', name: 'Delete Account Button', tag: 'btn', description: 'Delete account', path: '/src/features/account/AccountPage.tsx' },
+        { id: 'acc-actions', name: 'Actions Section', tag: 'section', description: 'Ledger, Assessment, Logout, Feedback, Element Map', path: '/src/features/account/AccountPage.tsx', function: 'User actions and data ledger.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [], children: [
+          { id: 'acc-element-map-btn', name: 'Element Map Button', tag: 'btn', description: 'Navigates to Element Map view.', path: '/src/features/account/AccountPage.tsx', function: 'Opens dev map.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
+          { id: 'acc-modify-assessment-btn', name: 'Modify Assessment Button', tag: 'btn', description: 'Modify assessment', path: '/src/features/account/AccountPage.tsx', function: 'Re-opens wizard.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
+          { id: 'acc-export-summary-btn', name: 'Export Summary Button', tag: 'btn', description: 'Downloads daily_trends_summary.csv.', path: '/src/features/account/AccountPage.tsx', function: 'Export gated by isEnhanced. Calls DataExporter utility.', tierDiff: 'Enhanced/Pro only', maturityDiff: null, aiUsed: 'No AI.', trigger: null, dependsOn: [] },
+          { id: 'acc-export-deep-btn', name: 'Export Deep Architecture Button', tag: 'btn', description: 'Downloads deep_architecture.csv. Disabled for Basic tier.', path: '/src/features/account/AccountPage.tsx', function: 'Export data.', tierDiff: 'Enhanced/Pro only', maturityDiff: null, aiUsed: 'No AI.', trigger: null, dependsOn: [] },
+          { id: 'acc-delete-account-btn', name: 'Delete Account Button', tag: 'btn', description: 'Delete account', path: '/src/features/account/AccountPage.tsx', function: 'Available to all tiers.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
         ]},
-        { id: 'acc-dev-tools', name: 'Developer Tools Section', tag: 'section', description: 'Admin-only debugging and data management', path: '/src/features/account/AccountPage.tsx', children: [
-          { id: 'dev-clear-local', name: 'Clear All Local Data Button', tag: 'btn', description: 'Wipes localStorage.', path: '/src/features/account/AccountPage.tsx' },
-          { id: 'dev-switchboard-container', name: 'Dev Switchboard', tag: 'section', description: 'Dev Environment Only / Admin only.', path: '/src/features/account/AccountPage.tsx', children: [
-            { id: 'dev-tier-buttons', name: 'Tier Toggle Buttons', tag: 'btn', description: 'Dev Environment Only.', path: '/src/features/account/AccountPage.tsx' },
-            { id: 'dev-maturity-buttons', name: 'Maturity Toggle Buttons', tag: 'btn', description: 'Dev Environment Only.', path: '/src/features/account/AccountPage.tsx' },
-            { id: 'dev-reset-btn', name: 'Reset Button', tag: 'btn', description: 'Clears dev overrides.', path: '/src/features/account/AccountPage.tsx' },
+        { id: 'acc-dev-tools', name: 'Developer Tools Section', tag: 'section', description: 'Admin-only debugging and data management', path: '/src/features/account/AccountPage.tsx', function: 'Contains DevSwitchboardMini (tier/maturity override), DevElementMap.', tierDiff: 'Only visible when userData.role === "admin". Section is hidden entirely for non-admins.', maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [], children: [
+          { id: 'dev-clear-local', name: 'Clear All Local Data Button', tag: 'btn', description: 'Wipes localStorage.', path: '/src/features/account/AccountPage.tsx', function: 'Hard reset.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
+          { id: 'dev-switchboard-container', name: 'Dev Switchboard', tag: 'section', description: 'Dev Environment Only / Admin only.', path: '/src/features/account/AccountPage.tsx', function: 'Developer controls.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [], children: [
+            { id: 'dev-tier-buttons', name: 'Tier Toggle Buttons', tag: 'btn', description: 'Dev Environment Only.', path: '/src/features/account/AccountPage.tsx', function: 'Overrides local tier.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
+            { id: 'dev-maturity-buttons', name: 'Maturity Toggle Buttons', tag: 'btn', description: 'Dev Environment Only.', path: '/src/features/account/AccountPage.tsx', function: 'Overrides local maturity.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
+            { id: 'dev-reset-btn', name: 'Reset Button', tag: 'btn', description: 'Clears dev overrides.', path: '/src/features/account/AccountPage.tsx', function: 'Restore real state.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
           ]},
         ]},
       ]
