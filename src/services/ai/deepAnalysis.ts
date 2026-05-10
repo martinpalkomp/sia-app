@@ -4,7 +4,7 @@ import { MaturityInfo } from '../aiService';
 import { shouldTriggerAI } from '../../utils/aiGuardrails';
 import { format } from 'date-fns';
 
-const DISCLAIMER = "SIA provides lifestyle recommendations based on patterns. This is not a medical diagnosis. Consult a professional for clinical concerns.";
+import { SIA_DISCLAIMER, SIA_ANALYSIS_PERSONA } from './aiConstants';
 
 export interface AIResponse {
   content: string | null;
@@ -31,22 +31,26 @@ export const generateDeepAnalysis = async (
     }
 
     const prompt = `
-      Analyze ${logs.length} days of sleep history: ${JSON.stringify(logs.slice(0, 90))}
-      Provide a structured "SIA Monthly Analysis" (max 3 sentences).
-      Identify the single most significant trend and offer a specific, actionable clinical recommendation.
-      Format: "📊 SIA Monthly Analysis: [Your analysis here]"
-    `;
+  Analyze ${logs.length} nights of sleep history: ${JSON.stringify(logs.slice(0, 90))}
+
+  Return JSON in exactly this format:
+  {
+    "summary": "One sentence describing the most significant trend",
+    "recommendation": "One specific, actionable thing the user should do tonight or this week",
+    "confidence": 0.0 to 1.0
+  }
+`;
 
     try {
         const response = await siaClient.generateContent(prompt, {
-            systemInstruction: "You are 'SIA', a Sleep Intelligence Agent. Provide deep, structured, data-backed long-term sleep analysis.",
-            temperature: 0.7
+            systemInstruction: SIA_ANALYSIS_PERSONA,
+            temperature: 0.7,
+            responseMimeType: "application/json"
         });
 
         const content = response.text || "Unable to generate analysis.";
-        const finalContent = `${content}\n\n***\n\n${DISCLAIMER}`;
 
-        return { content: finalContent, status: 'success' };
+        return { content: content, status: 'success' };
     } catch (error: any) {
         if (error.status === 503) {
             return { content: "SIA is currently busy. Please try applying the pattern again in a few seconds.", status: 'success' };

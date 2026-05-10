@@ -111,9 +111,11 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
           maturityDiff: 'Blocked at level 1.',
           aiUsed: 'generateDailyBrief() cached via sia_brief_{uid}_{date}',
           trigger: null,
-          dependsOn: ['brief-body'],
+          dependsOn: ['brief-body', 'forecast-metrics-chip', 'temporal-label'],
           children: [
+            { id: 'temporal-label', name: 'Temporal Context Label', tag: 'comp', description: 'Shows timeframe for analysis', path: '/src/features/dashboard/DashboardView.tsx', function: 'Displays MORNING BRIEF text.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
             { id: 'brief-body', name: 'Brief Body Text', tag: 'comp', description: 'AI-generated briefing', path: '/src/features/dashboard/DashboardView.tsx', function: 'Displays text from generateDailyBrief()', tierDiff: null, maturityDiff: null, aiUsed: 'generateDailyBrief()', trigger: null, dependsOn: [] },
+            { id: 'forecast-metrics-chip', name: 'Forecast Metrics Chip', tag: 'comp', description: 'Prediction chip showing quality, alertness, energy.', path: '/src/features/dashboard/DashboardView.tsx', function: 'Rendered conditionally if forecastMetrics is present.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: 'After AI chat session', dependsOn: [] },
             { id: 'discuss-btn', name: 'Discuss with SIA Button', tag: 'btn', description: 'Navigates to AI view via onViewChange(ai).', path: '/src/features/dashboard/DashboardView.tsx', function: 'Navigates to AI chat view.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
             { id: 'fallback-ui', name: 'Static Fallback UI', tag: 'comp', description: 'Displays dynamic countdown to 7-day unlock.', path: '/src/features/dashboard/DashboardView.tsx', function: 'Shows when maturity is too low.', tierDiff: null, maturityDiff: 'Shown at level 1.', aiUsed: null, trigger: 'Blocked at Level 1', dependsOn: [] },
           ]
@@ -121,46 +123,55 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
       ]
     },
     {
-      id: 'db-pattern-decoder',
-      name: 'SIA Pattern Decoder Section',
+      id: 'db-weekly-pattern',
+      name: 'SIA Weekly Pattern & Insights Section',
       tag: 'section',
       description: 'Correlation analysis and clinical feed',
       path: '/src/features/dashboard/DashboardView.tsx',
       function: 'Presents personalized macro patterns and insights.',
-      tierDiff: 'Basic tier sees LockedFeatureCard with upgrade CTA. Enhanced/Pro see AI-generated pattern teaser.',
+      tierDiff: 'Basic tier sees a single consolidated upgrade card instead of this section. Enhanced/Pro see AI-generated pattern teaser and clinical insights.',
       maturityDiff: 'Requires 14+ logs (Level 3 or higher).',
-      aiUsed: 'Calls generateQuickInsight(). Session-cached via sia_insight_{uid}_{date}.',
+      aiUsed: 'Calls generatePatternTeaser(). Session-cached via insightTeaser state/localStorage.',
       trigger: null,
       dependsOn: ['ai-analysis-card', 'clinical-insights-feed'],
       children: [
         { 
           id: 'ai-analysis-card', 
-          name: 'Pattern Decoder Card', 
+          name: 'Weekly Pattern Card / Upgrade Banner', 
           tag: 'card', 
-          description: 'Full-width clickable card, navigates to AI view', 
+          description: 'Full-width clickable card or upgrade banner', 
           path: '/src/features/dashboard/DashboardView.tsx', 
-          function: 'SIA Quick Insight card providing pattern teasers.',
-          tierDiff: 'Basic sees LockedFeatureCard.',
+          function: 'SIA Weekly Pattern card providing pattern teasers for Enhanced/Pro. Unified upgrade banner for Basic.',
+          tierDiff: 'Basic sees consolidated upgrade banner. Enhanced+ sees Weekly Pattern.',
           maturityDiff: 'Requires 14+ logs.',
-          aiUsed: 'generateQuickInsight(), re-fetches after 3+ new logs.',
+          aiUsed: 'generatePatternTeaser() output.',
           trigger: null,
-          dependsOn: ['insight-body'],
+          dependsOn: ['insight-body', 'temporal-label'],
           children: [
-            { id: 'insight-body', name: 'Decoder Body Text', tag: 'comp', description: 'AI-generated correlation limit to 5 lines', path: '/src/features/dashboard/DashboardView.tsx', function: 'Teases insight.', tierDiff: null, maturityDiff: null, aiUsed: 'generateQuickInsight() text output', trigger: null, dependsOn: [] },
+            { id: 'temporal-label', name: 'Temporal Context Label', tag: 'comp', description: 'Shows timeframe for analysis', path: '/src/features/dashboard/DashboardView.tsx', function: 'Displays 7-DAY PATTERN text.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
+            { id: 'insight-body', name: 'Weekly Pattern Body Text', tag: 'comp', description: 'AI-generated correlation limit to 2 sentences', path: '/src/features/dashboard/DashboardView.tsx', function: 'Shows Pattern and Correlation.', tierDiff: null, maturityDiff: null, aiUsed: 'generatePatternTeaser() text output', trigger: null, dependsOn: [] },
           ]
         },
         { 
           id: 'clinical-insights-feed', 
           name: 'Clinical Insights Feed', 
           tag: 'section', 
-          description: 'List of insights', 
+          description: 'Deep Analysis container', 
           path: '/src/features/dashboard/DashboardView.tsx',
-          function: 'Feed of past generated clinical insights.',
-          tierDiff: 'Requires isEnhanced. Basic sees LockedFeatureCard.',
-          maturityDiff: 'Requires dataMaturity.level >= 3 (14+ logs).',
-          aiUsed: 'Reads users/{uid}/insights collection via one-time getDocs on mount.',
-          trigger: 'On component mount.',
-          dependsOn: []
+          function: 'Displays Deep Analysis generated conditionally.',
+          tierDiff: 'Hidden entirely for Basic tier. Enhanced/Pro sees Clinical Insights feed and Deep Analysis summary.',
+          maturityDiff: 'Requires dataMaturity?.level >= 3 (14+ logs).',
+          aiUsed: 'Calls generateDeepAnalysis() to generate summary and recommendations.',
+          trigger: 'User clicks "Generate 30-Day Deep Analysis" or "Refresh Analysis".',
+          dependsOn: ['deep-analysis-summary', 'tonights-action-block', 'past-insights-wrapper', 'temporal-label'],
+          children: [
+            { id: 'temporal-label', name: 'Temporal Context Label', tag: 'comp', description: 'Shows timeframe for analysis', path: '/src/features/dashboard/DashboardView.tsx', function: 'Displays LONG-TERM ANALYSIS text.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
+            { id: 'deep-analysis-summary', name: 'Deep Analysis Summary', tag: 'comp', description: 'Summary of significant trend', path: '/src/features/dashboard/DashboardView.tsx', function: 'Displays single sentence analysis.', tierDiff: null, maturityDiff: null, aiUsed: 'generateDeepAnalysis() summary JSON field', trigger: null, dependsOn: [] },
+            { id: 'tonights-action-block', name: 'Tonight\'s Action Block', tag: 'comp', description: 'Actionable recommendation with confidence', path: '/src/features/dashboard/DashboardView.tsx', function: 'Displays actionable recommendation.', tierDiff: null, maturityDiff: null, aiUsed: 'generateDeepAnalysis() recommendation and confidence JSON fields', trigger: null, dependsOn: [] },
+            { id: 'past-insights-wrapper', name: 'Past Insights Wrapper', tag: 'comp', description: 'Wrapper for Past Insights', path: '/src/features/dashboard/DashboardView.tsx', function: 'Displays past insights.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [], children: [
+              { id: 'insight-card', name: 'Insight Card', tag: 'comp', description: 'Shows past insight generated by AI.', path: '/src/features/dashboard/InsightCard.tsx', function: 'Shows past insights, confidence badges, type label.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] }
+            ]}
+          ]
         }
       ]
     },

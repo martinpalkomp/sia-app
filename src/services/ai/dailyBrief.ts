@@ -2,9 +2,9 @@ import { siaClient } from './SiaClient';
 import { DailyLog, UserTier } from '../../types';
 import { calculateLogVitality } from '../../utils/correctionLogic';
 
-const DISCLAIMER = "SIA provides lifestyle recommendations based on patterns. This is not a medical diagnosis. Consult a professional for clinical concerns.";
+import { SIA_DISCLAIMER, SIA_BRIEF_PERSONA } from './aiConstants';
 
-import { db, doc, getDoc } from '../../lib/firebase';
+import { db, doc, getDoc, setDoc, serverTimestamp } from '../../lib/firebase';
 
 export const getCachedDailyBrief = async (userId: string, date: string): Promise<string | null> => {
   if (!db) return null;
@@ -46,7 +46,7 @@ export const generateDailyBrief = async (
       { role: "user", parts: [{ text: `Recent Logs: ${JSON.stringify(logs.slice(0, 7))}` }] },
       { role: "user", parts: [{ text: prompt }] }
     ], {
-        systemInstruction: "You are SIA, a Sleep Intelligence Agent. Provide a brief, professional daily summary.",
+        systemInstruction: SIA_BRIEF_PERSONA,
         temperature: 0.7
     });
 
@@ -56,5 +56,18 @@ export const generateDailyBrief = async (
     const hasPartialLogs = logs.some(log => calculateLogVitality(log) < 100);
     const partialTag = hasPartialLogs ? "\n\n*Analysis based on Partial Data*" : "";
     
-    return `${content}${partialTag}\n\n***\n\n${DISCLAIMER}`;
+    const finalContent = `${content}${partialTag}\n\n***\n\n${SIA_DISCLAIMER}`;
+    if (db) {
+      try {
+        await setDoc(
+          doc(db, 'users', userId, 'daily_briefs', currentDate),
+          { content: finalContent, generatedAt: serverTimestamp() },
+          { merge: true }
+        );
+      } catch (e) {
+        console.warn('[SIA] Failed to persist daily brief to Firestore:', e);
+      }
+    }
+    
+    return finalContent;
 };

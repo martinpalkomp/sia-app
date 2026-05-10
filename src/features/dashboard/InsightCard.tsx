@@ -16,6 +16,7 @@ import { Card } from '../../components/UI';
 interface InsightCardProps {
   insight: Insight;
   tier?: 'Basic' | 'Enhanced' | 'Pro';
+  confidence?: number;
 }
 
 const getCategoryInfo = (insight: Insight) => {
@@ -33,7 +34,7 @@ const getCategoryInfo = (insight: Insight) => {
   }
 };
 
-export const InsightCard: React.FC<InsightCardProps> = ({ insight, tier = 'Basic' }) => {
+export const InsightCard: React.FC<InsightCardProps> = ({ insight, tier = 'Basic', confidence }) => {
   const [isHovered, setIsHovered] = useState(false);
   const { label, icon: Icon } = getCategoryInfo(insight);
   
@@ -44,6 +45,11 @@ export const InsightCard: React.FC<InsightCardProps> = ({ insight, tier = 'Basic
   };
 
   const activeStyle = tierStyles[tier] || tierStyles.Basic;
+
+  // Render confidence badge
+  const conf = confidence !== undefined ? confidence : (insight.confidence || 0);
+  const badgeColor = conf >= 0.8 ? 'text-emerald-400 bg-emerald-400/20 border-emerald-500/30' : conf >= 0.5 ? 'text-amber-400 bg-amber-400/20 border-amber-500/30' : 'text-zinc-400 bg-zinc-800 border-zinc-700';
+  const badgeLabel = conf >= 0.8 ? 'HIGH CONFIDENCE' : conf >= 0.5 ? 'MEDIUM CONFIDENCE' : 'LOW CONFIDENCE';
 
   return (
     <Card
@@ -60,21 +66,15 @@ export const InsightCard: React.FC<InsightCardProps> = ({ insight, tier = 'Basic
           <Icon size={24} />
         </div>
         <div className="flex-1 space-y-1.5">
-          <div className="flex justify-between items-center">
-            <span className="text-[10px] font-black text-zinc-400 tracking-widest">{label}</span>
-            {isHovered && (
-              <motion.div 
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="text-emerald-500"
-              >
-                <CheckCircle size={16} />
-              </motion.div>
-            )}
+          <div className="flex justify-between items-center mb-1">
+            <span className="text-[10px] uppercase font-black text-zinc-500 tracking-widest">{insight.type || label}</span>
+            <div className={`px-2 py-0.5 rounded-full border text-[8px] font-black tracking-widest ${badgeColor}`}>
+              {badgeLabel}
+            </div>
           </div>
           <p className="text-sm font-normal text-zinc-300 leading-snug">{insight.summary}</p>
           {insight.details && (
-            <p className="text-sm text-zinc-300 font-normal leading-relaxed">{insight.details}</p>
+            <p className="text-sm text-zinc-400 font-normal leading-relaxed mt-2">{insight.details}</p>
           )}
         </div>
       </div>

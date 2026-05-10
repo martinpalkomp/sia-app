@@ -4,7 +4,7 @@ import { MaturityInfo } from '../aiService';
 import { shouldTriggerAI } from '../../utils/aiGuardrails';
 import { format } from 'date-fns';
 
-const DISCLAIMER = "SIA provides lifestyle recommendations based on patterns. This is not a medical diagnosis. Consult a professional for clinical concerns.";
+import { SIA_DISCLAIMER, SIA_CORRELATION_PERSONA } from './aiConstants';
 
 export interface AIResponse {
   content: string | null;
@@ -28,7 +28,7 @@ export const generatePatternDecoder = async (
     oneMonthAgo.setDate(oneMonthAgo.getDate() - 30);
     const logsInLastMonthCount = logs.filter(log => new Date(log.date) >= oneMonthAgo).length;
 
-    const guardrail = shouldTriggerAI(tier, maturity.level, logs.length, logsInLastMonthCount, 'QuickInsight', lastGeneratedDate);
+    const guardrail = shouldTriggerAI(tier, maturity.level, logs.length, logsInLastMonthCount, 'DeepAnalysis', lastGeneratedDate);
     if (!guardrail.shouldTrigger) {
       return { content: null, status: 'skipped', reason: guardrail.reason };
     }
@@ -46,12 +46,12 @@ export const generatePatternDecoder = async (
 
     try {
         const response = await siaClient.generateContent(promptText, {
-            systemInstruction: "You are SIA, a clinical Sleep Intelligence Agent. Provide deep correlation insights.",
+            systemInstruction: SIA_CORRELATION_PERSONA,
             temperature: 0.7
         });
 
         const content = response.text || "Unable to generate insight.";
-        const finalContent = `${content}\n\n***\n\n${DISCLAIMER}`;
+        const finalContent = `${content}\n\n***\n\n${SIA_DISCLAIMER}`;
 
         return { content: finalContent, status: 'success' };
     } catch (error: any) {

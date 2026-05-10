@@ -2,9 +2,9 @@ import { GoogleGenAI } from '@google/genai';
 import { SIA_AI_MODEL, SIA_FALLBACK_MODEL } from './aiConfig';
 
 const FALLBACK_PRIORITY_ORDER = [
-  SIA_AI_MODEL,
-  SIA_FALLBACK_MODEL,
-  'gemini-1.5-pro',
+  SIA_AI_MODEL,            // gemini-2.0-flash — confirmed working
+  SIA_FALLBACK_MODEL,      // gemini-2.5-flash-preview — next gen
+  'gemini-1.5-flash',      // legacy stable fallback
 ];
 
 class SiaClient {

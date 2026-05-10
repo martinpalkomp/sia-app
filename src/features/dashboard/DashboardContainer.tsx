@@ -29,6 +29,7 @@ interface DashboardContainerProps {
   refreshAllData: () => void;
   isRefreshing: boolean;
   maturity?: MaturityInfo | null;
+  forecastMetrics?: { quality: number; alertness: number; energy: number } | null;
 }
 
 export default function DashboardContainer({
@@ -43,7 +44,8 @@ export default function DashboardContainer({
   onDateChange,
   refreshAllData,
   isRefreshing,
-  maturity: externalMaturity
+  maturity: externalMaturity,
+  forecastMetrics
 }: Omit<DashboardContainerProps, 'logs'>) {
   const { dataDepth, maturity: contextMaturity } = useUser();
   const { logs } = useSleepStore();
@@ -54,6 +56,7 @@ export default function DashboardContainer({
   }, [externalMaturity, contextMaturity]);
 
   const [insightTeaser, setInsightTeaser] = useState<string | null>(null);
+  const [deepAnalysisResult, setDeepAnalysisResult] = useState<{summary: string, recommendation: string, confidence: number} | null>(null);
   const [dailyBrief, setDailyBrief] = useState<string | null>(null);
   const [insights, setInsights] = useState<any[]>([]);
   const [isAiLoading, setIsAiLoading] = useState(false);
@@ -250,10 +253,17 @@ export default function DashboardContainer({
         today
       );
 
-      if (response.status === 'success') {
-        setInsightTeaser(response.content);
-      } else {
-        setInsightTeaser(response.reason);
+      if (response.status === 'success' && response.content) {
+        try {
+          const result = JSON.parse(response.content);
+          setDeepAnalysisResult({
+            summary: result.summary,
+            recommendation: result.recommendation,
+            confidence: result.confidence
+          });
+        } catch (e) {
+          console.error("Failed to parse Deep Analysis result:", e);
+        }
       }
     } catch (e) {
       console.error("Deep Analysis Error:", e);
@@ -391,6 +401,7 @@ export default function DashboardContainer({
       correctionsCount={correctionsCount}
       insightTeaser={insightTeaser}
       setInsightTeaser={setInsightTeaser}
+      deepAnalysisResult={deepAnalysisResult}
       dailyBrief={dailyBrief}
       isEnhanced={userProfile?.tier !== 'Basic'}
       isAiLoading={isAiLoading}
@@ -407,6 +418,7 @@ export default function DashboardContainer({
       insights={insights}
       greeting={greeting}
       recentGadgets={recentGadgets}
+      forecastMetrics={forecastMetrics}
     />
   );
 }

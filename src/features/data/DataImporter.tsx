@@ -33,6 +33,7 @@ import {
 import { DailyLog, SleepState, SleepEvent } from '../../types';
 import { TOTAL_SLOTS } from '../../constants';
 import { saveLog } from '../../services/sleepService';
+import { SIA_EXTRACTOR_PERSONA } from '../../services/ai/aiConstants';
 import { SIA_AI_MODEL } from '../../services/ai/aiConfig';
 import { 
   snapTo15Min, 
@@ -161,7 +162,7 @@ export default function DataImporter({ user, onImportComplete, onRefresh, isImpo
     let extracted = { summary: null, estimatedDateRange: null, extractedInsights: [], rawDataType: 'unknown' };
     try {
       const aiPromise = siaClient.generateContent(content.slice(0, 8000), {
-        systemInstruction: "Extract sleep insights from this text. Return only valid JSON: { summary, estimatedDateRange, extractedInsights (string array), rawDataType }.",
+        systemInstruction: SIA_EXTRACTOR_PERSONA,
         temperature: 0.4
       });
 

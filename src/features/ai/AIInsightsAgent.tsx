@@ -132,7 +132,11 @@ const buildLogDigest = (logs: DailyLog[], days: number) => {
   }));
 };
 
-export default function AIInsightsAgent() {
+export default function AIInsightsAgent({
+  onForecastUpdate
+}: {
+  onForecastUpdate?: (metrics: { quality: number; alertness: number; energy: number } | null) => void;
+} = {}) {
   const { logs, user, userProfile, personalizationProfile, isProfileLoading, tier, dataDepth } = useUser();
   const theme = useMemo(() => getAIPageTheme(tier), [tier]);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -312,6 +316,14 @@ export default function AIInsightsAgent() {
           content: response.answer,
           createdAt: serverTimestamp()
         });
+
+        if (response.sleep_quality > 0 && onForecastUpdate) {
+            onForecastUpdate({
+                quality: response.sleep_quality,
+                alertness: response.morning_alertness,
+                energy: response.daytime_energy
+            });
+        }
 
         // Save insights if any
         if (response.newInsights && response.newInsights.length > 0) {

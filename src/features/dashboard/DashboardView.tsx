@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
+import { format } from 'date-fns';
 import { Activity, Sun, Zap, Clock, BarChart3, Moon, TrendingUp, Sparkles, Brain, Plus, ChevronRight } from 'lucide-react';
 import { Card } from '../../components/UI';
 import { MetricSparklineCard } from '../../components/MetricSparklineCard';
@@ -22,6 +23,7 @@ export const DashboardView: React.FC<{
   isEnhanced: boolean;
   isAiLoading: boolean;
   handleDeepAnalysis: () => void;
+  deepAnalysisResult?: { summary: string, recommendation: string, confidence: number } | null;
   correctionsCount: number;
   selectedDate: string;
   onOpenPersonalization: () => void;
@@ -40,6 +42,7 @@ export const DashboardView: React.FC<{
   logs: any;
   greeting: { prefix: string; suffix: string; showLogLink?: boolean; onLogClick?: () => void; };
   recentGadgets: string[];
+  forecastMetrics?: { quality: number; alertness: number; energy: number } | null;
 }> = ({
   user,
   userProfile,
@@ -54,6 +57,7 @@ export const DashboardView: React.FC<{
   isEnhanced,
   isAiLoading,
   handleDeepAnalysis,
+  deepAnalysisResult,
   correctionsCount,
   selectedDate,
   onOpenPersonalization,
@@ -71,7 +75,8 @@ export const DashboardView: React.FC<{
   setCachedInsight,
   logs,
   greeting,
-  recentGadgets
+  recentGadgets,
+  forecastMetrics
 }) => {
   return (
     <div className="space-y-8">
@@ -94,6 +99,9 @@ export const DashboardView: React.FC<{
         </Card>
         
         <Card className="bg-zinc-900 border-zinc-800 p-6">
+          <p className="text-[9px] font-black uppercase tracking-widest text-zinc-600 mb-1">
+            MORNING BRIEF · {format(new Date(), 'EEEE d MMM').toUpperCase()}
+          </p>
           <div className="flex items-center gap-3 mb-4">
             <Sparkles className="text-indigo-400" size={16} />
             <h3 className="text-indigo-400 text-xs font-black uppercase tracking-widest">Daily Briefing</h3>
@@ -106,6 +114,18 @@ export const DashboardView: React.FC<{
             <p className="text-zinc-300 text-xs italic leading-relaxed">{dailyBrief.substring(0, 150)}...</p>
           ) : (
              <p className="text-zinc-600 text-xs italic">SIA is calibrating for your next brief.</p>
+          )}
+          
+          {forecastMetrics && (
+            <div className="mt-4 pt-4 border-t border-zinc-800/50 space-y-2">
+              <p className="text-[10px] text-zinc-500 italic">Based on your last conversation with SIA</p>
+              <div className="flex gap-3">
+                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">SIA FORECAST</span>
+                <span className="text-[10px] font-bold text-indigo-400">Quality {forecastMetrics.quality}/10</span>
+                <span className="text-[10px] font-bold text-emerald-400">Alertness {forecastMetrics.alertness}/10</span>
+                <span className="text-[10px] font-bold text-amber-400">Energy {forecastMetrics.energy}/10</span>
+              </div>
+            </div>
           )}
         </Card>
       </div>
@@ -174,71 +194,177 @@ export const DashboardView: React.FC<{
         </div>
       </section>
 
-      {/* SIA Pattern Decoder Card */}
-      <motion.button
-        whileHover={{ scale: 1.01 }}
-        onClick={() => onViewChange('ai')}
-        className="w-full rounded-[2rem] border border-indigo-500/20 bg-gradient-to-r from-indigo-950/50 to-zinc-900 p-8 text-left relative overflow-hidden"
-        id="ai-analysis-card"
-      >
-        <div className="absolute inset-0 z-0 bg-[radial-gradient(circle_at_right,rgba(99,102,241,0.15),transparent_70%)]" />
-        <div className="relative z-10 flex items-center justify-between">
-          <div className="space-y-4">
-            <h3 className="font-black text-xs tracking-widest text-indigo-400 uppercase flex items-center gap-2">
-              <Sparkles size={14} />
-              SIA PATTERN DECODER
-            </h3>
-            {isAiLoading ? (
-               <div className="animate-pulse space-y-2">
-                   <div className="h-4 bg-zinc-800 rounded w-3/4"></div>
-                   <div className="h-4 bg-zinc-800 rounded w-1/2"></div>
-               </div>
-            ) : insightTeaser ? (
-              <p className="text-lg font-serif italic text-white leading-relaxed max-w-md">
-                "{insightTeaser}"
-              </p>
-            ) : (
-              <p className="text-lg text-white leading-relaxed max-w-md">
-                Record at least 14 logs (Level 2) to unlock SIA's daily pattern analysis.
-              </p>
-            )}
-            <p className="text-[10px] text-indigo-400 font-black uppercase tracking-widest pt-2">
-              Explore this pattern in detail →
-            </p>
-            <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold pt-2">
-              Last analyzed: {new Date().toLocaleDateString()} • Next update in 14h
-            </p>
-          </div>
-          <div className="hidden md:block w-48 h-24 opacity-60">
-             <div className="w-full h-full bg-gradient-to-r from-indigo-900/0 via-indigo-500/20 to-indigo-900/0 rounded-full blur-xl" />
-          </div>
+      {/* SIA Weekly Pattern & Upgrade Card */}
+      {!isEnhanced ? (
+        <div className="rounded-2xl border border-indigo-500/20 bg-indigo-950/20 p-5 mt-8 mb-8" id="ai-analysis-card">
+          <p className="text-[10px] font-black uppercase tracking-widest text-indigo-400 mb-2">ENHANCED INTELLIGENCE</p>
+          <p className="text-sm font-bold text-white mb-1">Unlock pattern analysis, correlations & clinical insights</p>
+          <p className="text-xs text-zinc-400 mb-4">14+ nights of data reveal what Basic can't — the patterns behind your sleep.</p>
+          <button onClick={() => onViewChange('account')} className="w-full md:w-auto py-3 px-6 bg-zinc-900 border border-indigo-500/30 text-indigo-400 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-900/20 transition-all flex items-center justify-center gap-2">
+            Upgrade to Enhanced
+          </button>
         </div>
-      </motion.button>
+      ) : (
+        <>
+          <motion.button
+            whileHover={{ scale: 1.01 }}
+            onClick={() => onViewChange('ai')}
+            className="w-full rounded-[2rem] border border-indigo-500/20 bg-gradient-to-r from-indigo-950/50 to-zinc-900 p-8 text-left relative overflow-hidden mt-8"
+            id="ai-analysis-card"
+          >
+            <div className="absolute inset-0 z-0 bg-[radial-gradient(circle_at_right,rgba(99,102,241,0.15),transparent_70%)]" />
+            <div className="relative z-10 flex items-center justify-between">
+              <div className="space-y-4">
+                <div>
+                  <p className="text-[9px] font-black uppercase tracking-widest text-zinc-600 mb-1">
+                    7-DAY PATTERN · UPDATES EVERY 3 LOGS
+                  </p>
+                  <h3 className="font-black text-xs tracking-widest text-indigo-400 uppercase flex items-center gap-2">
+                    <Sparkles size={14} />
+                    SIA WEEKLY PATTERN
+                  </h3>
+                </div>
+                {isAiLoading ? (
+                   <div className="animate-pulse space-y-2">
+                       <div className="h-4 bg-zinc-800 rounded w-3/4"></div>
+                       <div className="h-4 bg-zinc-800 rounded w-1/2"></div>
+                   </div>
+                ) : insightTeaser ? (
+                  <div className="space-y-4 max-w-md">
+                    {(() => {
+                      const pMatch = insightTeaser.match(/PATTERN:\s*(.*?)(?=\n|CORRELATION|$)/si);
+                      const cMatch = insightTeaser.match(/CORRELATION:\s*(.*?)(?=\n\n\*\*\*|$)/si);
+                      const parsedPattern = pMatch ? pMatch[1].trim() : insightTeaser.replace(/\*\*\*[\s\S]*/, '').trim();
+                      const parsedCorrelation = cMatch ? cMatch[1].trim() : '';
 
-      {/* Section: Clinical Insights */}
-      <section className="space-y-4">
-        <h2 className="font-black text-xs tracking-widest text-zinc-50 uppercase mb-4">Clinical Insights</h2>
-        <div className="relative group">
-          <div className="absolute -inset-0.5 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-3xl opacity-20 group-hover:opacity-40 transition duration-500 blur"></div>
-          <Card className="relative bg-zinc-950 border border-zinc-800 p-6 flex flex-col md:flex-row items-center justify-between gap-6">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-2xl bg-zinc-800 flex items-center justify-center text-zinc-500 border border-zinc-700">
-                <Brain size={24} />
+                      return (
+                        <div className="space-y-4">
+                          <div>
+                            <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest mb-1">Pattern</p>
+                            <p className="text-lg font-serif italic text-white leading-relaxed">
+                              {parsedPattern}
+                            </p>
+                          </div>
+                          {parsedCorrelation && (
+                            <div>
+                              <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest mb-1">Key Correlation</p>
+                              <p className="text-sm font-serif italic text-indigo-200 leading-relaxed">
+                                {parsedCorrelation}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                ) : (
+                  <p className="text-lg text-white leading-relaxed max-w-md">
+                    Record at least 14 logs (Level 2) to unlock SIA's daily pattern analysis.
+                  </p>
+                )}
+                <p className="text-[10px] text-indigo-400 font-black uppercase tracking-widest pt-2">
+                  Explore this pattern in detail →
+                </p>
+                <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold pt-2">
+                  Last analyzed: {new Date().toLocaleDateString()} • Next update in 14h
+                </p>
               </div>
-              <div>
-                <h3 className="text-sm font-black text-zinc-300 uppercase tracking-widest">Clinical Insights Feed</h3>
-                <p className="text-xs text-zinc-500 font-bold">Advanced Diagnostic Monitoring</p>
+              <div className="hidden md:block w-48 h-24 opacity-60">
+                 <div className="w-full h-full bg-gradient-to-r from-indigo-900/0 via-indigo-500/20 to-indigo-900/0 rounded-full blur-xl" />
               </div>
             </div>
-            <button
-              onClick={() => onViewChange('account')}
-              className="w-full md:w-auto py-3 px-6 bg-zinc-900 border border-indigo-500/30 text-indigo-400 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-900/20 transition-all flex items-center justify-center gap-2"
-            >
-              Unlock with Enhanced or Pro
-            </button>
-          </Card>
-        </div>
-      </section>
+          </motion.button>
+
+          {/* Section: Clinical Insights */}
+          <section className="space-y-4 mt-8">
+            <div className="flex items-center justify-between">
+              <h2 className="font-black text-xs tracking-widest text-zinc-50 uppercase mb-4">Clinical Insights</h2>
+              {dataMaturity?.level >= 3 && !isDeepAnalysis && !deepAnalysisResult && (
+                <button onClick={handleDeepAnalysis} className="text-[10px] text-zinc-500 hover:text-zinc-300 uppercase tracking-widest font-bold mb-4">
+                  Refresh Analysis
+                </button>
+              )}
+            </div>
+            
+            {dataMaturity?.level < 3 ? (
+              <div className="relative group">
+                <div className="absolute -inset-0.5 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-3xl opacity-20 group-hover:opacity-40 transition duration-500 blur"></div>
+                <Card className="relative bg-zinc-950 border border-zinc-800 p-6 flex flex-col md:flex-row items-center justify-between gap-6">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-zinc-800 flex items-center justify-center text-zinc-500 border border-zinc-700">
+                      <Brain size={24} />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-black text-zinc-300 uppercase tracking-widest">Clinical Insights Feed</h3>
+                      <p className="text-xs text-zinc-500 font-bold">Advanced Diagnostic Monitoring</p>
+                    </div>
+                  </div>
+                  <button
+                    disabled
+                    className="w-full md:w-auto py-3 px-6 bg-zinc-900 border border-zinc-700 text-zinc-500 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2"
+                  >
+                    Unlock at 14 Logs
+                  </button>
+                </Card>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <Card className="bg-zinc-950 border-zinc-800 p-8 space-y-4">
+                  <div>
+                    <p className="text-[9px] font-black uppercase tracking-widest text-zinc-600 mb-1">
+                      LONG-TERM ANALYSIS · LAST {logs ? Object.keys(logs).length : 0} NIGHTS
+                    </p>
+                    <h3 className="font-black text-xs tracking-widest text-emerald-400 uppercase flex items-center gap-2">
+                      <Activity size={14} />
+                      Deep Analysis Summary
+                    </h3>
+                  </div>
+                  {isDeepAnalysis ? (
+                    <div className="animate-pulse flex space-x-4">
+                      <div className="h-4 bg-zinc-800 rounded w-full"></div>
+                    </div>
+                  ) : deepAnalysisResult ? (
+                    <p className="text-lg text-white font-serif italic">{deepAnalysisResult.summary}</p>
+                  ) : (
+                    <button
+                      onClick={handleDeepAnalysis}
+                      className="w-full py-4 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-400 rounded-xl text-xs font-black uppercase tracking-widest transition-all"
+                    >
+                      Generate 30-Day Deep Analysis
+                    </button>
+                  )}
+                </Card>
+                
+                {deepAnalysisResult && (
+                  <Card className="bg-gradient-to-br from-emerald-900/30 to-zinc-900 border-emerald-500/30 p-6 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-black text-[10px] tracking-widest text-emerald-400 uppercase">Tonight's Action</h4>
+                      <div className="bg-emerald-500/20 border border-emerald-500/30 px-3 py-1 rounded-full flex items-center gap-2">
+                        <Zap size={12} className="text-emerald-400" />
+                        <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400">
+                          {Math.round(deepAnalysisResult.confidence * 100)}% Confidence
+                        </span>
+                      </div>
+                    </div>
+                    <p className="text-emerald-100 font-bold">{deepAnalysisResult.recommendation}</p>
+                  </Card>
+                )}
+
+                {insights && insights.length > 0 && (
+                  <div className="pt-4 border-t border-zinc-800 space-y-4">
+                    <h4 className="font-black text-[10px] tracking-widest text-zinc-500 uppercase">Past Insights</h4>
+                    <div className="grid md:grid-cols-2 gap-4">
+                      {insights.map(insight => (
+                        <InsightCard key={insight.id} insight={insight} tier={userProfile?.tier} confidence={insight.confidence} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </section>
+        </>
+      )}
 
       {/* Section: SIA Learning Hub */}
       <section className="space-y-6 pt-6 border-t border-zinc-800">

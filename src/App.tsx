@@ -233,6 +233,7 @@ export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [loginError, setLoginError] = useState<string | null>(null);
+  const [forecastMetrics, setForecastMetrics] = useState<{ quality: number; alertness: number; energy: number } | null>(null);
   
   const { 
     logs, setLogs, selectedDate, setSelectedDate, updateLogLocally, saveLogFromState, deleteLog,
@@ -1388,6 +1389,7 @@ useEffect(() => {
                       onOpenSleepGuide={() => setShowSleepGuide(true)}
                       refreshAllData={refreshAllData}
                       isRefreshing={isRefreshing}
+                      forecastMetrics={forecastMetrics}
                     />
                   </Suspense>
                 </motion.div>
@@ -2432,7 +2434,7 @@ useEffect(() => {
                 <p className="text-sm text-zinc-300">Advanced correlation analysis of your sleep history</p>
               </div>
               <Suspense fallback={<div className="flex items-center justify-center h-64"><div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"/></div>}>
-                <AIInsightsAgent />
+                <AIInsightsAgent onForecastUpdate={setForecastMetrics} />
               </Suspense>
               <DevSwitchboardMini key="ai-switchboard" />
             </motion.div>
