@@ -1,4 +1,3 @@
-import { GoogleGenAI } from '@google/genai';
 import { SIA_AI_MODEL, SIA_FALLBACK_MODEL } from './aiConfig';
 
 const FALLBACK_PRIORITY_ORDER = [
@@ -8,43 +7,20 @@ const FALLBACK_PRIORITY_ORDER = [
 ];
 
 class SiaClient {
-  private ai: GoogleGenAI;
   private availableModels: string[] | null = null;
 
-  constructor() {
-    this.ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY || '' });
-  }
+  constructor() {}
 
   private async getAvailableModels(): Promise<string[]> {
-    if (this.availableModels) return this.availableModels;
-    try {
-      const modelsResponse = await this.ai.models.list();
-      const models = [];
-      for await (const model of modelsResponse) {
-        const name = model.name.replace('models/', '');
-        models.push(name);
-      }
-      this.availableModels = models;
-      return models;
-    } catch (error) {
-      console.warn("Failed to fetch available models. Using fallback priority order.", error);
-      return FALLBACK_PRIORITY_ORDER;
-    }
+    return FALLBACK_PRIORITY_ORDER;
   }
 
   private async getBestAvailableModel(attempt: number = 0): Promise<string> {
-    const models = await this.getAvailableModels();
-    for (let i = attempt; i < FALLBACK_PRIORITY_ORDER.length; i++) {
-      const candidate = FALLBACK_PRIORITY_ORDER[i];
-      if (models.includes(candidate)) {
-        return candidate;
-      }
-    }
     return FALLBACK_PRIORITY_ORDER[Math.min(attempt, FALLBACK_PRIORITY_ORDER.length - 1)];
   }
 
   private isRetryableError(error: any) {
-    const status = error.status || error.code;
+    const status = error.status || error.code || 500;
     return status === 404 || status === 503 || status === 429 || error.message?.includes('fetch failed');
   }
 
@@ -63,16 +39,22 @@ class SiaClient {
           delete config.systemInstruction;
         }
 
-        const response = await this.ai.models.generateContent({
-          model: modelToUse,
-          contents,
-          config: {
-            ...config,
-            systemInstruction,
-          },
+        const res = await fetch('/api/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            contents, 
+            systemInstruction, 
+            config, 
+            model: modelToUse 
+          }),
         });
-        
-        return response; // Return the GenerateContentResponse directly
+
+        if (!res.ok) throw new Error(`API route error: ${res.status}`);
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+
+        return { text: data.text as string };
       } catch (error: any) {
         lastError = error;
         if (this.isRetryableError(error)) {
@@ -87,9 +69,30 @@ class SiaClient {
     throw lastError || new Error("Failed to generate content after exhausting fallback models.");
   }
 
-  async generateContent(prompt: string, config: any) {
-    const response = await this.generateContentRaw([{ role: "user", parts: [{ text: prompt }] }], config);
-    return response.text;
+  async generateContent(prompt: string, config?: any) {
+    let systemInstruction = undefined;
+    let modifiedConfig = { ...config };
+    
+    if (modifiedConfig && modifiedConfig.systemInstruction) {
+      systemInstruction = modifiedConfig.systemInstruction;
+      delete modifiedConfig.systemInstruction;
+    }
+
+    const res = await fetch('/api/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        prompt, 
+        systemInstruction, 
+        config: modifiedConfig, 
+        model: SIA_AI_MODEL 
+      }),
+    });
+    
+    if (!res.ok) throw new Error(`API route error: ${res.status}`);
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    return data.text as string;
   }
 }
 
