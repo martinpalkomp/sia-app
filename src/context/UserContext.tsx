@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useMemo, useState, useEffect } from 'react';
 import { DailyLog, PersonalizationProfile, UserProfile } from '../types';
-import { MaturityInfo } from '../services/aiService';
+import { MaturityInfo } from '../services/ai/core/maturitySystem';
 import { User } from '../lib/firebase';
 import { useSleepStore } from '../store/useSleepStore';
 

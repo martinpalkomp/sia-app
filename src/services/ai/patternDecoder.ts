@@ -1,7 +1,7 @@
-import { siaClient } from './SiaClient';
+import { aiClient as siaClient } from './core/aiClient';
 import { DailyLog, UserTier } from '../../types';
-import { MaturityInfo } from '../aiService';
-import { shouldTriggerAI } from '../../utils/aiGuardrails';
+import { MaturityInfo } from './core/maturitySystem';
+import { shouldTriggerAI } from './core/guardrails';
 import { format } from 'date-fns';
 
 import { SIA_DISCLAIMER, SIA_CORRELATION_PERSONA } from './aiConstants';
@@ -33,8 +33,13 @@ export const generatePatternDecoder = async (
       return { content: null, status: 'skipped', reason: guardrail.reason };
     }
 
+    const lightweightLogs = logs.slice(0, 30).map(log => {
+      const { visualTimeline, sleepEvents, ...rest } = log;
+      return rest;
+    });
+
     let promptText = `
-      Analyze recent sleep logs: ${JSON.stringify(logs.slice(0, 30))}
+      Analyze recent sleep logs: ${JSON.stringify(lightweightLogs)}
       Perform a Correlation Analysis on sleep data and lifestyle factors.
     `;
 

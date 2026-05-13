@@ -43,6 +43,7 @@ export const DashboardView: React.FC<{
   greeting: { prefix: string; suffix: string; showLogLink?: boolean; onLogClick?: () => void; };
   recentGadgets: string[];
   forecastMetrics?: { quality: number; alertness: number; energy: number } | null;
+  hasNinetyLogsInFiveMonths: boolean;
 }> = ({
   user,
   userProfile,
@@ -76,30 +77,16 @@ export const DashboardView: React.FC<{
   logs,
   greeting,
   recentGadgets,
-  forecastMetrics
+  forecastMetrics,
+  hasNinetyLogsInFiveMonths
 }) => {
   return (
     <div className="space-y-8">
-      <SleepGateHero logs={{}} userName={userProfile?.displayName} />
+      <SleepGateHero logs={{}} userName={userProfile?.displayName} greeting={greeting} />
 
-      <div className="grid md:grid-cols-2 gap-6">
-        <Card className="bg-zinc-900 border-zinc-800 p-6 flex flex-col justify-between">
-          <div className="space-y-2">
-            <h3 className="text-zinc-400 text-xs font-black uppercase tracking-widest">Next Step</h3>
-            <p className="text-white font-bold">{greeting.prefix}, {userProfile?.displayName?.split(' ')[0] || 'SIA User'}.</p>
-          </div>
-          {greeting.showLogLink && (
-            <button
-              onClick={greeting.onLogClick}
-              className="mt-4 w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-black uppercase tracking-widest flex items-center justify-center gap-2"
-            >
-              <Plus size={14} /> Log Last Night
-            </button>
-          )}
-        </Card>
-        
-        <Card className="bg-zinc-900 border-zinc-800 p-6">
-          <p className="text-[9px] font-black uppercase tracking-widest text-zinc-600 mb-1">
+      <div id="db-morning-briefing" className="w-full">
+        <Card id="morning-brief-card" className="bg-zinc-900 border-zinc-800 p-6 w-full">
+          <p id="temporal-label" className="text-[9px] font-black uppercase tracking-widest text-zinc-600 mb-1">
             MORNING BRIEF · {format(new Date(), 'EEEE d MMM').toUpperCase()}
           </p>
           <div className="flex items-center gap-3 mb-4">
@@ -111,13 +98,13 @@ export const DashboardView: React.FC<{
               <div className="h-12 w-full bg-zinc-800 rounded"></div>
             </div>
           ) : dailyBrief ? (
-            <p className="text-zinc-300 text-xs italic leading-relaxed">{dailyBrief.substring(0, 150)}...</p>
+            <p id="brief-body" className="text-zinc-300 text-xs italic leading-relaxed">{dailyBrief.substring(0, 150)}...</p>
           ) : (
-             <p className="text-zinc-600 text-xs italic">SIA is calibrating for your next brief.</p>
+             <p id="brief-body" className="text-zinc-600 text-xs italic">SIA is calibrating for your next brief.</p>
           )}
           
           {forecastMetrics && (
-            <div className="mt-4 pt-4 border-t border-zinc-800/50 space-y-2">
+            <div id="forecast-metrics-chip" className="mt-4 pt-4 border-t border-zinc-800/50 space-y-2">
               <p className="text-[10px] text-zinc-500 italic">Based on your last conversation with SIA</p>
               <div className="flex gap-3">
                 <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">SIA FORECAST</span>
@@ -217,11 +204,11 @@ export const DashboardView: React.FC<{
               <div className="space-y-4">
                 <div>
                   <p className="text-[9px] font-black uppercase tracking-widest text-zinc-600 mb-1">
-                    7-DAY PATTERN · UPDATES EVERY 3 LOGS
+                    14-DAY PATTERN · UPDATES EVERY 3 LOGS
                   </p>
                   <h3 className="font-black text-xs tracking-widest text-indigo-400 uppercase flex items-center gap-2">
                     <Sparkles size={14} />
-                    SIA WEEKLY PATTERN
+                    SIA PATTERN INSIGHT
                   </h3>
                 </div>
                 {isAiLoading ? (
@@ -279,14 +266,28 @@ export const DashboardView: React.FC<{
           <section className="space-y-4 mt-8">
             <div className="flex items-center justify-between">
               <h2 className="font-black text-xs tracking-widest text-zinc-50 uppercase mb-4">Clinical Insights</h2>
-              {dataMaturity?.level >= 3 && !isDeepAnalysis && !deepAnalysisResult && (
+              {dataMaturity?.level >= 3 && hasNinetyLogsInFiveMonths && !isDeepAnalysis && !deepAnalysisResult && (
                 <button onClick={handleDeepAnalysis} className="text-[10px] text-zinc-500 hover:text-zinc-300 uppercase tracking-widest font-bold mb-4">
                   Refresh Analysis
                 </button>
               )}
             </div>
             
-            {dataMaturity?.level < 3 ? (
+            {!isEnhanced ? (
+              <div className="rounded-2xl border border-indigo-500/20 bg-indigo-950/20 p-5 mt-8 mb-8" id="ai-deep-analysis-locked">
+                <p className="text-[10px] font-black uppercase tracking-widest text-indigo-400 mb-2">CLINICAL INSIGHTS LOCKED</p>
+                <p className="text-sm font-bold text-white mb-1">Unlock AI Deep Analysis</p>
+                <p className="text-xs text-zinc-400 mb-4 leading-relaxed">
+                  Deep Analysis reviews your entire sleep history to identify dominant long-term trends and deviations. 
+                  It correlates your behavioral patterns with sleep quality over months of data. 
+                  You will receive a highly actionable clinical protocol tailored to your unique biological rhythm. 
+                  This feature requires 90 logs in the past 5 months to ensure precision.
+                </p>
+                <button onClick={() => onViewChange('account')} className="w-full md:w-auto py-3 px-6 bg-zinc-900 border border-indigo-500/30 text-indigo-400 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-900/20 transition-all flex items-center justify-center gap-2">
+                  Upgrade to Enhanced
+                </button>
+              </div>
+            ) : !hasNinetyLogsInFiveMonths ? (
               <div className="relative group">
                 <div className="absolute -inset-0.5 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-3xl opacity-20 group-hover:opacity-40 transition duration-500 blur"></div>
                 <Card className="relative bg-zinc-950 border border-zinc-800 p-6 flex flex-col md:flex-row items-center justify-between gap-6">
@@ -303,7 +304,7 @@ export const DashboardView: React.FC<{
                     disabled
                     className="w-full md:w-auto py-3 px-6 bg-zinc-900 border border-zinc-700 text-zinc-500 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2"
                   >
-                    Unlock at 14 Logs
+                    Unlock at 90 Logs
                   </button>
                 </Card>
               </div>

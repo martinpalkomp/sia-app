@@ -3,7 +3,7 @@ import Papa from 'papaparse';
 import { read, utils, writeFile } from 'xlsx';
 import ExcelJS from 'exceljs';
 import { parse, format, isValid, subDays, parseISO } from 'date-fns';
-import { siaClient } from '../../services/ai/SiaClient';
+import { aiClient as siaClient } from '../../services/ai/core/aiClient';
 import { 
   Upload, 
   FileText, 
@@ -34,7 +34,7 @@ import { DailyLog, SleepState, SleepEvent } from '../../types';
 import { TOTAL_SLOTS } from '../../constants';
 import { saveLog } from '../../services/sleepService';
 import { SIA_EXTRACTOR_PERSONA } from '../../services/ai/aiConstants';
-import { SIA_AI_MODEL } from '../../services/ai/aiConfig';
+
 import { 
   snapTo15Min, 
   timeToIndex, 

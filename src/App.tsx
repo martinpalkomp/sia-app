@@ -161,7 +161,7 @@ import {
   setPersistence,
   browserLocalPersistence
 } from './lib/firebase';
-import { MaturityInfo, AIService } from './services/aiService';
+import { MaturityInfo, MaturitySystem } from './services/ai/core/maturitySystem';
 
 // Lazy load heavy components
 const SleepGuideInteractive = React.lazy(() => import('./features/sleep/SleepGuideInteractive'));
@@ -404,7 +404,7 @@ export default function App() {
   const refreshAllData = async () => {
     setIsRefreshing(true);
     // Incrementing refreshKey will trigger the useEffect to re-subscribe/re-fetch
-    setRefreshKey(prev => prev + 1);
+    setRefreshKey(refreshKey + 1);
     
     // Simulate a brief delay for visual feedback if it's too fast
     await new Promise(resolve => setTimeout(resolve, 800));
@@ -737,7 +737,7 @@ export default function App() {
   // Fetch maturity info
   useEffect(() => {
     if (!user) return;
-    AIService.getUserDataMaturity(user.uid).then(setMaturity);
+    MaturitySystem.getUserDataMaturity(user.uid).then(setMaturity);
   }, [user?.uid, refreshKey]);
 
   // Load Personalization Profile
@@ -2340,7 +2340,7 @@ useEffect(() => {
                   // Wait for Firestore writes to propagate before re-counting
                   await new Promise(resolve => setTimeout(resolve, 1500));
                   if (user) {
-                    AIService.getUserDataMaturity(user.uid).then(setMaturity);
+                    MaturitySystem.getUserDataMaturity(user.uid).then(setMaturity);
                   }
                   refreshAllData();
                 }} 
@@ -2513,7 +2513,7 @@ useEffect(() => {
                       <input 
                         type="date" 
                         value={customRange.start}
-                        onChange={(e) => setCustomRange(prev => ({ ...prev, start: e.target.value }))}
+                        onChange={(e) => setCustomRange({ ...customRange, start: e.target.value })}
                         className="bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
                       />
                     </div>
@@ -2522,7 +2522,7 @@ useEffect(() => {
                       <input 
                         type="date" 
                         value={customRange.end}
-                        onChange={(e) => setCustomRange(prev => ({ ...prev, end: e.target.value }))}
+                        onChange={(e) => setCustomRange({ ...customRange, end: e.target.value })}
                         className="bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
                       />
                     </div>

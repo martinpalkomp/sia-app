@@ -34,7 +34,7 @@ export const useUIStore = create<UIStore>((set) => ({
   toast: null,
   setToast: (toast) => set({ toast }),
   showSleepGuide: false,
-  setShowSleepGuide: (show) => set({ showSleepGuide }),
+  setShowSleepGuide: (show) => set({ showSleepGuide: show }),
   isSleepToolsExpanded: false,
   setIsSleepToolsExpanded: (isSleepToolsExpanded) => set({ isSleepToolsExpanded }),
   highlightTier: false,

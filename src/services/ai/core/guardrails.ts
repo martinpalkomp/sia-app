@@ -11,7 +11,7 @@ export const shouldTriggerAI = (
   userTier: UserTier,
   maturityLevel: number | null | undefined,
   logsCount: number,
-  logsInLastMonthCount: number,
+  logsInTimeframeCount: number,
   featureName: FeatureName | 'fix_missing_data' | 'fill_gaps',
   lastGeneratedDate: string | null
 ): GuardrailResult => {
@@ -32,17 +32,23 @@ export const shouldTriggerAI = (
 
   switch (featureName) {
     case 'DeepAnalysis':
-      if ((userTier === 'Basic') || maturityLevel < 3) {
-        return { shouldTrigger: false, reason: "Deep Analysis requires Enhanced or Pro tier and 14 days of data." };
+      if (userTier === 'Basic') {
+        return { shouldTrigger: false, reason: "Deep Analysis requires Enhanced or Pro tier." };
+      }
+      if (logsInTimeframeCount < 90) {
+        return { shouldTrigger: false, reason: "Deep Analysis requires 90 logs in the last 5 months." };
       }
       break;
     case 'DailyBrief':
-      if (logsCount < 3) {
-        return { shouldTrigger: false, reason: `SIA is still calibrating. ${3 - logsCount} more logs needed for daily brief.` };
+      if (logsCount < 6) {
+        return { shouldTrigger: false, reason: `SIA is still calibrating. ${6 - logsCount} more logs needed for daily brief.` };
       }
       break;
     case 'QuickInsight':
-      if (logsInLastMonthCount < 14) {
+      if (userTier === 'Basic') {
+        return { shouldTrigger: false, reason: "Pattern Teaser requires Enhanced or Pro tier." };
+      }
+      if (logsInTimeframeCount < 14) {
         return { shouldTrigger: false, reason: "SIA is still calibrating. 14 days of data throughout the last month needed for AI insights." };
       }
       break;

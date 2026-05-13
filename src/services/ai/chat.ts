@@ -1,9 +1,9 @@
-import { siaClient } from './SiaClient';
+import { aiClient as siaClient } from './core/aiClient';
 import { UserTier } from '../../types';
-import { MaturityInfo } from '../aiService';
-import { shouldTriggerAI } from '../../utils/aiGuardrails';
+import { MaturityInfo } from './core/maturitySystem';
+import { shouldTriggerAI } from './core/guardrails';
 import { Type } from '@google/genai';
-import { AIService } from '../aiService'; // For quota check during transitional refactor
+import { ChatQuotaManager } from './chatQuotaManager';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 
@@ -22,11 +22,19 @@ export const chatWithSIA = async (
     },
     maturity: MaturityInfo,
     dailyBriefContent: string | null
-): Promise<{ answer: string; newInsights?: any[]; error?: string; limitReached?: boolean }> => {
+): Promise<{ 
+  answer: string; 
+  newInsights?: any[]; 
+  error?: string; 
+  limitReached?: boolean;
+  sleep_quality?: number;
+  morning_alertness?: number;
+  daytime_energy?: number;
+}> => {
     
     // 1. Check Quota
-    const quota = await AIService.checkAndResetQuota(userId, tier);
-    const limit = AIService.getQuotaLimit(tier);
+    const quota = await ChatQuotaManager.checkAndResetQuota(userId, tier);
+    const limit = ChatQuotaManager.getQuotaLimit(tier);
     
     if (quota.chatMessagesUsed >= limit) {
       return { answer: "", limitReached: true };

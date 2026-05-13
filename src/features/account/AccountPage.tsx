@@ -33,7 +33,7 @@ import FeedbackForm from './FeedbackForm';
 import AdminFeedback from './AdminFeedback';
 import DevElementMap from './DevElementMap';
 import { calculateAge, getAgeDecade } from '../../utils/dateUtils';
-import { AIService } from '../../services/aiService';
+
 
 export default function AccountPage({ onModifyAssessment, onRefresh }: { onModifyAssessment: () => void; onRefresh?: () => void; }) {
   const { user, personalizationProfile, logs, maturity, highlightTier, tier, userProfile, setMockLogs } = useUser();

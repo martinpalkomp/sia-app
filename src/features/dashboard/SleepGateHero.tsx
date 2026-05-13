@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Clock, Moon } from 'lucide-react';
+import { Plus, Clock, Moon } from 'lucide-react';
 import { DailyLog } from '../../types';
 
 interface SleepGateHeroProps {
   logs: Record<string, DailyLog>;
   userName?: string;
   className?: string;
+  greeting?: { prefix: string; suffix: string; showLogLink?: boolean; onLogClick?: () => void; };
 }
 
 const SleepGateArc = () => {
@@ -213,8 +214,8 @@ const SleepGateArc = () => {
   );
 };
 
-export const SleepGateHero: React.FC<SleepGateHeroProps> = ({ logs, userName, className }) => {
-  const greeting = userName ? `Evening, ${userName}` : 'Good Evening';
+export const SleepGateHero: React.FC<SleepGateHeroProps> = ({ logs, userName, className, greeting }) => {
+  const displayGreeting = greeting ? `${greeting.prefix}${userName ? `, ${userName.split(' ')[0]}` : ''}.` : (userName ? `Evening, ${userName}` : 'Good Evening');
 
   const getBackgroundImage = () => {
     return "https://raw.githubusercontent.com/martinpalkomp/sia-app/refs/heads/main/sia_all_dark.jpg";
@@ -224,7 +225,8 @@ export const SleepGateHero: React.FC<SleepGateHeroProps> = ({ logs, userName, cl
     <motion.section 
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`relative w-full min-h-[600px] overflow-hidden p-6 lg:p-10 text-white flex flex-col z-10 ${className || ''}`}
+      className={`relative w-full min-h-[600px] overflow-hidden p-6 lg:p-10 text-white flex flex-col z-10 rounded-3xl ${className || ''}`}
+      id="db-sleep-gate"
     >
       <img
         src={getBackgroundImage()}
@@ -232,27 +234,44 @@ export const SleepGateHero: React.FC<SleepGateHeroProps> = ({ logs, userName, cl
         className="absolute inset-0 w-full h-full object-cover -z-10"
       />
       
-      <div className="absolute inset-0 z-0 bg-gradient-to-t from-zinc-950 via-zinc-950/20 to-transparent" />
+      <div className="absolute inset-0 z-0 bg-gradient-to-t from-zinc-950 via-zinc-950/40 to-zinc-950/80" />
 
       {/* Top Bar: Avatar and Badge */}
       <div className="relative z-20 flex items-center gap-3 mb-8">
         <img 
+          id="sia-avatar"
           src="https://i.imgur.com/MnI5hn3.png" 
           alt="SIA Avatar" 
           className="w-12 h-12 rounded-full border border-zinc-700 shadow-lg"
         />
-        <span className="bg-indigo-600 text-[10px] px-3 py-1 rounded-full uppercase tracking-widest font-black text-white shrink-0">
+        <span id="intel-badge" className="bg-indigo-600/30 border border-indigo-500/30 text-[10px] px-3 py-1.5 rounded-full uppercase tracking-widest font-black text-indigo-300 shrink-0">
           Sleep Intelligence Agent
         </span>
       </div>
 
       <div className="relative z-20 grid md:grid-cols-2 gap-8 items-center w-full py-6 flex-1">
         <div className="order-2 md:order-1">
-          <h2 className="text-4xl lg:text-5xl font-black font-sans tracking-tighter mb-3 text-white">{greeting}</h2>
-          <p className="text-zinc-200 mb-8 font-medium text-lg leading-relaxed max-w-md">
-            Your sleep gate is projected for <span className="text-indigo-300 font-bold">23:15</span>. 
-            Start winding down in <span className="text-indigo-300 font-bold">~45 min</span> for optimal transition.
-          </p>
+          <h2 id="greeting-h1" className="text-4xl lg:text-5xl font-black font-sans tracking-tighter mb-3 text-white">{displayGreeting}</h2>
+          {greeting?.suffix ? (
+            <p id="greeting-subtext" className="text-zinc-300 mb-8 font-medium text-lg leading-relaxed max-w-md">
+              {greeting.suffix}
+            </p>
+          ) : (
+            <p className="text-zinc-300 mb-8 font-medium text-lg leading-relaxed max-w-md">
+              Your sleep gate is projected for <span className="text-indigo-300 font-black">23:15</span>. 
+              Start winding down in <span className="text-indigo-300 font-black">~45 min</span> for optimal transition.
+            </p>
+          )}
+
+          {greeting?.showLogLink && (
+            <button
+              id="nav-fab-log"
+              onClick={greeting.onLogClick}
+              className="mt-2 mb-8 w-full md:w-auto py-3 px-6 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-colors"
+            >
+              <Plus size={14} /> Log Last Night
+            </button>
+          )}
           
           <div className="flex gap-8">
             <div className="flex items-center gap-3 text-zinc-300">

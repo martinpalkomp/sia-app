@@ -7,8 +7,8 @@ import { format, parseISO } from 'date-fns';
  * before the AI even starts its deep analysis.
  */
 export function buildClinicalBrief(logs: DailyLog[], unstructured: UnstructuredData[]): string {
-  // Sort logs by date descending (most recent first)
-  const sortedLogs = [...logs].sort((a, b) => b.date.localeCompare(a.date));
+  // Sort logs by date descending (most recent first) and limit to last 14 days to constrain context window
+  const sortedLogs = [...logs].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 14);
   
   // 1. Primary Patterns: Average Bedtime & Consistency
   let totalBedtimeMinutes = 0;

@@ -6,7 +6,7 @@ import { format } from 'date-fns';
 import { DailyLog, UserProfile, PersonalizationProfile, SleepState, SleepEvent } from '../../types';
 import { User, collection, query, where, orderBy, limit, getDocs } from '../../lib/firebase';
 import { db } from '../../lib/firebase';
-import { MaturityInfo, AIService } from '../../services/aiService';
+import { MaturityInfo } from '../../services/ai/core/maturitySystem';
 import { useSleepStore } from '../../store/useSleepStore';
 import { generateDailyBrief, getCachedDailyBrief } from '../../services/ai/dailyBrief';
 import { generatePatternTeaser } from '../../services/ai/patternTeaser';
@@ -54,6 +54,14 @@ export default function DashboardContainer({
     if (source) return source as MaturityInfo;
     return { level: 1, count: 0, label: 'Baseline', nextThreshold: 7 } as MaturityInfo;
   }, [externalMaturity, contextMaturity]);
+
+  const hasNinetyLogsInFiveMonths = useMemo(() => {
+    if (!logs) return false;
+    const fiveMonthsAgo = new Date();
+    fiveMonthsAgo.setDate(fiveMonthsAgo.getDate() - 150);
+    const logsArray = Object.values(logs);
+    return logsArray.filter(log => new Date(log.date) >= fiveMonthsAgo).length >= 90;
+  }, [logs]);
 
   const [insightTeaser, setInsightTeaser] = useState<string | null>(null);
   const [deepAnalysisResult, setDeepAnalysisResult] = useState<{summary: string, recommendation: string, confidence: number} | null>(null);
@@ -172,6 +180,10 @@ export default function DashboardContainer({
   // Pattern Teaser Logic (Replaces generatePatternDecoder)
   const executePatternTeaser = async () => {
     if (!logs || Object.keys(logs).length < 1 || !user || !userProfile || !dataMaturity || insightTeaser) return;
+    
+    if (userProfile.tier === 'Basic') {
+      return;
+    }
 
     const cached = getCachedInsight();
     if (cached) {
@@ -183,7 +195,14 @@ export default function DashboardContainer({
     try {
       // V4 Pattern Teaser (SIA Services)
       const logsArray = Object.values(logs).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-      const generatedTeaser = await generatePatternTeaser(logsArray);
+      
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const logsInLastMonthCount = logsArray.filter(log => new Date(log.date) >= thirtyDaysAgo).length;
+      
+      const tier = userProfile.tier || 'Basic';
+      
+      const generatedTeaser = await generatePatternTeaser(logsArray, tier as any, logsInLastMonthCount);
       
       if (generatedTeaser && !generatedTeaser.includes("Unable to generate")) {
         setInsightTeaser(generatedTeaser);
@@ -226,7 +245,7 @@ export default function DashboardContainer({
   const handleDeepAnalysis = async () => {
     if (!user || !userProfile || isAiLoading || !dataMaturity) return;
 
-    if (userProfile?.tier === 'Basic' || dataMaturity.level < 3) {
+    if (userProfile?.tier === 'Basic' || !hasNinetyLogsInFiveMonths) {
       setShowUnlockEnhanced(true);
       return;
     }
@@ -254,16 +273,11 @@ export default function DashboardContainer({
       );
 
       if (response.status === 'success' && response.content) {
-        try {
-          const result = JSON.parse(response.content);
-          setDeepAnalysisResult({
-            summary: result.summary,
-            recommendation: result.recommendation,
-            confidence: result.confidence
-          });
-        } catch (e) {
-          console.error("Failed to parse Deep Analysis result:", e);
-        }
+        setDeepAnalysisResult({
+          summary: response.content.summary,
+          recommendation: response.content.recommendation,
+          confidence: response.content.confidence
+        });
       }
     } catch (e) {
       console.error("Deep Analysis Error:", e);
@@ -419,6 +433,7 @@ export default function DashboardContainer({
       greeting={greeting}
       recentGadgets={recentGadgets}
       forecastMetrics={forecastMetrics}
+      hasNinetyLogsInFiveMonths={hasNinetyLogsInFiveMonths}
     />
   );
 }
