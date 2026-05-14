@@ -1538,7 +1538,7 @@ useEffect(() => {
                           animate={{ opacity: 1, scale: 1 }}
                           exit={{ opacity: 0, scale: 0.95 }}
                           transition={{ duration: 0.2 }}
-                          className="w-full h-full flex flex-col items-center justify-center p-6 space-y-4"
+                          className="w-full h-full min-h-[15svh] flex flex-col items-center justify-center p-6 space-y-4 bg-gradient-to-r from-indigo-950/40 via-indigo-900/10 to-indigo-950/40"
                         >
                           <div className="flex items-center gap-3 text-indigo-400">
                             <div className="p-2 bg-indigo-500/10 rounded-lg">
@@ -1597,7 +1597,7 @@ useEffect(() => {
                           animate={{ opacity: 1, scale: 1 }}
                           exit={{ opacity: 0, scale: 0.95 }}
                           transition={{ duration: 0.2 }}
-                          className="w-full max-h-10 flex flex-col items-center justify-center"
+                          className="w-full h-full min-h-[15svh] flex flex-col items-center justify-center"
                         >
                           {(() => {
                             const confidenceValues = Object.values(activeSuggestion.confidenceMap);
@@ -1609,14 +1609,14 @@ useEffect(() => {
                               return (
                                 <button
                                   onClick={() => setToast({ message: `SIA needs ${3 - historyCount} more days of data to recognize your patterns.`, type: 'info' })}
-                                  className="w-full flex flex-row items-center justify-center gap-3 grayscale opacity-50 cursor-not-allowed px-6 py-1.5 max-h-10 overflow-hidden"
+                                  className="w-full h-full flex-1 flex flex-col items-center justify-center gap-3 grayscale opacity-50 cursor-not-allowed p-6 bg-gradient-to-r from-zinc-950/80 via-zinc-900/50 to-zinc-950/80 hover:via-zinc-800/50 transition-all"
                                 >
-                                  <Sparkles className="text-zinc-600 shrink-0" size={14} />
-                                  <div className="text-left">
-                                    <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest leading-tight">
+                                  <Sparkles className="text-zinc-600 shrink-0" size={24} />
+                                  <div className="text-center">
+                                    <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest leading-tight">
                                       {historyCount === 0 ? "SIA Learning: Log nights to enable prefill" : `SIA Learning: Log ${3 - historyCount} more nights for prefill`}
                                     </p>
-                                    <p className="text-[8px] text-zinc-500 uppercase tracking-widest leading-tight">
+                                    <p className="text-[8px] text-zinc-500 uppercase tracking-widest leading-tight mt-1">
                                       {historyCount === 0 ? "Log your first night to enable pattern prefill" : "Log more nights to enable pattern prefill"}
                                     </p>
                                   </div>
@@ -1628,7 +1628,7 @@ useEffect(() => {
                               return (
                                 <button
                                   onClick={() => setShowPrefillConfirm(true)}
-                                  className="w-full h-full flex flex-col items-center justify-center gap-3 group p-6"
+                                  className="w-full h-full flex-1 flex flex-col items-center justify-center gap-3 group p-6 bg-gradient-to-r from-amber-950/40 via-amber-900/10 to-amber-950/40 hover:from-amber-900/30 hover:via-amber-800/20 hover:to-amber-900/30 transition-all"
                                 >
                                   <Lightbulb className="text-amber-400 group-hover:scale-110 transition-transform" size={24} />
                                   <div className="text-center">
@@ -1642,7 +1642,7 @@ useEffect(() => {
                             return (
                               <button
                                 onClick={applySuggestion}
-                                className="w-full h-full bg-indigo-600/5 hover:bg-indigo-600/10 transition-all flex flex-col items-center justify-center gap-3 group relative overflow-hidden p-6"
+                                className="w-full h-full flex-1 bg-gradient-to-r from-indigo-950/60 via-indigo-900/30 to-indigo-950/60 hover:from-indigo-900/60 hover:via-indigo-800/40 hover:to-indigo-900/60 transition-all flex flex-col items-center justify-center gap-3 group relative overflow-hidden p-6"
                               >
                                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
                                 <Wand2 className="text-indigo-400 group-hover:rotate-12 transition-transform" size={24} />
@@ -1661,7 +1661,7 @@ useEffect(() => {
                           animate={{ opacity: 1, scale: 1 }}
                           exit={{ opacity: 0, scale: 0.95 }}
                           transition={{ duration: 0.2 }}
-                          className="w-full h-full flex flex-col items-center justify-center p-6 space-y-4"
+                          className="w-full h-full min-h-[15svh] flex flex-col items-center justify-center p-6 space-y-4 bg-gradient-to-r from-zinc-950/40 via-zinc-900/10 to-zinc-950/40"
                         >
                           <div className="flex items-center gap-8">
                             <div className="text-center">

@@ -230,7 +230,12 @@ export default function DashboardContainer({
     const sessionCached = sessionStorage.getItem(`sia_insight_${user.uid}_${today}`);
     const newLogsSinceLast = logCount - lastCount;
 
-    if (sessionCached && newLogsSinceLast < 3) return;
+    if (sessionCached && newLogsSinceLast < 3) {
+      if (!insightTeaser) {
+        setInsightTeaser(sessionCached);
+      }
+      return;
+    }
 
     if (insightDebounceRef.current) clearTimeout(insightDebounceRef.current);
     insightDebounceRef.current = setTimeout(async () => {
