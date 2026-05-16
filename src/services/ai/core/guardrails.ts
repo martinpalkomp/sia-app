@@ -1,4 +1,4 @@
-import { UserTier } from '../types';
+import { UserTier } from '../../../types';
 
 export type FeatureName = 'DeepAnalysis' | 'DailyBrief' | 'QuickInsight' | 'ClinicalInsights';
 

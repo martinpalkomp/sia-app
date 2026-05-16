@@ -132,6 +132,17 @@ export interface Insight {
   occurrences: number; // How many times this insight has been triggered/merged
 }
 
+export interface AIInsight {
+  type: 'daily_brief' | 'pattern' | 'deep_analysis' | 'chat_insight' | 'dashboard_insight';
+  category: 'sleep_quality' | 'efficiency' | 'consistency' | 'behavioral' | 'anomalies';
+  confidence: 'high' | 'medium' | 'low';
+  evidence: string[];
+  recommendation: string;
+  timeframe: 'immediate' | 'short_term' | 'long_term';
+  severity: 'critical' | 'warning' | 'info' | 'positive';
+  summary: string;
+}
+
 // DailyLog remains for backward compatibility and as the primary state interface
 export interface DailyLog extends Partial<FullLog>, Partial<SummaryLog> {
   date: string;

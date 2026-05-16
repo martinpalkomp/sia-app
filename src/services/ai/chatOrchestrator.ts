@@ -1,6 +1,6 @@
 import { chatWithSIA } from './chat';
 import { saveChatMessage, saveAIInsights } from './chatPersistence';
-import { buildClinicalBrief } from '../../lib/aiContextBuilder';
+import { buildClinicalBrief } from './context/clinicalSummary';
 import { DailyLog, UnstructuredData } from '../../types';
 import { format } from 'date-fns';
 import { doc, getDoc, getDocs, collection, query, orderBy, limit, db } from '../../lib/firebase';
@@ -33,7 +33,7 @@ export const getAnalyzingLabel = (prompt: string): string => {
 export const fetchHistoricalContext = async (uid: string) => {
   const logsRef = collection(db, 'users', uid, 'sleep_logs');
   const [logsSnap, profileSnap, unstructuredSnap] = await Promise.all([
-    getDocs(query(logsRef, orderBy('date', 'desc'))),
+    getDocs(query(logsRef, orderBy('date', 'desc'), limit(30))),
     getDoc(doc(db, 'users', uid, 'personalization', 'profile')),
     getDocs(query(collection(db, 'users', uid, 'unstructured_data'), orderBy('uploadDate', 'desc'), limit(10)))
   ]);

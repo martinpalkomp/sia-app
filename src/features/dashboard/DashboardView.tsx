@@ -37,8 +37,6 @@ export const DashboardView: React.FC<{
   isDeepAnalysis: boolean;
   isFirstVisit: boolean;
   setIsFirstVisit: (first: boolean) => void;
-  getCachedInsight: any;
-  setCachedInsight: any;
   logs: any;
   greeting: { prefix: string; suffix: string; showLogLink?: boolean; onLogClick?: () => void; };
   recentGadgets: string[];
@@ -72,8 +70,6 @@ export const DashboardView: React.FC<{
   isDeepAnalysis,
   isFirstVisit,
   setIsFirstVisit,
-  getCachedInsight,
-  setCachedInsight,
   logs,
   greeting,
   recentGadgets,
@@ -85,8 +81,9 @@ export const DashboardView: React.FC<{
       <SleepGateHero logs={{}} userName={userProfile?.displayName} greeting={greeting} />
 
       <div id="db-morning-briefing" className="w-full">
-        <Card id="morning-brief-card" className="bg-zinc-900 border-zinc-800 p-6 w-full">
-          <p id="temporal-label" className="text-[9px] font-black uppercase tracking-widest text-zinc-600 mb-1">
+        <div id="morning-brief-card">
+          <Card className="bg-zinc-900 border-zinc-800 p-6 w-full">
+            <p id="temporal-label" className="text-[9px] font-black uppercase tracking-widest text-zinc-600 mb-1">
             MORNING BRIEF · {format(new Date(), 'EEEE d MMM').toUpperCase()}
           </p>
           <div className="flex items-center gap-3 mb-4">
@@ -115,6 +112,7 @@ export const DashboardView: React.FC<{
             </div>
           )}
         </Card>
+        </div>
       </div>
 
       {/* Section: Status Report */}
@@ -144,7 +142,7 @@ export const DashboardView: React.FC<{
           <MetricSparklineCard 
             icon={<Zap size={20} className="text-emerald-400" />}
             title="Energy Level"
-            value={stats?.avgE !== undefined ? Math.round(stats.avgE) : '--'}
+            value={stats?.avgL !== undefined ? Math.round(stats.avgL) : '--'}
             delta={1}
             deltaLabel="vs 7d"
             unit="/10"
@@ -325,7 +323,7 @@ export const DashboardView: React.FC<{
                       <div className="h-4 bg-zinc-800 rounded w-full"></div>
                     </div>
                   ) : deepAnalysisResult ? (
-                    <p className="text-lg text-white font-serif italic">{deepAnalysisResult.summary}</p>
+                    <p className="text-base text-white font-bold leading-relaxed">{deepAnalysisResult.summary}</p>
                   ) : (
                     <button
                       onClick={handleDeepAnalysis}

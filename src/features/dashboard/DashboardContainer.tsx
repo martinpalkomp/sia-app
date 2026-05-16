@@ -11,6 +11,7 @@ import { useSleepStore } from '../../store/useSleepStore';
 import { generateDailyBrief, getCachedDailyBrief } from '../../services/ai/dailyBrief';
 import { generatePatternTeaser } from '../../services/ai/patternTeaser';
 import { generateDeepAnalysis } from '../../services/ai/deepAnalysis';
+import { AIStateManager } from '../../services/ai/AIStateManager';
 import { calculateSafeAverage } from '../../utils/statsEngine';
 import { getMinutesFrom2000 } from '../../utils/sleepUtils';
 import DashboardView from './DashboardView';
@@ -82,19 +83,9 @@ export default function DashboardContainer({
 
   // Fetch/Generate Daily Brief
   const today = getTodayDate();
-  const getInsightCacheKey = () => `sia_insight_${user?.uid}_${today}`;
-  const getCachedInsight = () => sessionStorage.getItem(getInsightCacheKey());
-  const setCachedInsight = (content: string) => sessionStorage.setItem(getInsightCacheKey(), content);
 
   useEffect(() => {
     if (!user || !userProfile || !logs || dataMaturity.count === 0 || !dataMaturity) return;
-
-    const briefCacheKey = `sia_brief_${user.uid}_${today}`;
-    const sessionCached = sessionStorage.getItem(briefCacheKey);
-    if (sessionCached) {
-      setDailyBrief(sessionCached);
-      return;
-    }
 
     const fetchBrief = async () => {
       setIsBriefLoading(true);
@@ -114,30 +105,17 @@ export default function DashboardContainer({
           return;
         }
 
-        const globalCached = await getCachedDailyBrief(user.uid, todayStr);
-        if (globalCached) {
-          setDailyBrief(globalCached);
-          sessionStorage.setItem(briefCacheKey, globalCached);
-          return;
-        }
-
-        const tier = userProfile.tier || 'Basic';
-
         const logsArray = Object.values(logs).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-        const freshBrief = await generateDailyBrief(
+        const brief = await AIStateManager.syncDailyBrief(
           user.uid,
-          logsArray as DailyLog[],
-          tier as any,
           todayStr,
-          lastNightStr
+          lastNightStr,
+          logsArray as DailyLog[],
+          userProfile,
+          dataMaturity.level
         );
 
-        if (freshBrief && !freshBrief.toLowerCase().includes("no brief available")) {
-          setDailyBrief(freshBrief);
-          sessionStorage.setItem(briefCacheKey, freshBrief);
-        } else {
-           setDailyBrief(null);
-        }
+        setDailyBrief(brief || "No brief available yet.");
 
       } catch (err) {
         console.error("Failed to generate brief:", err);
@@ -185,31 +163,19 @@ export default function DashboardContainer({
       return;
     }
 
-    const cached = getCachedInsight();
-    if (cached) {
-      setInsightTeaser(cached);
-      return;
-    }
-
     setIsAiLoading(true);
     try {
-      // V4 Pattern Teaser (SIA Services)
       const logsArray = Object.values(logs).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
       
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      const logsInLastMonthCount = logsArray.filter(log => new Date(log.date) >= thirtyDaysAgo).length;
+      const insight = await AIStateManager.syncPatternInsight(
+        user.uid,
+        today,
+        logsArray,
+        userProfile,
+        dataMaturity.level
+      );
       
-      const tier = userProfile.tier || 'Basic';
-      
-      const generatedTeaser = await generatePatternTeaser(logsArray, tier as any, logsInLastMonthCount);
-      
-      if (generatedTeaser && !generatedTeaser.includes("Unable to generate")) {
-        setInsightTeaser(generatedTeaser);
-        setCachedInsight(generatedTeaser);
-      } else {
-        setInsightTeaser("");
-      }
+      setInsightTeaser(insight || "");
     } catch (e) {
       console.error('Dashboard AI Error:', e);
       setInsightTeaser("");
@@ -430,8 +396,6 @@ export default function DashboardContainer({
       handleDeepAnalysis={handleDeepAnalysis}
       isFirstVisit={isFirstVisit}
       setIsFirstVisit={setIsFirstVisit}
-      getCachedInsight={getCachedInsight}
-      setCachedInsight={setCachedInsight}
       logs={logs}
       stats={stats}
       insights={insights}

@@ -75,7 +75,10 @@ app.post("/api/gemini/generate", async (req, res) => {
         config,
       });
       
-      return res.json({ ...response, _meta: { model: modelToUse, attempts: attempt + 1 } });
+      return res.json({ 
+        text: response.text, 
+        _meta: { model: modelToUse, attempts: attempt + 1 } 
+      });
     } catch (error: any) {
       lastError = error;
       

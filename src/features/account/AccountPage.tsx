@@ -415,7 +415,7 @@ export default function AccountPage({ onModifyAssessment, onRefresh }: { onModif
 
         {/* Data Maturity Tracker moved below */}
         <div className="md:col-span-2">
-          <DataMaturityTracker maturity={maturity || { count: 0, level: 1, nextThreshold: 7 }} />
+          <DataMaturityTracker maturity={maturity || { count: 0, level: 1, nextThreshold: 7, label: 'Observer' }} />
         </div>
       </div>
 

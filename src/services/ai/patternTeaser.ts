@@ -1,5 +1,5 @@
 import { aiClient as siaClient } from './core/aiClient';
-import { DailyLog, UserTier } from '../../types';
+import { DailyLog, UserTier, AIInsight } from '../../types';
 import { shouldTriggerAI } from './core/guardrails';
 
 import { SIA_DISCLAIMER, SIA_INSIGHTS_PERSONA } from './aiConstants';
@@ -7,11 +7,11 @@ import { SIA_DISCLAIMER, SIA_INSIGHTS_PERSONA } from './aiConstants';
 export const generatePatternTeaser = async (
   logs: DailyLog[],
   tier: UserTier,
-  logsInLastMonthCount: number
-): Promise<string> => {
-    const guardrail = shouldTriggerAI(tier, null, logs.length, logsInLastMonthCount, 'QuickInsight', null);
+  logsInLastMonthCount: number,
+  maturityLevel: number
+): Promise<string | AIInsight> => {
+    const guardrail = shouldTriggerAI(tier, maturityLevel, logs.length, logsInLastMonthCount, 'QuickInsight', null);
     
-    // We already handled tier checks in the UI, but this ensures we don't accidentally run it if not ready.
     if (!guardrail.shouldTrigger) {
       if (guardrail.reason?.includes("14 days of data")) {
          return "Unable to generate. SIA needs 14 days of data in the last month to generate a pattern.";
@@ -19,7 +19,6 @@ export const generatePatternTeaser = async (
       return "Unable to generate. " + (guardrail.reason || "");
     }
 
-    // Strip heavy grid arrays to save tokens
     const lightweightLogs = logs.slice(0, 14).map(log => {
       const { visualTimeline, sleepEvents, ...rest } = log;
       return rest;
@@ -28,30 +27,32 @@ export const generatePatternTeaser = async (
     const prompt = `
   Analyze the last 14 nights of sleep data: ${JSON.stringify(lightweightLogs)}
 
-  Return a JSON object in exactly this format:
+  Return a JSON object matching exactly our AIInsight schema with these values:
   {
-    "pattern": "One sentence identifying the most consistent sleep pattern across the 14 nights",
-    "correlation": "One sentence linking one lifestyle factor (caffeine/alcohol/exercise/stress) to a sleep metric (quality/efficiency/duration)"
+    "type": "pattern",
+    "category": "consistency",
+    "confidence": "high",
+    "evidence": ["e.g. data point 1", "e.g. data point 2"],
+    "recommendation": "Any behavioral recommendation if clearly linked",
+    "timeframe": "short_term",
+    "severity": "info",
+    "summary": "One sentence identifying the most consistent sleep pattern AND One sentence linking one lifestyle factor to a sleep metric"
   }
 `;
 
-    const response = await siaClient.generateContent(prompt, {
-        systemInstruction: SIA_INSIGHTS_PERSONA,
-        temperature: 0.7,
-        responseMimeType: "application/json"
-    });
-
-    const contentText = response.text || "{}";
-    
-    let parsed;
     try {
-        parsed = JSON.parse(contentText.replace(/\`\`\`json/g, '').replace(/\`\`\`/g, '').trim());
-    } catch {
-        parsed = { pattern: "Unable to find pattern.", correlation: "No correlation found." };
-    }
+      const response = await siaClient.generateContent(prompt, {
+          systemInstruction: SIA_INSIGHTS_PERSONA,
+          temperature: 0.7,
+          responseMimeType: "application/json"
+      });
 
-    const patternText = parsed.pattern || "Pattern unavailable.";
-    const correlationText = parsed.correlation || "Correlation unavailable.";
-    
-    return `PATTERN: ${patternText}\nCORRELATION: ${correlationText}\n\n***\n\n${SIA_DISCLAIMER}`;
+      const contentText = response.text || "{}";
+      const parsed: AIInsight = JSON.parse(contentText.replace(/\`\`\`json/g, '').replace(/\`\`\`/g, '').trim());
+
+      return parsed;
+    } catch (e) {
+      console.error("Failed to generate pattern teaser AIInsight", e);
+      return "Unable to find pattern. No correlation found.";
+    }
 };

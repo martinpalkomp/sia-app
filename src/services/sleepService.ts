@@ -1,6 +1,7 @@
 import { db, doc, serverTimestamp, setDoc } from '../lib/firebase';
 import { DailyLog, SummaryLog } from '../types';
 import { handleFirestoreError, OperationType } from '../lib/errorHandling';
+import { sanitizeAndValidateLog } from '../utils/logSchema';
 
 /**
  * Validates sleep metrics to ensure they are within clinical ranges.
@@ -51,18 +52,17 @@ export const saveLog = async (uid: string, logData: Partial<DailyLog> & { date: 
     throw new Error('Future planning is limited to a maximum of 5 days.');
   }
 
-  // Basic validation before saving
-  if (rest.summaryMetrics && !validateLogMetrics(rest.summaryMetrics)) {
-    throw new Error('Invalid clinical metrics detected. Values must be 1-10 and durations must be positive.');
-  }
+  const safeData = sanitizeLogForSaving(rest);
+  const payloadToTest = { ...safeData, date, type: 'log' };
+  
+  // Validation runs here
+  const validatedPayload = sanitizeAndValidateLog(payloadToTest);
 
   const docRef = doc(db, 'users', uid, 'sleep_logs', date);
   const metricsRef = doc(db, 'users', uid, 'daily_metrics', date);
   
   const payload = {
-    ...sanitizeLogForSaving(rest),
-    date,
-    type: 'log',          // always enforced — required by onSnapshot query filter
+    ...validatedPayload,
     updatedAt: serverTimestamp(),
   };
 
