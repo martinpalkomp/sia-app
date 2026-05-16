@@ -2,7 +2,6 @@ import { aiClient as siaClient } from './core/aiClient';
 import { UserTier } from '../../types';
 import { MaturityInfo } from './core/maturitySystem';
 import { shouldTriggerAI } from './core/guardrails';
-import { Type } from '@google/genai';
 import { ChatQuotaManager } from './chatQuotaManager';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
@@ -108,42 +107,30 @@ export const chatWithSIA = async (
           temperature: 0.7,
           responseMimeType: "application/json",
           responseSchema: {
-            // @ts-ignore
-            type: Type.OBJECT,
-            properties: {
-              // @ts-ignore
-              answer: { type: Type.STRING },
-              // @ts-ignore
-              sleep_quality: { type: Type.NUMBER },
-              // @ts-ignore
-              morning_alertness: { type: Type.NUMBER },
-              // @ts-ignore
-              daytime_energy: { type: Type.NUMBER },
-              newInsights: {
-                // @ts-ignore
-                type: Type.ARRAY,
-                items: {
-                  // @ts-ignore
-                  type: Type.OBJECT,
-                  properties: {
-                    // @ts-ignore
-                    type: { type: Type.STRING, enum: ["Pattern", "Risk", "Recommendation"] },
-                    // @ts-ignore
-                    confidence: { type: Type.NUMBER },
-                    // @ts-ignore
-                    summary: { type: Type.STRING },
-                    // @ts-ignore
-                    details: { type: Type.STRING },
-                    // @ts-ignore
-                    linkedDates: { type: Type.ARRAY, items: { type: Type.STRING } }
-                  },
-                  required: ["type", "confidence", "summary", "linkedDates"]
+              type: "OBJECT",
+              properties: {
+                answer: { type: "STRING" },
+                sleep_quality: { type: "NUMBER" },
+                morning_alertness: { type: "NUMBER" },
+                daytime_energy: { type: "NUMBER" },
+                newInsights: {
+                  type: "ARRAY",
+                  items: {
+                    type: "OBJECT",
+                    properties: {
+                      type: { type: "STRING", enum: ["Pattern", "Risk", "Recommendation"] },
+                      confidence: { type: "NUMBER" },
+                      summary: { type: "STRING" },
+                      details: { type: "STRING" },
+                      linkedDates: { type: "ARRAY", items: { type: "STRING" } }
+                    },
+                    required: ["type", "confidence", "summary", "linkedDates"]
+                  }
                 }
-              }
-            },
-            required: ["answer", "sleep_quality", "morning_alertness", "daytime_energy"]
-          }
-      });
+              },
+              required: ["answer", "sleep_quality", "morning_alertness", "daytime_energy"]
+            }
+        });
 
       const result = JSON.parse(response.text || '{}');
       const answer = result.answer || "I'm sorry, I couldn't process that.";

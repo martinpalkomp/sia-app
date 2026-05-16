@@ -2,7 +2,6 @@ let isHealthy = true;
 let lastCheck = Date.now();
 
 export const checkProviderHealth = () => {
-  // In a real scenario, this could ping the API or check the error rate
   return {
     isHealthy,
     lastCheck,
