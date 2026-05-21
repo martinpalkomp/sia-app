@@ -31,7 +31,7 @@ const PrintableReport: React.FC<PrintableReportProps> = ({ logs, userName }) => 
       
       <div className="max-w-[190mm] mx-auto">
         <div className="mb-8 border-b-2 border-black pb-4">
-          <h1 className="text-3xl font-serif font-bold mb-2">SIA: Sleep Intelligence Agent | Circadian Analysis Report</h1>
+          <h1 className="text-3xl font-display font-medium tracking-tight mb-2">SIA: Sleep Intelligence Agent | Circadian Analysis Report</h1>
           <div className="flex justify-between items-center text-sm font-sans">
             <p className="font-bold">Patient: {userName || 'N/A'}</p>
             <p>7-Day Observation Cycle: {recentLogs[recentLogs.length - 1].date} to {recentLogs[0].date}</p>

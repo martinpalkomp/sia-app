@@ -2,8 +2,8 @@ import { create } from 'zustand';
 import { getTodayDate } from '../utils/dateUtils';
 
 interface UIStore {
-  view: 'dashboard' | 'log' | 'weekly' | 'monthly' | 'custom' | 'ai' | 'corrections' | 'legal' | 'account' | 'import' | 'dev-map';
-  setView: (view: 'dashboard' | 'log' | 'weekly' | 'monthly' | 'custom' | 'ai' | 'corrections' | 'legal' | 'account' | 'import' | 'dev-map') => void;
+  view: 'dashboard' | 'log' | 'weekly' | 'monthly' | 'custom' | 'ai' | 'corrections' | 'legal' | 'account' | 'import' | 'dev-map' | 'guide';
+  setView: (view: 'dashboard' | 'log' | 'weekly' | 'monthly' | 'custom' | 'ai' | 'corrections' | 'legal' | 'account' | 'import' | 'dev-map' | 'guide') => void;
   direction: number;
   setDirection: (direction: number) => void;
   toast: { message: string; type: 'success' | 'error' | 'info' } | null;

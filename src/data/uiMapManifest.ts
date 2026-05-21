@@ -15,6 +15,42 @@ export interface UIElement {
 }
 
 export const UI_MAP_DATA: Record<string, UIElement[]> = {
+  Guide: [
+    {
+      id: 'guide-view-root',
+      name: 'Guide View Container',
+      tag: 'view',
+      description: 'The root view for SIA educational guide',
+      path: '/src/features/guide/GuideView.tsx',
+      function: 'Hosts the SIA educational material in a structured tab layout.',
+      tierDiff: null,
+      maturityDiff: null,
+      aiUsed: 'None',
+      trigger: 'Navigation to Guide',
+      dependsOn: [],
+      children: [
+        { id: 'guide-header', name: 'Guide Header', tag: 'section', description: 'Header with tabs', path: '/src/features/guide/GuideView.tsx', function: 'Provides navigation between guide sections.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
+        { 
+          id: 'guide-content', 
+          name: 'Guide Content', 
+          tag: 'section', 
+          description: 'Content area for active tab', 
+          path: '/src/features/guide/GuideView.tsx', 
+          function: 'Displays the requested knowledge blocks.', 
+          tierDiff: null, 
+          maturityDiff: null, 
+          aiUsed: null, 
+          trigger: null, 
+          dependsOn: [],
+          children: [
+            { id: 'guide-overview-tab', name: 'Overview Tab', tag: 'section', description: 'Dashboard style overview layout for the guide', path: '/src/features/guide/OverviewTab.tsx', function: 'Presents the foundational laws, steps, and links to other guide topics', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
+            { id: 'guide-laws-tab', name: 'Laws Tab', tag: 'section', description: 'Deep dive into the two laws of sleep', path: '/src/features/guide/LawsTab.tsx', function: 'Explains Sleep Debt and Circadian Rhythm systematically', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
+            { id: 'guide-system-module-tab', name: 'System Module Tab', tag: 'section', description: 'Generic structure for educational topics', path: '/src/features/guide/SystemModuleTab.tsx', function: 'Renders knowledge blocks based on the selected tab', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] }
+          ]
+        }
+      ]
+    }
+  ],
   Dashboard: [
     {
       id: 'db-sleep-gate',
@@ -48,6 +84,34 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
       aiUsed: 'No AI.',
       trigger: null,
       dependsOn: []
+    },
+    {
+      id: 'quick-insight-section',
+      name: 'SIA Quick Insight Section',
+      tag: 'section',
+      description: 'Container for deterministic quick facts based on signals.',
+      path: '/src/features/dashboard/DashboardView.tsx',
+      function: 'Presents a signal-bound quick insight fact to educate the user.',
+      tierDiff: null,
+      maturityDiff: null,
+      aiUsed: 'No direct AI call. Uses deterministic logic matching.',
+      trigger: 'On mount contextually.',
+      dependsOn: ['quick-insight-card'],
+      children: [
+        {
+          id: 'quick-insight-card',
+          name: 'Quick Insight Card',
+          tag: 'card',
+          description: 'Dark card rendering the selected insight.',
+          path: '/src/features/dashboard/QuickInsightCard.tsx',
+          function: 'Presents the actual quick insight text and theme.',
+          tierDiff: null,
+          maturityDiff: null,
+          aiUsed: null,
+          trigger: null,
+          dependsOn: []
+        }
+      ]
     },
     {
       id: 'db-sia-pattern-decoder',

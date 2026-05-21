@@ -13,6 +13,7 @@ import { generatePatternTeaser } from '../../services/ai/patternTeaser';
 import { generateDeepAnalysis } from '../../services/ai/deepAnalysis';
 import { AIStateManager } from '../../services/ai/AIStateManager';
 import { calculateSafeAverage } from '../../utils/statsEngine';
+import { getQuickInsightForUser } from '../../services/ai/core/quickInsights';
 import { getMinutesFrom2000 } from '../../utils/sleepUtils';
 import DashboardView from './DashboardView';
 
@@ -31,6 +32,7 @@ interface DashboardContainerProps {
   isRefreshing: boolean;
   maturity?: MaturityInfo | null;
   forecastMetrics?: { quality: number; alertness: number; energy: number } | null;
+  quickInsight?: any;
 }
 
 export default function DashboardContainer({
@@ -369,6 +371,10 @@ export default function DashboardContainer({
       .map(([type]) => type);
   }, [logs]);
 
+  const quickInsight = useMemo(() => {
+    return getQuickInsightForUser(logs);
+  }, [logs]);
+
   return (
     <DashboardView
       user={user}
@@ -403,6 +409,7 @@ export default function DashboardContainer({
       recentGadgets={recentGadgets}
       forecastMetrics={forecastMetrics}
       hasNinetyLogsInFiveMonths={hasNinetyLogsInFiveMonths}
+      quickInsight={quickInsight}
     />
   );
 }

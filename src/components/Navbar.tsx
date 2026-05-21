@@ -30,7 +30,8 @@ export const Navbar: React.FC<NavbarProps> = ({ user, view, setView, handleLogou
     { id: 'dashboard', label: 'DASHBOARD' },
     { id: 'log', label: 'LOG' },
     { id: 'insights', label: 'INSIGHTS' },
-    { id: 'ai', label: 'AI ANALYSIS' }
+    { id: 'ai', label: 'AI ANALYSIS' },
+    { id: 'guide', label: 'GUIDE' }
   ];
 
   const getTierStyles = (styleType: 'avatar' | 'border' | 'active') => {

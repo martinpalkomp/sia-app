@@ -5,6 +5,7 @@ import { shouldTriggerAI } from './core/guardrails';
 import { format } from 'date-fns';
 
 import { SIA_DISCLAIMER, SIA_CORRELATION_PERSONA } from './aiConstants';
+import { SIA_KNOWLEDGE_BASE } from './core/knowledgeBase';
 
 export interface AIResponse {
   content: string | null;
@@ -50,9 +51,10 @@ export const generatePatternDecoder = async (
     }
 
     try {
+        const systemInstruction = `${SIA_CORRELATION_PERSONA}\n\n${SIA_KNOWLEDGE_BASE}`;
         const response = await siaClient.generateContent(promptText, {
-            systemInstruction: SIA_CORRELATION_PERSONA,
-            temperature: 0.7
+            systemInstruction,
+            temperature: 0.2
         });
 
         const content = response.text || "Unable to generate insight.";

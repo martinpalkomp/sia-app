@@ -8,6 +8,7 @@ import { SleepGateHero } from './SleepGateHero';
 import { InsightCard } from './InsightCard';
 import DataMaturityTracker from '../data/DataMaturityTracker';
 import SleepGuideCard from '../sleep/SleepGuideCard';
+import { QuickInsightCard } from './QuickInsightCard';
 
 export const DashboardView: React.FC<{
   user: any;
@@ -42,6 +43,7 @@ export const DashboardView: React.FC<{
   recentGadgets: string[];
   forecastMetrics?: { quality: number; alertness: number; energy: number } | null;
   hasNinetyLogsInFiveMonths: boolean;
+  quickInsight?: any;
 }> = ({
   user,
   userProfile,
@@ -74,7 +76,8 @@ export const DashboardView: React.FC<{
   greeting,
   recentGadgets,
   forecastMetrics,
-  hasNinetyLogsInFiveMonths
+  hasNinetyLogsInFiveMonths,
+  quickInsight
 }) => {
   return (
     <div className="space-y-8">
@@ -95,9 +98,9 @@ export const DashboardView: React.FC<{
               <div className="h-12 w-full bg-zinc-800 rounded"></div>
             </div>
           ) : dailyBrief ? (
-            <p id="brief-body" className="text-zinc-300 text-xs italic leading-relaxed">{dailyBrief.substring(0, 150)}...</p>
+            <p id="brief-body" className="text-lg font-serif italic text-zinc-300 leading-relaxed">{dailyBrief}</p>
           ) : (
-             <p id="brief-body" className="text-zinc-600 text-xs italic">SIA is calibrating for your next brief.</p>
+             <p id="brief-body" className="text-lg font-serif italic text-zinc-600">SIA is calibrating for your next brief.</p>
           )}
           
           {forecastMetrics && (
@@ -179,6 +182,9 @@ export const DashboardView: React.FC<{
         </div>
       </section>
 
+      {/* SIA Quick Insight */}
+      <QuickInsightCard insight={quickInsight} />
+
       {/* SIA Weekly Pattern & Upgrade Card */}
       {!isEnhanced ? (
         <div className="rounded-2xl border border-indigo-500/20 bg-indigo-950/20 p-5 mt-8 mb-8" id="ai-analysis-card">
@@ -215,27 +221,32 @@ export const DashboardView: React.FC<{
                        <div className="h-4 bg-zinc-800 rounded w-1/2"></div>
                    </div>
                 ) : insightTeaser ? (
-                  <div className="space-y-4 max-w-md">
+                  <div className="space-y-4 max-w-sm">
                     {(() => {
-                      const pMatch = insightTeaser.match(/PATTERN:\s*(.*?)(?=\n|CORRELATION|$)/si);
-                      const cMatch = insightTeaser.match(/CORRELATION:\s*(.*?)(?=\n\n\*\*\*|$)/si);
+                      const pMatch = insightTeaser.match(/PATTERN:\s*(.*?)(?=\n|SUPPORTING SIGNALS|$)/si);
+                      const sMatch = insightTeaser.match(/SUPPORTING SIGNALS:\s*(.*?)(?=\n\n\*\*\*|$)/si);
                       const parsedPattern = pMatch ? pMatch[1].trim() : insightTeaser.replace(/\*\*\*[\s\S]*/, '').trim();
-                      const parsedCorrelation = cMatch ? cMatch[1].trim() : '';
+                      const parsedSignals = sMatch ? sMatch[1].trim() : '';
 
                       return (
                         <div className="space-y-4">
                           <div>
                             <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest mb-1">Pattern</p>
-                            <p className="text-lg font-serif italic text-white leading-relaxed">
+                            <p className="text-base font-serif italic text-white leading-snug">
                               {parsedPattern}
                             </p>
                           </div>
-                          {parsedCorrelation && (
+                          {parsedSignals && (
                             <div>
-                              <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest mb-1">Key Correlation</p>
-                              <p className="text-sm font-serif italic text-indigo-200 leading-relaxed">
-                                {parsedCorrelation}
-                              </p>
+                              <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest mb-2">Supporting Signals</p>
+                              <ul className="text-xs font-mono text-zinc-300 space-y-2">
+                                {parsedSignals.split('\n').filter(Boolean).map((signal, idx) => (
+                                  <li key={idx} className="flex gap-2">
+                                    <span className="text-indigo-400">•</span>
+                                    <span>{signal}</span>
+                                  </li>
+                                ))}
+                              </ul>
                             </div>
                           )}
                         </div>
@@ -243,7 +254,7 @@ export const DashboardView: React.FC<{
                     })()}
                   </div>
                 ) : (
-                  <p className="text-lg text-white leading-relaxed max-w-md">
+                  <p className="text-base text-white leading-snug max-w-sm">
                     Record at least 14 logs (Level 2) to unlock SIA's daily pattern analysis.
                   </p>
                 )}
@@ -251,7 +262,7 @@ export const DashboardView: React.FC<{
                   Explore this pattern in detail →
                 </p>
                 <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold pt-2">
-                  Last analyzed: {new Date().toLocaleDateString()} • Next update in 14h
+                  Last analyzed: {new Date().toLocaleDateString()}
                 </p>
               </div>
               <div className="hidden md:block w-48 h-24 opacity-60">

@@ -7,6 +7,7 @@ import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 
 import { SIA_DISCLAIMER, SIA_BASE_PERSONA, CONDITION_GUIDANCE } from './aiConstants';
+import { SIA_KNOWLEDGE_BASE } from './core/knowledgeBase';
 
 export const chatWithSIA = async (
     userId: string, 
@@ -44,6 +45,9 @@ export const chatWithSIA = async (
 
     const systemInstruction = `
       ${SIA_BASE_PERSONA}
+      
+      SIA_KNOWLEDGE_BASE (STRICT RULES):
+      ${SIA_KNOWLEDGE_BASE}
       
       DATA MATURITY: You are at Level ${maturity.level} (${maturity.label}).
       ${maturity.level === 1 ? "Only provide basic daily correlations. Avoid long-term trend analysis." : ""}

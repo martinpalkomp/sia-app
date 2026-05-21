@@ -2,6 +2,7 @@ import { aiClient as siaClient } from './core/aiClient';
 import { DailyLog, UserTier, AIInsight } from '../../types';
 import { calculateLogVitality } from '../../utils/correctionLogic';
 import { shouldTriggerAI } from './core/guardrails';
+import { SIA_KNOWLEDGE_BASE } from './core/knowledgeBase';
 
 import { SIA_DISCLAIMER, SIA_BRIEF_PERSONA } from './aiConstants';
 
@@ -39,11 +40,15 @@ export const generateDailyBrief = async (
       return "SIA morning brief requires last night's data. Please log your sleep for the night before to unlock today's briefing.";
     }
 
+    const systemPrompt = `${SIA_BRIEF_PERSONA}\n\n${SIA_KNOWLEDGE_BASE}`;
+
     const prompt = `
       Today's date is ${currentDate}.
-      SIA is analyzing the log for last night: ${lastNightDate}.
-      Provide a briefing based specifically on the log dated ${lastNightDate}.
+      SIA is analyzing the log for last night: ${lastNightDate}. (Immediate Layer).
+      Provide a highly precise briefing based specifically on the log dated ${lastNightDate}.
       Calculate the delta between the log from ${lastNightDate} and the 6-day average.
+
+      Follow the SIA_KNOWLEDGE_BASE strictly. No vague language. 
 
       Return a JSON object in EXACTLY this format, which matches our AIInsight schema:
       {
@@ -54,7 +59,7 @@ export const generateDailyBrief = async (
         "recommendation": "${tier !== 'Basic' ? 'Actionable protocol goes here' : ''}",
         "timeframe": "immediate",
         "severity": "info",
-        "summary": "1 sentence brief summary here. Plus up to 2 sentences of context."
+        "summary": "1 sentence brief summary here. Plus 1 short sentence of context maximum. Be dense and restrained."
       }
     `;
 
@@ -68,13 +73,13 @@ export const generateDailyBrief = async (
         { role: "user", parts: [{ text: `Recent Logs: ${JSON.stringify(lightweightLogs)}` }] },
         { role: "user", parts: [{ text: prompt }] }
       ], {
-          systemInstruction: SIA_BRIEF_PERSONA,
-          temperature: 0.7,
+          systemInstruction: systemPrompt,
+          temperature: 0.2, // Lowered for more precise, constrained output
           responseMimeType: "application/json"
       });
 
       const contentText = response.text || "{}";
-      const parsed: AIInsight = JSON.parse(contentText.replace(/\`\`\`json/g, '').replace(/\`\`\`/g, '').trim());
+      const parsed: AIInsight = JSON.parse(contentText.replace(/```json/g, '').replace(/```/g, '').trim());
       
       if (db) {
         try {

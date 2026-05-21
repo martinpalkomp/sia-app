@@ -5,11 +5,13 @@ interface CardProps {
   children: React.ReactNode;
   className?: string;
   onClick?: () => void;
+  id?: string;
 }
 
-export const Card: React.FC<CardProps> = ({ children, className = '', onClick }) => {
+export const Card: React.FC<CardProps> = ({ children, className = '', onClick, id }) => {
   return (
     <motion.div
+      id={id}
       whileHover={onClick ? { scale: 1.01 } : undefined}
       onClick={onClick}
       className={`clinical-card ${onClick ? 'cursor-pointer hover:border-white/20' : ''} ${className}`}

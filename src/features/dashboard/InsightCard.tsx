@@ -46,8 +46,15 @@ export const InsightCard: React.FC<InsightCardProps> = ({ insight, tier = 'Basic
 
   const activeStyle = tierStyles[tier] || tierStyles.Basic;
 
-  // Render confidence badge
-  const conf = confidence !== undefined ? confidence : (insight.confidence || 0);
+  const confRaw = confidence !== undefined ? confidence : (insight.confidence || 0);
+  let conf = 0;
+  if (typeof confRaw === 'string') {
+    if (confRaw === 'high') conf = 0.9;
+    else if (confRaw === 'medium') conf = 0.65;
+    else if (confRaw === 'low') conf = 0.3;
+  } else {
+    conf = confRaw as number;
+  }
   const badgeColor = conf >= 0.8 ? 'text-emerald-400 bg-emerald-400/20 border-emerald-500/30' : conf >= 0.5 ? 'text-amber-400 bg-amber-400/20 border-amber-500/30' : 'text-zinc-400 bg-zinc-800 border-zinc-700';
   const badgeLabel = conf >= 0.8 ? 'HIGH CONFIDENCE' : conf >= 0.5 ? 'MEDIUM CONFIDENCE' : 'LOW CONFIDENCE';
 
@@ -72,9 +79,9 @@ export const InsightCard: React.FC<InsightCardProps> = ({ insight, tier = 'Basic
               {badgeLabel}
             </div>
           </div>
-          <p className="text-sm font-normal text-zinc-300 leading-snug">{insight.summary}</p>
+          <p className="text-lg font-serif italic text-zinc-300 leading-relaxed">{insight.summary}</p>
           {insight.details && (
-            <p className="text-sm text-zinc-400 font-normal leading-relaxed mt-2">{insight.details}</p>
+            <p className="text-lg font-serif italic text-zinc-400 leading-relaxed mt-2">{insight.details}</p>
           )}
         </div>
       </div>

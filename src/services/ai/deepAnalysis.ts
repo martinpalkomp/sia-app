@@ -4,6 +4,7 @@ import { MaturityInfo } from './core/maturitySystem';
 import { shouldTriggerAI } from './core/guardrails';
 import { format } from 'date-fns';
 import { StructuredInsight } from './responseSchemas';
+import { SIA_KNOWLEDGE_BASE } from './core/knowledgeBase';
 
 import { SIA_DISCLAIMER, SIA_ANALYSIS_PERSONA } from './aiConstants';
 
@@ -36,20 +37,25 @@ export const generateDeepAnalysis = async (
       return rest;
     });
 
+    const systemPrompt = `${SIA_ANALYSIS_PERSONA}\n\n${SIA_KNOWLEDGE_BASE}`;
+
     const prompt = `
-  Analyze ${logs.length} nights of sleep history: ${JSON.stringify(lightweightLogs)}
+  Analyze ${logs.length} nights of sleep history (Longitudinal Layer, 90+ days): ${JSON.stringify(lightweightLogs)}
 
   Your goal is to provide a comprehensive Deep Analysis of the user's sleep patterns over the last several months.
-  Focus on the most dominant long-term trends, significant deviations, and core correlations between behaviors and sleep quality.
-  
+  Focus on the most dominant long-term trends (e.g. chronotype inference, social jetlag, chronic sleep debt) 
+  and core correlations between behaviors and sleep quality.
+
+  Follow SIA_KNOWLEDGE_BASE strictly. No vague generalizations. Extract the highest value signal from this longitudinal data.
+
   Return JSON in exactly this format:
   {
     "type": "Summary",
     "category": "General",
     "confidence": 0.8,
     "summary": "One detailed sentence describing the most significant long-term pattern or trend.",
-    "recommendation": "One specific, highly actionable clinical protocol or behavioral adjustment the user should implement this week.",
-    "evidence": ["point 1", "point 2"],
+    "recommendation": "One specific, highly actionable clinical protocol or behavioral adjustment the user should implement based on this trend.",
+    "evidence": ["point 1 with clear temporal reference", "point 2"],
     "severity": "low",
     "requiresFollowup": false
   }
@@ -57,15 +63,15 @@ export const generateDeepAnalysis = async (
 
     try {
         const response = await siaClient.generateContent(prompt, {
-            systemInstruction: SIA_ANALYSIS_PERSONA,
-            temperature: 0.7,
+            systemInstruction: systemPrompt,
+            temperature: 0.2, // lowered
             responseMimeType: "application/json"
         });
 
         const contentText = response.text || "{}";
         let parsed: StructuredInsight;
         try {
-            parsed = JSON.parse(contentText.replace(/\`\`\`json/g, '').replace(/\`\`\`/g, '').trim()) as StructuredInsight;
+            parsed = JSON.parse(contentText.replace(/```json/g, '').replace(/```/g, '').trim()) as StructuredInsight;
         } catch {
             parsed = { 
                 type: "Summary",

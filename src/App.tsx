@@ -123,6 +123,7 @@ import DataImporter from './features/data/DataImporter';
 import { AvatarFrame, MetricDisplay } from './components/UI';
 import { Navbar } from './components/Navbar';
 import { SiaPatternReview } from './features/ai/SiaPatternReview';
+import { GuideView } from './features/guide/GuideView';
 import { UserProvider } from './context/UserContext';
 import { useSleepStore } from './store/useSleepStore';
 
@@ -2440,6 +2441,15 @@ useEffect(() => {
             </motion.div>
           ) : view === 'legal' ? (
             <Legal onBack={() => setView('dashboard')} />
+          ) : view === 'guide' ? (
+            <motion.div
+              key="guide"
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.98 }}
+            >
+              <GuideView />
+            </motion.div>
           ) : view === 'account' ? (
             <AccountPage 
               onModifyAssessment={() => setShowPersonalizationWizard(true)}
