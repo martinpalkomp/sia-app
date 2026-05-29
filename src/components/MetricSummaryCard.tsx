@@ -13,7 +13,7 @@ export const MetricSummaryCard: React.FC<MetricSummaryCardProps> = ({
   icon, title, value, unit, delta, color
 }) => {
   return (
-    <div className="rounded-3xl border border-zinc-800 bg-zinc-900/40 p-5 flex flex-col space-y-3">
+    <div className="rounded-3xl border border-zinc-800 bg-zinc-900/40 p-5 flex flex-col space-y-3 min-h-[15svh]">
       <div className="flex items-center gap-2">
         <div className={`p-2 rounded-xl bg-zinc-800/50 ${color}`}>
             {React.cloneElement(icon as React.ReactElement, { size: 16 } as any)}
@@ -22,7 +22,7 @@ export const MetricSummaryCard: React.FC<MetricSummaryCardProps> = ({
       </div>
       
       <div className="flex items-baseline gap-1">
-        <span className="text-3xl font-black text-white tracking-tighter">{value}</span>
+        <span className="text-3xl font-black text-slate-400 tracking-tighter">{value}</span>
         {unit && <span className="text-xl font-bold text-zinc-500">{unit}</span>}
       </div>
       

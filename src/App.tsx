@@ -2418,7 +2418,7 @@ useEffect(() => {
                   Reset Day
                 </button>
               </div>
-              <DevSwitchboardMini key="log-switchboard" />
+              {import.meta.env.DEV && <DevSwitchboardMini key="log-switchboard" />}
             </motion.div>
           </AnimatePresence>
         </motion.div>
@@ -2437,7 +2437,7 @@ useEffect(() => {
               <Suspense fallback={<div className="flex items-center justify-center h-64"><div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"/></div>}>
                 <AIInsightsAgent onForecastUpdate={setForecastMetrics} />
               </Suspense>
-              <DevSwitchboardMini key="ai-switchboard" />
+              {import.meta.env.DEV && <DevSwitchboardMini key="ai-switchboard" />}
             </motion.div>
           ) : view === 'legal' ? (
             <Legal onBack={() => setView('dashboard')} />
@@ -2666,7 +2666,7 @@ useEffect(() => {
                   onViewChange={handleViewChange}
                 />
               </section>
-              <DevSwitchboardMini key="insights-switchboard" />
+              {import.meta.env.DEV && <DevSwitchboardMini key="insights-switchboard" />}
             </motion.div>
           )}
         </AnimatePresence>

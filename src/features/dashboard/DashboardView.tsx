@@ -85,7 +85,7 @@ export const DashboardView: React.FC<{
 
       <div id="db-morning-briefing" className="w-full">
         <div id="morning-brief-card">
-          <Card className="bg-zinc-900 border-zinc-800 p-6 w-full">
+          <Card className="bg-zinc-900 border-zinc-800 p-6 w-full min-h-[15svh] flex flex-col justify-center">
             <p id="temporal-label" className="text-[9px] font-black uppercase tracking-widest text-zinc-600 mb-1">
             MORNING BRIEF · {format(new Date(), 'EEEE d MMM').toUpperCase()}
           </p>
@@ -120,7 +120,7 @@ export const DashboardView: React.FC<{
 
       {/* Section: Status Report */}
       <section className="space-y-4 relative z-30">
-        <h2 className="font-black text-xs tracking-widest text-zinc-50 uppercase mb-4">Status Report</h2>
+        <h2 className="font-black text-xs tracking-widest text-slate-400 uppercase mb-4">Status Report</h2>
         <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
           <MetricSparklineCard 
             icon={<Activity size={20} className="text-indigo-400" />}
@@ -232,7 +232,7 @@ export const DashboardView: React.FC<{
                         <div className="space-y-4">
                           <div>
                             <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest mb-1">Pattern</p>
-                            <p className="text-base font-serif italic text-white leading-snug">
+                            <p className="text-lg font-serif italic text-white leading-relaxed">
                               {parsedPattern}
                             </p>
                           </div>
@@ -274,7 +274,7 @@ export const DashboardView: React.FC<{
           {/* Section: Clinical Insights */}
           <section className="space-y-4 mt-8">
             <div className="flex items-center justify-between">
-              <h2 className="font-black text-xs tracking-widest text-zinc-50 uppercase mb-4">Clinical Insights</h2>
+              <h2 className="font-black text-xs tracking-widest text-slate-400 uppercase mb-4">Clinical Insights</h2>
               {dataMaturity?.level >= 3 && hasNinetyLogsInFiveMonths && !isDeepAnalysis && !deepAnalysisResult && (
                 <button onClick={handleDeepAnalysis} className="text-[10px] text-zinc-500 hover:text-zinc-300 uppercase tracking-widest font-bold mb-4">
                   Refresh Analysis
@@ -378,7 +378,7 @@ export const DashboardView: React.FC<{
 
       {/* Section: SIA Learning Hub */}
       <section className="space-y-6 pt-6 border-t border-zinc-800">
-        <h3 className="text-[10px] font-black uppercase tracking-widest text-zinc-50">SIA Learning Hub</h3>
+        <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400">SIA Learning Hub</h3>
         <motion.button
           whileHover={{ scale: 1.01 }}
           onClick={onOpenSleepGuide}

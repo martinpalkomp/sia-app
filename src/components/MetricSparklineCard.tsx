@@ -29,7 +29,7 @@ export const MetricSparklineCard: React.FC<MetricSparklineCardProps> = ({
   const gradientId = `gradient-${title.replace(/\s+/g, '-')}`;
   
   return (
-    <div className="rounded-3xl border border-zinc-800 bg-zinc-900/40 p-5 flex flex-col items-center text-center space-y-3">
+    <div className="rounded-3xl border border-zinc-800 bg-zinc-900/40 p-5 flex flex-col items-center text-center space-y-3 min-h-[15svh]">
       <div className={`p-3 rounded-2xl bg-zinc-800/50 ${color}`}>
         {icon}
       </div>
@@ -37,7 +37,7 @@ export const MetricSparklineCard: React.FC<MetricSparklineCardProps> = ({
       <h4 className="text-[10px] font-black uppercase tracking-widest text-zinc-500">{title}</h4>
       
       <div className="flex items-baseline gap-1">
-        <span className="text-3xl font-black text-white tracking-tighter">{value}</span>
+        <span className="text-3xl font-black text-slate-400 tracking-tighter">{value}</span>
         {unit && <span className="text-xl font-bold text-zinc-500">{unit}</span>}
       </div>
       

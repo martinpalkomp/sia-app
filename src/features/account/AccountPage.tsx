@@ -583,12 +583,14 @@ export default function AccountPage({ onModifyAssessment, onRefresh }: { onModif
           </div>
         </div>
       )}
-      <DevModal 
-        isOpen={modal.isOpen} 
-        message={modal.message} 
-        onConfirm={modal.onConfirm} 
-        onCancel={modal.onCancel} 
-      />
+      {import.meta.env.DEV && (
+        <DevModal 
+          isOpen={modal.isOpen} 
+          message={modal.message} 
+          onConfirm={modal.onConfirm} 
+          onCancel={modal.onCancel} 
+        />
+      )}
     </motion.div>
   );
 }

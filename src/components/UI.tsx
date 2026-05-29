@@ -94,7 +94,7 @@ export const MetricDisplay: React.FC<MetricDisplayProps> = ({ title, value, unit
           <div className="h-8 w-20 rounded-lg animate-sia-pulse" />
         ) : (
           <div className="flex items-baseline">
-            <span className="text-2xl md:text-3xl font-black text-clinical-text tracking-tighter leading-none">{value}</span>
+            <span className="text-2xl md:text-3xl font-black text-slate-400 tracking-tighter leading-none">{value}</span>
             {unit && <span className="metric-unit">{unit}</span>}
           </div>
         )}

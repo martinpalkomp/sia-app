@@ -9,7 +9,7 @@ interface QuickInsightCardProps {
 
 export const QuickInsightCard: React.FC<QuickInsightCardProps> = ({ insight }) => {
   return (
-    <Card className="bg-zinc-900 border-zinc-800 p-6 w-full relative overflow-hidden mt-8 mb-8" id="quick-insight-card">
+    <Card className="bg-zinc-900 border-zinc-800 p-6 w-full relative overflow-hidden mt-8 mb-8 min-h-[15svh] flex flex-col justify-center" id="quick-insight-card">
       <div className="absolute top-0 right-0 p-4 opacity-10">
         <BrainCircuit size={80} />
       </div>
@@ -18,7 +18,7 @@ export const QuickInsightCard: React.FC<QuickInsightCardProps> = ({ insight }) =
             <Sparkles size={12} className="text-indigo-400" />
             SIA SIGNAL · {insight.theme}
           </p>
-          <p className="text-sm font-serif italic text-zinc-300 leading-relaxed max-w-2xl mt-4">
+          <p className="text-lg font-serif italic text-zinc-300 leading-relaxed max-w-2xl mt-4">
              {insight.fact}
           </p>
       </div>

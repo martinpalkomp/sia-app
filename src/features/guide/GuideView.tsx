@@ -85,11 +85,11 @@ export const GuideView: React.FC = () => {
             <h1 className="text-3xl font-black tracking-tighter text-white mb-2 uppercase">SIA Guide</h1>
             <p className="text-sm font-sans text-zinc-400">Evidence-based knowledge for better sleep</p>
           </div>
-          <div className="flex items-center gap-4 bg-indigo-950/20 border border-indigo-500/20 rounded-xl p-4">
-             <div className="text-indigo-400 hidden sm:block"><BookOpen size={24} /></div>
+          <div className="flex items-center gap-4 bg-[#0B0F17] border border-zinc-800/60 rounded-xl p-4 shadow-sm">
+             <div className="text-zinc-500 hidden sm:block"><BookOpen size={24} /></div>
              <div>
-                <p className="font-bold text-xs uppercase text-indigo-300">Science. Signals. Self.</p>
-                <p className="text-[10px] text-zinc-400">Everything in this guide is grounded in peer-reviewed research and aligned with the two laws of sleep.</p>
+                <p className="font-black tracking-widest text-[9px] uppercase text-slate-400 mb-1">Science. Signals. Self.</p>
+                <p className="text-[10px] font-sans text-zinc-500">Everything in this guide is grounded in peer-reviewed research and aligned with the two laws of sleep.</p>
              </div>
           </div>
         </div>
