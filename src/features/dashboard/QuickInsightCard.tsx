@@ -9,8 +9,9 @@ interface QuickInsightCardProps {
 
 export const QuickInsightCard: React.FC<QuickInsightCardProps> = ({ insight }) => {
   return (
-    <Card className="bg-zinc-900 border-zinc-800 p-6 w-full relative overflow-hidden mt-8 mb-8 min-h-[15svh] flex flex-col justify-center" id="quick-insight-card">
-      <div className="absolute top-0 right-0 p-4 opacity-10">
+    <div className="border border-zinc-800/60 bg-[#0B0F17] rounded-2xl relative shadow-sm group hover:border-indigo-500/30 transition-all duration-300 overflow-hidden mt-8 mb-8 min-h-[15svh] w-full p-6 flex flex-col justify-center" id="quick-insight-card">
+      <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 rounded-full blur-3xl group-hover:bg-indigo-500/10 transition-colors pointer-events-none" />
+      <div className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none group-hover:opacity-20 transition-opacity">
         <BrainCircuit size={80} />
       </div>
       <div className="relative z-10">
@@ -22,6 +23,6 @@ export const QuickInsightCard: React.FC<QuickInsightCardProps> = ({ insight }) =
              {insight.fact}
           </p>
       </div>
-    </Card>
+    </div>
   );
 };

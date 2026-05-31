@@ -3,7 +3,7 @@ import { useUser } from '../../context/UserContext';
 import { getPendingCorrections } from '../../utils/correctionLogic';
 import { getTodayDate } from '../../utils/dateUtils';
 import { format } from 'date-fns';
-import { DailyLog, UserProfile, PersonalizationProfile, SleepState, SleepEvent } from '../../types';
+import { DailyLog, UserProfile, PersonalizationProfile, SleepState, SleepEvent, AIInsight } from '../../types';
 import { User, collection, query, where, orderBy, limit, getDocs } from '../../lib/firebase';
 import { db } from '../../lib/firebase';
 import { MaturityInfo } from '../../services/ai/core/maturitySystem';
@@ -66,9 +66,9 @@ export default function DashboardContainer({
     return logsArray.filter(log => new Date(log.date) >= fiveMonthsAgo).length >= 90;
   }, [logs]);
 
-  const [insightTeaser, setInsightTeaser] = useState<string | null>(null);
+  const [insightTeaser, setInsightTeaser] = useState<string | AIInsight | null>(null);
   const [deepAnalysisResult, setDeepAnalysisResult] = useState<{summary: string, recommendation: string, confidence: number} | null>(null);
-  const [dailyBrief, setDailyBrief] = useState<string | null>(null);
+  const [dailyBrief, setDailyBrief] = useState<string | AIInsight | null>(null);
   const [insights, setInsights] = useState<any[]>([]);
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [isBriefLoading, setIsBriefLoading] = useState(false);
@@ -93,16 +93,16 @@ export default function DashboardContainer({
       setIsBriefLoading(true);
       try {
         const now = new Date();
-        const todayStr = now.toISOString().split('T')[0];
+        const todayStr = format(now, 'yyyy-MM-dd');
 
         const lastNight = new Date(now);
         lastNight.setDate(lastNight.getDate() - 1);
-        const lastNightStr = lastNight.toISOString().split('T')[0];
+        const lastNightStr = format(lastNight, 'yyyy-MM-dd');
 
         const targetLog = logs[lastNightStr];
 
         if (!targetLog) {
-          setDailyBrief(`I don't see a log for last night (${lastNightStr}) yet. Did you forget to record it?`);
+          setDailyBrief("SIA is calibrating for your next brief. Awaiting last night's data.");
           setIsBriefLoading(false);
           return;
         }
@@ -177,10 +177,10 @@ export default function DashboardContainer({
         dataMaturity.level
       );
       
-      setInsightTeaser(insight || "");
+      setInsightTeaser(insight);
     } catch (e) {
       console.error('Dashboard AI Error:', e);
-      setInsightTeaser("");
+      setInsightTeaser(null);
     } finally {
       setIsAiLoading(false);
     }
@@ -200,7 +200,11 @@ export default function DashboardContainer({
 
     if (sessionCached && newLogsSinceLast < 3) {
       if (!insightTeaser) {
-        setInsightTeaser(sessionCached);
+        try {
+          setInsightTeaser(JSON.parse(sessionCached));
+        } catch {
+          setInsightTeaser(sessionCached);
+        }
       }
       return;
     }

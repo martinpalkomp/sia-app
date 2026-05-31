@@ -1,5 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
-import { getPreferredModel, getFallbackModel } from "./modelResolver.js";
+import { getValidModel } from "./modelResolver.js";
 import { withRetry } from "./retryManager.js";
 import { checkProviderHealth, reportProviderError } from "./providerHealth.js";
 
@@ -9,7 +9,7 @@ export const generateContent = async (contents: any, config: any) => {
     console.warn('[Gemini API] Provider is currently marked as degraded.');
   }
 
-  const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
+  const genAI = new GoogleGenAI({ apiKey: process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY || "" });
 
   try {
     const { result, usedModel, attempt } = await withRetry(
@@ -20,8 +20,7 @@ export const generateContent = async (contents: any, config: any) => {
           config,
         });
       },
-      getPreferredModel(),
-      getFallbackModel()
+      getValidModel
     );
     
     return { text: result.text, _meta: { model: usedModel, attempts: attempt } };

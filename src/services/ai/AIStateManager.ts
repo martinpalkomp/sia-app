@@ -1,6 +1,6 @@
 import { getCachedDailyBrief, generateDailyBrief } from './dailyBrief';
 import { generatePatternTeaser } from './patternTeaser';
-import { DailyLog, UserProfile } from '../../types';
+import { DailyLog, UserProfile, AIInsight } from '../../types';
 
 export class AIStateManager {
   
@@ -16,16 +16,25 @@ export class AIStateManager {
     logs: DailyLog[],
     userProfile: UserProfile,
     maturityLevel: number
-  ): Promise<string | null> {
+  ): Promise<string | AIInsight | null> {
     const briefCacheKey = `sia_brief_${userId}_${targetDate}`;
     const cached = sessionStorage.getItem(briefCacheKey);
-    if (cached) return cached;
+    if (cached) {
+      try {
+        return JSON.parse(cached);
+      } catch {
+        return cached;
+      }
+    }
 
     const globalCached = await getCachedDailyBrief(userId, targetDate);
     if (globalCached) {
-      const contentStr = typeof globalCached === 'string' ? globalCached : (globalCached.summary + (globalCached.recommendation ? "\n\n" + globalCached.recommendation : ""));
-      sessionStorage.setItem(briefCacheKey, contentStr);
-      return contentStr;
+      if (typeof globalCached !== 'string') {
+        sessionStorage.setItem(briefCacheKey, JSON.stringify(globalCached));
+        return globalCached;
+      }
+      sessionStorage.setItem(briefCacheKey, globalCached);
+      return globalCached;
     }
 
     const tier = userProfile.tier || 'Basic';
@@ -38,11 +47,14 @@ export class AIStateManager {
       maturityLevel
     );
 
-    const contentStr = typeof freshBrief === 'string' ? freshBrief : (freshBrief.summary + (freshBrief.recommendation ? "\n\n" + freshBrief.recommendation : ""));
-    
-    if (contentStr && !contentStr.toLowerCase().includes("no brief available")) {
-      sessionStorage.setItem(briefCacheKey, contentStr);
-      return contentStr;
+    if (freshBrief && typeof freshBrief !== 'string') {
+      sessionStorage.setItem(briefCacheKey, JSON.stringify(freshBrief));
+      return freshBrief;
+    }
+
+    if (freshBrief && typeof freshBrief === 'string' && !freshBrief.toLowerCase().includes("no brief available")) {
+      sessionStorage.setItem(briefCacheKey, freshBrief);
+      return freshBrief;
     }
 
     return null;
@@ -54,10 +66,16 @@ export class AIStateManager {
     logs: DailyLog[],
     userProfile: UserProfile,
     maturityLevel: number
-  ): Promise<string | null> {
+  ): Promise<AIInsight | string | null> {
     const insightCacheKey = `sia_insight_${userId}_${targetDate}`;
     const cached = sessionStorage.getItem(insightCacheKey);
-    if (cached) return cached;
+    if (cached) {
+      try {
+        return JSON.parse(cached);
+      } catch {
+        return cached;
+      }
+    }
 
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -66,11 +84,12 @@ export class AIStateManager {
     const tier = userProfile.tier || 'Basic';
     const generatedTeaser = await generatePatternTeaser(logs, tier as any, logsInLastMonthCount, maturityLevel);
 
-    const contentStr = typeof generatedTeaser === 'string' ? generatedTeaser : `PATTERN: ${generatedTeaser.summary}\nSUPPORTING SIGNALS:\n${generatedTeaser.evidence.join('\n')}\n\n***\n\nClinical and behavioral guidelines are not a replacement for professional healthcare. Consult a credentialed practitioner for medical diagnosis or treatment protocols.`;
-
-    if (contentStr && !contentStr.includes("Unable to generate") && !contentStr.includes("Pattern unavailable")) {
-      sessionStorage.setItem(insightCacheKey, contentStr);
-      return contentStr;
+    if (generatedTeaser && typeof generatedTeaser !== 'string') {
+      sessionStorage.setItem(insightCacheKey, JSON.stringify(generatedTeaser));
+      return generatedTeaser;
+    } else if (typeof generatedTeaser === 'string' && !generatedTeaser.includes("Unable to generate") && !generatedTeaser.includes("Pattern unavailable")) {
+      sessionStorage.setItem(insightCacheKey, generatedTeaser);
+      return generatedTeaser;
     }
 
     return null;

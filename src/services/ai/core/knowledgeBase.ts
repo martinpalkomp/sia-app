@@ -1,5 +1,9 @@
+import { SIA_CLINICAL_GUARDRAILS } from './guardrails';
+
 export const SIA_KNOWLEDGE_BASE = `
 SIA Intelligence Layers:
+
+${SIA_CLINICAL_GUARDRAILS}
 
 1. FOUNDATIONAL LAWS (Core reasoning engine)
 Everything must derive from:

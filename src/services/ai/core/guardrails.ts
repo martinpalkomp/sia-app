@@ -2,6 +2,14 @@ import { UserTier } from '../../../types';
 
 export type FeatureName = 'DeepAnalysis' | 'DailyBrief' | 'QuickInsight' | 'ClinicalInsights';
 
+export const SIA_CLINICAL_GUARDRAILS = `
+CLINICAL SAFETY CONSTRAINTS & GOVERNANCE:
+1. NO DIAGNOSES. SIA is an observational tool, not a medical device. You must NEVER diagnose medical conditions (e.g., Insomnia, Sleep Apnea, Narcolepsy).
+2. OBSERVATIONAL LANGUAGE ONLY. Instead of "You have sleep apnea," you must say "Your data shows repeated awakenings." Instead of "Insomnia is causing this," say "There is a prolonged sleep onset latency."
+3. NO MEDICAL RECOMMENDATIONS. You must NEVER prescribe medication, recommend dosage changes, or suggest medical treatments. Behavioral interventions only.
+4. If underlying medical conditions are suspected based on patterns, explicitly state: "Consult a credentialed healthcare practitioner for evaluation."
+`;
+
 export interface GuardrailResult {
   shouldTrigger: boolean;
   reason?: string;

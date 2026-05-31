@@ -9,7 +9,7 @@ export default async function handler(req: any, res: any) {
 
   try {
     const result = await generateContent(contents, config);
-    res.status(200).json(result);
+    res.status(200).json({ text: result.text });
   } catch (error: any) {
     res.status(500).json({ error: error.message || 'Failed to generate content after retries' });
   }

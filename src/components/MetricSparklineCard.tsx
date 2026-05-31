@@ -29,23 +29,25 @@ export const MetricSparklineCard: React.FC<MetricSparklineCardProps> = ({
   const gradientId = `gradient-${title.replace(/\s+/g, '-')}`;
   
   return (
-    <div className="rounded-3xl border border-zinc-800 bg-zinc-900/40 p-5 flex flex-col items-center text-center space-y-3 min-h-[15svh]">
-      <div className={`p-3 rounded-2xl bg-zinc-800/50 ${color}`}>
+    <div className="border border-zinc-800/60 bg-[#0B0F17] rounded-2xl relative shadow-sm group hover:border-indigo-500/30 transition-all duration-300 overflow-hidden p-5 flex flex-col items-center text-center space-y-3 min-h-[15svh]">
+      <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 rounded-full blur-3xl group-hover:bg-indigo-500/10 transition-colors pointer-events-none" />
+      
+      <div className={`relative z-10 p-3 rounded-2xl bg-zinc-800/50 ${color}`}>
         {icon}
       </div>
       
-      <h4 className="text-[10px] font-black uppercase tracking-widest text-zinc-500">{title}</h4>
+      <h4 className="relative z-10 text-[10px] font-black uppercase tracking-widest text-zinc-500">{title}</h4>
       
-      <div className="flex items-baseline gap-1">
+      <div className="relative z-10 flex items-baseline gap-1">
         <span className="text-3xl font-black text-slate-400 tracking-tighter">{value}</span>
         {unit && <span className="text-xl font-bold text-zinc-500">{unit}</span>}
       </div>
       
-      <div className={`text-[10px] font-bold ${isPositive ? 'text-emerald-400' : 'text-rose-400'}`}>
+      <div className={`relative z-10 text-[10px] font-bold ${isPositive ? 'text-emerald-400' : 'text-rose-400'}`}>
         {isPositive ? '↑' : '↓'} {Math.abs(delta)} <span className="opacity-60">{deltaLabel}</span>
       </div>
 
-      <div className="h-16 w-full mt-2 -mb-2">
+      <div className="relative z-10 h-16 w-full mt-2 -mb-2">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={data.map((v, i) => ({ val: v, index: i }))}>
             <defs>

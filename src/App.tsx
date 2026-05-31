@@ -1387,7 +1387,7 @@ useEffect(() => {
                       onViewChange={handleViewChange}
                       onDateChange={changeDate}
                       onOpenPersonalization={() => setShowPersonalizationWizard(true)}
-                      onOpenSleepGuide={() => setShowSleepGuide(true)}
+                      onOpenSleepGuide={() => handleViewChange('guide')}
                       refreshAllData={refreshAllData}
                       isRefreshing={isRefreshing}
                       forecastMetrics={forecastMetrics}

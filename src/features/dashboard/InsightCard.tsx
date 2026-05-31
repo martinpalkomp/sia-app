@@ -59,14 +59,11 @@ export const InsightCard: React.FC<InsightCardProps> = ({ insight, tier = 'Basic
   const badgeLabel = conf >= 0.8 ? 'HIGH CONFIDENCE' : conf >= 0.5 ? 'MEDIUM CONFIDENCE' : 'LOW CONFIDENCE';
 
   return (
-    <Card
+    <div 
       onClick={() => setIsHovered(!isHovered)}
-      className={`relative overflow-hidden bg-gradient-to-br ${activeStyle} border backdrop-blur-sm p-6 transition-all duration-500 rounded-3xl shadow-lg hover:border-opacity-50`}
+      className={`border border-zinc-800/60 bg-[#0B0F17] rounded-2xl relative shadow-sm group hover:border-indigo-500/30 transition-all duration-300 overflow-hidden min-h-[15svh] w-full p-6 cursor-pointer`}
     >
-      {/* Background Texture */}
-      <div className="absolute inset-0 opacity-20 pointer-events-none">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-indigo-500/10 via-transparent to-transparent" />
-      </div>
+      <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 rounded-full blur-3xl group-hover:bg-indigo-500/10 transition-colors pointer-events-none" />
       
       <div className="relative z-10 flex items-start gap-4">
         <div className={`p-3 rounded-2xl bg-white/5 ${tier === 'Pro' ? 'text-violet-400' : tier === 'Enhanced' ? 'text-indigo-400' : 'text-zinc-400'}`}>
@@ -85,6 +82,6 @@ export const InsightCard: React.FC<InsightCardProps> = ({ insight, tier = 'Basic
           )}
         </div>
       </div>
-    </Card>
+    </div>
   );
 };
