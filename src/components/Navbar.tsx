@@ -134,13 +134,13 @@ export const Navbar: React.FC<NavbarProps> = ({ user, view, setView, handleLogou
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsOpen(false)}
-              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[110]"
+              className="fixed inset-0 bg-black/80 backdrop-blur-md z-[110]"
             />
             <motion.div
               initial={{ opacity: 0, scale: 0.95, x: 20, y: -20 }}
               animate={{ opacity: 1, scale: 1, x: 0, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, x: 20, y: -20 }}
-              className="fixed top-0 right-0 w-[40%] md:w-[300px] h-auto max-h-[90vh] overflow-y-auto rounded-bl-3xl border-l border-b border-white/10 shadow-2xl bg-zinc-900/95 z-[120] p-6"
+              className="fixed top-0 right-0 w-[40%] md:w-[300px] h-auto max-h-[90vh] overflow-y-auto rounded-bl-3xl border-l border-b border-zinc-800/60 shadow-2xl bg-[#0B0F17]/95 z-[120] p-6"
             >
               <div className="flex justify-end mb-4">
                 <button onClick={() => setIsOpen(false)} className="text-zinc-400 hover:text-white">

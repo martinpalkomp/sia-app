@@ -228,17 +228,17 @@ export default function PersonalizationWizard({ user, onComplete, onClose }: Per
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         onClick={onClose}
-        className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/80 backdrop-blur-md"
       />
       
       <motion.div 
-        initial={{ opacity: 0, scale: 0.9, y: 20 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.9, y: 20 }}
-        className="relative w-full max-w-xl mx-auto my-auto bg-zinc-900 border border-zinc-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        className="relative w-full max-w-xl mx-auto my-auto bg-[#0B0F17] border border-zinc-800/60 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
       >
         {/* Progress Bar */}
-        <div className="absolute top-0 left-0 right-0 h-1 bg-zinc-800">
+        <div className="absolute top-0 left-0 right-0 h-1 bg-zinc-800/50">
           <motion.div 
             className="h-full bg-indigo-500"
             initial={{ width: 0 }}

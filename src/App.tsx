@@ -2714,13 +2714,13 @@ useEffect(() => {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setShowPrefillConfirm(false)}
-              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+              className="absolute inset-0 bg-black/80 backdrop-blur-md"
             />
             <motion.div 
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="relative w-full max-w-md bg-zinc-900 border border-zinc-800 rounded-3xl shadow-2xl overflow-hidden p-8"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="relative w-full max-w-md bg-[#0B0F17] border border-zinc-800/60 rounded-3xl shadow-2xl overflow-hidden p-8"
             >
               <div className="flex flex-col items-center text-center gap-6">
                 <div className="w-16 h-16 bg-amber-500/20 rounded-2xl flex items-center justify-center text-amber-500">
@@ -2766,7 +2766,7 @@ useEffect(() => {
 
       <AnimatePresence>
         {showSleepGuide && (
-          <React.Suspense fallback={<div className="fixed inset-0 z-[110] bg-black/80 backdrop-blur-sm flex items-center justify-center text-white">Loading Guide...</div>}>
+          <React.Suspense fallback={<div className="fixed inset-0 z-[110] bg-black/80 backdrop-blur-md flex items-center justify-center text-white">Loading Guide...</div>}>
             <SleepGuideInteractive 
               onClose={() => setShowSleepGuide(false)} 
               onOpenPersonalization={() => setShowPersonalizationWizard(true)}

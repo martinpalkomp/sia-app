@@ -223,16 +223,10 @@ export default function AccountPage({ onModifyAssessment, onRefresh }: { onModif
               size="lg"
               className="shadow-2xl shadow-indigo-500/20 shadow-[0_0_40px_rgba(99,102,241,0.2)] border border-indigo-500/30 w-32 h-32"
             />
-            <button className="flex items-center gap-2 px-4 py-2 rounded-xl border border-zinc-700 bg-zinc-800/50 hover:bg-zinc-800 text-zinc-300 text-xs font-bold transition-colors">
-              <Camera size={14} /> Change photo
-            </button>
           </div>
           
           <div className="flex-1 space-y-4">
             <div className="space-y-1">
-              <h2 className="text-3xl font-black text-white tracking-tighter flex items-center justify-center lg:justify-start gap-2">
-                Good evening, {user.displayName?.split(' ')[0]} <Moon className="text-indigo-400" size={24} />
-              </h2>
               <p className="text-zinc-500 text-sm font-medium">Manage your account and sleep intelligence preferences.</p>
             </div>
             <div className="space-y-0.5 pt-2">
@@ -270,13 +264,20 @@ export default function AccountPage({ onModifyAssessment, onRefresh }: { onModif
       </div>
 
       {/* Intelligence Tier Section */}
-      <div id="acc-tier-section" className={`space-y-6 ${highlightTier ? 'ring-2 ring-indigo-500/50 rounded-3xl p-2 shadow-[0_0_20px_rgba(99,102,241,0.2)]' : ''}`}>
-        <div className="flex items-center justify-between px-1">
+      <motion.section
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2, duration: 0.5 }}
+        id="acc-tier-section" 
+        className="border border-zinc-800/60 bg-[#0B0F17] rounded-3xl relative shadow-sm group transition-all duration-300 p-8 space-y-6"
+      >
+        <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500/5 rounded-full blur-3xl pointer-events-none" />
+        <div className="relative z-10 flex items-center justify-between px-1">
           <h3 className="text-[10px] font-black uppercase tracking-widest text-white">My Intelligence Tier</h3>
           <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest cursor-pointer hover:text-zinc-300 transition-colors">Compare tiers</span>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="relative z-10 grid grid-cols-1 md:grid-cols-3 gap-6">
           {['Basic', 'Enhanced', 'Pro'].map((tierOption) => {
             const isActive = derivedTier === tierOption;
             const config = {
@@ -298,18 +299,18 @@ export default function AccountPage({ onModifyAssessment, onRefresh }: { onModif
             }[tierOption as 'Basic' | 'Enhanced' | 'Pro'];
 
             return (
-              <div key={tierOption} className={`p-6 rounded-3xl border transition-all flex flex-col ${isActive ? 'bg-zinc-900 border-indigo-500/50' : 'bg-zinc-900 border-zinc-800'}`}>
+              <div key={tierOption} className={`p-6 rounded-2xl border transition-all flex flex-col ${isActive ? 'bg-indigo-950/20 border-indigo-500/30' : 'bg-[#0B0F17] border-zinc-800/60'}`}>
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex items-center gap-3">
-                    <config.icon className={isActive ? 'text-indigo-400' : 'text-zinc-400'} size={24} />
+                    <config.icon className={isActive ? 'text-indigo-400' : 'text-zinc-500'} size={24} />
                     <h4 className="text-xl font-bold text-white tracking-tight">{tierOption}</h4>
                   </div>
                   {isActive ? (
-                    <span className="text-[10px] font-black bg-indigo-600 text-white px-3 py-1.5 rounded-lg uppercase tracking-widest">Active</span>
+                    <span className="text-[10px] font-black bg-indigo-500/20 text-indigo-400 px-3 py-1.5 rounded-lg uppercase tracking-widest">Active</span>
                   ) : (
                     <button 
                       onClick={() => handleTierChange(tierOption)}
-                      className="text-[10px] font-black bg-indigo-600 text-white hover:bg-indigo-500 px-3 py-1.5 rounded-lg uppercase tracking-widest transition-all"
+                      className="text-[10px] font-black bg-zinc-800 text-white hover:bg-zinc-700 px-3 py-1.5 rounded-lg uppercase tracking-widest transition-all"
                     >
                       Activate
                     </button>
@@ -320,8 +321,8 @@ export default function AccountPage({ onModifyAssessment, onRefresh }: { onModif
                 
                 <div className="space-y-3 mb-6">
                   {config.features.map(feature => (
-                    <div key={feature} className="flex gap-2 items-center text-[11px] text-zinc-300">
-                      <ShieldCheck size={14} className="text-zinc-600 flex-shrink-0" />
+                    <div key={feature} className="flex gap-2 items-center text-[11px] text-zinc-400">
+                      <ShieldCheck size={14} className="text-indigo-900 flex-shrink-0" />
                       {feature}
                     </div>
                   ))}
@@ -334,31 +335,16 @@ export default function AccountPage({ onModifyAssessment, onRefresh }: { onModif
             );
           })}
         </div>
-      </div>
+      </motion.section>
 
 
       {/* Data Overview */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="md:col-span-2 bg-zinc-900 border border-zinc-800 rounded-3xl p-8 flex items-center justify-between">
-          <div className="flex gap-6 items-center">
-            <div className="w-16 h-16 rounded-2xl bg-zinc-800 flex items-center justify-center text-zinc-500">
-              <Shield size={32} />
-            </div>
-            <div>
-              <h3 className="text-sm font-black text-white tracking-tighter">Ethical Data Pledge</h3>
-              <p className="text-xs text-zinc-400 mt-1">Your privacy is our priority. We anonymize your trends to fund research and keep SIA free for everyone.</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Powers your free AI tokens</span>
-            <button 
-              onClick={toggleSharing}
-              className={`w-14 h-8 rounded-full p-1 transition-all ${personalizationProfile?.allowsAnonymizedSharing ? 'bg-indigo-600' : 'bg-zinc-700'}`}
-            >
-              <div className={`w-6 h-6 rounded-full bg-white transition-all ${personalizationProfile?.allowsAnonymizedSharing ? 'translate-x-6' : ''}`} />
-            </button>
-          </div>
-        </div>
+        <EthicalDataPledge 
+          agreed={personalizationProfile?.allowsAnonymizedSharing || false} 
+          onToggle={toggleSharing} 
+          isEnhanced={isEnhanced}
+        />
 
         <Card className="bg-zinc-900 border-zinc-800 p-8">
           <div className="flex items-center justify-between mb-8">

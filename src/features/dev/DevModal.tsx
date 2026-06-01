@@ -18,13 +18,13 @@ export const DevModal: React.FC<DevModalProps> = ({ isOpen, message, onConfirm, 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+          className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md flex items-center justify-center p-4"
         >
           <motion.div
-            initial={{ scale: 0.9 }}
+            initial={{ scale: 0.95 }}
             animate={{ scale: 1 }}
-            exit={{ scale: 0.9 }}
-            className="bg-zinc-900 border border-zinc-700 p-6 rounded-2xl max-w-sm w-full space-y-4"
+            exit={{ scale: 0.95 }}
+            className="bg-[#0B0F17] border border-zinc-800/60 p-6 rounded-2xl max-w-sm w-full space-y-4"
           >
             <p className="text-white text-sm">{message}</p>
             <div className="flex gap-2 justify-end">

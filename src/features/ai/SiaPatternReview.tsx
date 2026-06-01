@@ -89,20 +89,20 @@ export const SiaPatternReview: React.FC<SiaPatternReviewProps> = ({ isOpen, onCl
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-8 bg-black/60 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-8 bg-black/80 backdrop-blur-md">
           <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
+            initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9 }}
-            className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 w-full max-w-md mx-auto my-auto shadow-2xl max-h-[90vh] overflow-y-auto"
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="bg-[#0B0F17] border border-zinc-800/60 rounded-3xl p-6 w-full max-w-md mx-auto my-auto shadow-2xl max-h-[90vh] overflow-y-auto"
           >
-            <div className="flex justify-between items-center mb-5">
+            <div className="flex justify-between items-start mb-5">
               <div>
                 <h2 className="text-sm font-black text-white uppercase tracking-widest">Review SIA Routine</h2>
-                <p className="text-[9px] text-zinc-500 uppercase tracking-widest mt-0.5">Based on your recent patterns</p>
+                <p className="text-[9px] text-zinc-500 uppercase tracking-widest mt-0.5 mb-1">Based on your recent patterns</p>
               </div>
-              <button onClick={onClose} className="text-zinc-500 hover:text-white transition-colors">
-                <X size={18} />
+              <button onClick={onClose} className="text-zinc-500 hover:text-white transition-colors mt-0.5">
+                <X size={20} />
               </button>
             </div>
 

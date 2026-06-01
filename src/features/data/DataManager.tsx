@@ -279,14 +279,14 @@ export default function DataManager({ user, onRefresh, logs, personalizationProf
       {/* Preview Modal */}
       <AnimatePresence>
         {previewItem && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
             <motion.div 
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-zinc-900 border border-zinc-800 rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl"
+              className="bg-[#0B0F17] border border-zinc-800/60 rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl"
             >
-              <div className="p-6 border-b border-zinc-800 flex items-center justify-between">
+              <div className="p-6 border-b border-zinc-800/60 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <FileText className="text-emerald-400" />
                   <div>
@@ -319,12 +319,12 @@ export default function DataManager({ user, onRefresh, logs, personalizationProf
       {/* Purge Confirmation Modal */}
       <AnimatePresence>
         {showPurgeConfirm && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
             <motion.div 
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-zinc-900 border border-red-900/30 rounded-3xl w-full max-w-md overflow-hidden shadow-2xl"
+              className="bg-[#0B0F17] border border-red-900/40 rounded-3xl w-full max-w-md overflow-hidden shadow-2xl"
             >
               <div className="p-8 text-center space-y-6">
                 <div className="w-20 h-20 bg-red-500/10 rounded-3xl flex items-center justify-center mx-auto text-red-500">

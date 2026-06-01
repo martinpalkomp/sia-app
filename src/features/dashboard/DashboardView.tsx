@@ -401,7 +401,7 @@ export const DashboardView: React.FC<{
             ) : (
               <div className="space-y-4">
                 <div className="border border-zinc-800/60 bg-[#0B0F17] rounded-2xl relative shadow-sm group hover:border-emerald-500/30 transition-all duration-300 overflow-hidden w-full p-8 space-y-4 min-h-[15svh] flex flex-col justify-center">
-                  <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl group-hover:bg-emerald-500/10 transition-colors pointer-events-none" />
+                  <div className="absolute -top-16 -right-16 w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl group-hover:bg-emerald-500/10 transition-colors pointer-events-none" />
                   <div className="relative z-10">
                     <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">
                       LONG-TERM ANALYSIS · LAST {logs ? Object.keys(logs).length : 0} NIGHTS
@@ -431,7 +431,7 @@ export const DashboardView: React.FC<{
                 
                 {deepAnalysisResult && (
                   <div className="border border-emerald-500/20 bg-[#0B0F17] rounded-2xl relative shadow-[0_0_15px_-3px_rgba(16,185,129,0.05)] hover:shadow-[0_0_20px_-3px_rgba(16,185,129,0.15)] group hover:border-emerald-500/40 transition-all duration-300 overflow-hidden w-full p-6 space-y-4">
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl group-hover:bg-emerald-500/10 transition-colors pointer-events-none" />
+                    <div className="absolute -top-16 -right-16 w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl group-hover:bg-emerald-500/10 transition-colors pointer-events-none" />
                     <div className="relative z-10 flex items-center justify-between">
                       <h4 className="font-black text-[10px] tracking-widest text-emerald-400 uppercase">Tonight's Action</h4>
                       <div className="bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded">
