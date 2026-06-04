@@ -720,6 +720,16 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
   ],
   Overlays: [
     {
+      id: 'ovl-tier-details',
+      name: 'Tier Details Modal',
+      tag: 'overlay',
+      description: 'Triggered by selectedTierDetail state in AccountPage. Shows architecture details for selected tier.',
+      path: '/src/features/account/TierDetailsModal.tsx',
+      children: [
+        { id: 'ovl-tier-details-modal', name: 'Modal', tag: 'overlay', description: 'Modal backdrop and panel', path: '/src/features/account/TierDetailsModal.tsx' },
+      ]
+    },
+    {
       id: 'ovl-ethical-pledge',
       name: 'Ethical Data Pledge Modal',
       tag: 'overlay',

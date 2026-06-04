@@ -2,7 +2,7 @@ import React from 'react';
 import { useUser } from '../../context/UserContext';
 import { DevModal } from '../dev/DevModal';
 import { signOut, auth, db, doc, setDoc, onSnapshot, updateDoc } from '../../lib/firebase';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { 
   LogOut, 
   User as UserIcon, 
@@ -22,7 +22,8 @@ import {
   Layers,
   TrendingUp,
   Moon,
-  Camera
+  Camera,
+  X
 } from 'lucide-react';
 import { Card, AvatarFrame } from '../../components/UI';
 import DataMaturityTracker from '../data/DataMaturityTracker';
@@ -32,12 +33,14 @@ import DataManager from '../data/DataManager';
 import FeedbackForm from './FeedbackForm';
 import AdminFeedback from './AdminFeedback';
 import DevElementMap from './DevElementMap';
+import TierDetailsModal from './TierDetailsModal';
 import { calculateAge, getAgeDecade } from '../../utils/dateUtils';
-
+import { tierDetails } from '../../data/tierData';
 
 export default function AccountPage({ onModifyAssessment, onRefresh }: { onModifyAssessment: () => void; onRefresh?: () => void; }) {
   const { user, personalizationProfile, logs, maturity, highlightTier, tier, userProfile, setMockLogs } = useUser();
   const [view, setView] = React.useState<'main' | 'data-ledger' | 'feedback' | 'admin-feedback' | 'element-map'>('main');
+  const [selectedTierDetail, setSelectedTierDetail] = React.useState<'Basic' | 'Enhanced' | 'Pro' | null>(null);
   const [userData, setUserData] = React.useState<any>(null);
   const [modal, setModal] = React.useState<{ isOpen: boolean; message: string; onConfirm: () => void; onCancel?: () => void }>({
     isOpen: false,
@@ -328,7 +331,10 @@ export default function AccountPage({ onModifyAssessment, onRefresh }: { onModif
                   ))}
                 </div>
 
-                <div className="text-[10px] font-medium text-indigo-400 cursor-pointer hover:underline flex items-center gap-1 transition-all">
+                <div 
+                  onClick={() => setSelectedTierDetail(tierOption as 'Basic' | 'Enhanced' | 'Pro')}
+                  className="text-[10px] font-medium text-indigo-400 cursor-pointer hover:underline flex items-center gap-1 transition-all"
+                >
                   Learn more <ChevronRight size={12} />
                 </div>
               </div>
@@ -569,6 +575,12 @@ export default function AccountPage({ onModifyAssessment, onRefresh }: { onModif
           </div>
         </div>
       )}
+      
+      <TierDetailsModal 
+        selectedTier={selectedTierDetail} 
+        onClose={() => setSelectedTierDetail(null)} 
+      />
+
       {import.meta.env.DEV && (
         <DevModal 
           isOpen={modal.isOpen} 
