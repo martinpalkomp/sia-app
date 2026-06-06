@@ -9,6 +9,7 @@ import { InsightCard } from './InsightCard';
 import DataMaturityTracker from '../data/DataMaturityTracker';
 import SleepGuideCard from '../sleep/SleepGuideCard';
 import { QuickInsightCard } from './QuickInsightCard';
+import { SleepGateData } from '../../utils/sleepGateEngine';
 
 import { AIInsight } from '../../types';
 
@@ -46,6 +47,9 @@ export const DashboardView: React.FC<{
   forecastMetrics?: { quality: number; alertness: number; energy: number } | null;
   hasNinetyLogsInFiveMonths: boolean;
   quickInsight?: any;
+  sleepGateData: SleepGateData | null;
+  showGateFactors: boolean;
+  onToggleGateFactors: () => void;
 }> = ({
   user,
   userProfile,
@@ -79,11 +83,21 @@ export const DashboardView: React.FC<{
   recentGadgets,
   forecastMetrics,
   hasNinetyLogsInFiveMonths,
-  quickInsight
+  quickInsight,
+  sleepGateData,
+  showGateFactors,
+  onToggleGateFactors
 }) => {
   return (
     <div className="space-y-8">
-      <SleepGateHero logs={{}} userName={userProfile?.displayName} greeting={greeting} />
+      <SleepGateHero 
+        logs={logs} 
+        userName={userProfile?.displayName} 
+        greeting={greeting} 
+        data={sleepGateData}
+        showFactors={showGateFactors}
+        onToggleFactors={onToggleGateFactors}
+      />
 
       <div id="db-morning-briefing" className="w-full">
         <div id="morning-brief-card" className="border border-zinc-800/60 bg-[#0B0F17] rounded-2xl relative shadow-sm group hover:border-indigo-500/30 transition-all duration-300 overflow-hidden w-full min-h-[15svh] p-6 flex flex-col justify-center">

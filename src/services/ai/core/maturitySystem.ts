@@ -63,23 +63,21 @@ export class MaturitySystem {
       const userSnap = await getDoc(doc(db, 'users', userId));
       const userData = userSnap.data();
       
+      const logsRef = collection(db, 'users', userId, 'sleep_logs');
+      const countSnapshot = await getCountFromServer(logsRef);
+      const actualCount = countSnapshot.data().count;
+
       if (userData?.levelOverride) {
         const level: MaturityLevel = userData.levelOverride;
         return {
           level,
-          count: level === 4 ? 90 : level === 3 ? 14 : level === 2 ? 7 : 0,
+          count: actualCount,
           label: MATURITY_LABELS[level],
           nextThreshold: level === 4 ? 90 : level === 3 ? 90 : level === 2 ? 14 : 7,
         };
       }
 
-      const logsRef = collection(db, 'users', userId, 'sleep_logs');
-      const countSnapshot = await getCountFromServer(
-        query(logsRef, where('type', '==', 'log'))
-      );
-      const count = countSnapshot.data().count;
-
-      return this.parseCount(count);
+      return this.parseCount(actualCount);
     } catch (error) {
       handleFirestoreError(error, OperationType.GET, `users/${userId}`);
       return this.parseCount(0);

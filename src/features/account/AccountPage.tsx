@@ -38,7 +38,7 @@ import { calculateAge, getAgeDecade } from '../../utils/dateUtils';
 import { tierDetails } from '../../data/tierData';
 
 export default function AccountPage({ onModifyAssessment, onRefresh }: { onModifyAssessment: () => void; onRefresh?: () => void; }) {
-  const { user, personalizationProfile, logs, maturity, highlightTier, tier, userProfile, setMockLogs } = useUser();
+  const { user, personalizationProfile, logs, maturity, highlightTier, tier, userProfile, setMockLogs, dataDepth } = useUser();
   const [view, setView] = React.useState<'main' | 'data-ledger' | 'feedback' | 'admin-feedback' | 'element-map'>('main');
   const [selectedTierDetail, setSelectedTierDetail] = React.useState<'Basic' | 'Enhanced' | 'Pro' | null>(null);
   const [userData, setUserData] = React.useState<any>(null);
@@ -407,7 +407,7 @@ export default function AccountPage({ onModifyAssessment, onRefresh }: { onModif
 
         {/* Data Maturity Tracker moved below */}
         <div className="md:col-span-2">
-          <DataMaturityTracker maturity={maturity || { count: 0, level: 1, nextThreshold: 7, label: 'Observer' }} />
+          <DataMaturityTracker maturity={dataDepth as typeof maturity || { count: 0, level: 1, nextThreshold: 7, label: 'Observer', } as any} />
         </div>
       </div>
 

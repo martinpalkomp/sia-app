@@ -16,6 +16,7 @@ import { calculateSafeAverage } from '../../utils/statsEngine';
 import { getQuickInsightForUser } from '../../services/ai/core/quickInsights';
 import { getMinutesFrom2000 } from '../../utils/sleepUtils';
 import DashboardView from './DashboardView';
+import { computeSleepGateData, SleepGateData } from '../../utils/sleepGateEngine';
 
 interface DashboardContainerProps {
   logs: Record<string, DailyLog>;
@@ -65,6 +66,15 @@ export default function DashboardContainer({
     const logsArray = Object.values(logs);
     return logsArray.filter(log => new Date(log.date) >= fiveMonthsAgo).length >= 90;
   }, [logs]);
+
+  const [showGateFactors, setShowGateFactors] = useState(false);
+
+  const sleepGateData = useMemo((): SleepGateData | null => {
+    if (!logs) return null;
+    const logsArray = Object.values(logs).sort((a, b) => b.date.localeCompare(a.date));
+    if (logsArray.length < 1) return null;
+    return computeSleepGateData(logsArray, dataMaturity.level);
+  }, [logs, dataMaturity.level]);
 
   const [insightTeaser, setInsightTeaser] = useState<string | AIInsight | null>(null);
   const [deepAnalysisResult, setDeepAnalysisResult] = useState<{summary: string, recommendation: string, confidence: number} | null>(null);
@@ -233,7 +243,7 @@ export default function DashboardContainer({
       const daysCount = personalizationProfile ? 90 : 30;
       const logsRef = collection(db, 'users', user.uid, 'sleep_logs');
       
-      const querySnapshot = await getDocs(query(logsRef, where('type', '==', 'log'), orderBy('date', 'desc'), limit(daysCount)));
+      const querySnapshot = await getDocs(query(logsRef, orderBy('date', 'desc'), limit(daysCount)));
       
       const historicalLogs: DailyLog[] = [];
       querySnapshot.forEach(doc => {
@@ -414,6 +424,9 @@ export default function DashboardContainer({
       forecastMetrics={forecastMetrics}
       hasNinetyLogsInFiveMonths={hasNinetyLogsInFiveMonths}
       quickInsight={quickInsight}
+      sleepGateData={sleepGateData}
+      showGateFactors={showGateFactors}
+      onToggleGateFactors={() => setShowGateFactors(p => !p)}
     />
   );
 }

@@ -70,6 +70,9 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
         { id: 'greeting-subtext', name: 'Greeting Subtext', tag: 'comp', description: 'Context line', path: '/src/features/dashboard/SleepGateHero.tsx', function: 'Provides system context or date.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
         { id: 'greeting-h1', name: 'Greeting Heading', tag: 'comp', description: 'Time-aware greeting', path: '/src/features/dashboard/SleepGateHero.tsx', function: 'Greets the user contextually based on time.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
         { id: 'nav-fab-log', name: 'Log Action Button', tag: 'btn', description: 'Button to trigger log action', path: '/src/features/dashboard/SleepGateHero.tsx', function: 'Calls greeting.onLogClick to navigate to Log view', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
+        { id: 'gate-prediction-panel', name: 'Sleep Gate Prediction Panel', tag: 'card', description: 'Interactive prediction display', path: '/src/features/dashboard/SleepGateHero.tsx', function: 'Toggles the factors breakdown.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: 'Click', dependsOn: [] },
+        { id: 'gate-factors-breakdown', name: 'Sleep Gate Factors Breakdown', tag: 'section', description: 'Detailed breakdown of active factors', path: '/src/features/dashboard/SleepGateHero.tsx', function: 'Shows active data points affecting sleep gate.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: 'Toggled by Prediction Panel', dependsOn: [] },
+        { id: 'circadian-sky-orb', name: 'Circadian Sky Orb', tag: 'comp', description: 'Visual state of day/night rhythm', path: '/src/features/dashboard/SleepGateHero.tsx', function: 'Glows organically reflecting calculated circadian phase.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
       ]
     },
     {

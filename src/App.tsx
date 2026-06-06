@@ -991,17 +991,16 @@ export default function App() {
       return;
     }
 
-    // Determine the range to fetch
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0];
+    // Fetch up to 5 years of data so insights and roadmap reflect historical imported logs
+    const fiveYearsAgo = new Date();
+    fiveYearsAgo.setFullYear(fiveYearsAgo.getFullYear() - 5);
+    const fiveYearsAgoStr = fiveYearsAgo.toISOString().split('T')[0];
 
     if (!db) return;
 
     const q = query(
       collection(db, 'users', user.uid, 'sleep_logs'),
-      where('type', '==', 'log'),
-      where('date', '>=', thirtyDaysAgoStr),
+      where('date', '>=', fiveYearsAgoStr),
       orderBy('date', 'desc')
     );
     

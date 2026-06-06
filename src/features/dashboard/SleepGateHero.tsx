@@ -1,220 +1,150 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { Plus, Clock, Moon } from 'lucide-react';
 import { DailyLog } from '../../types';
+import { SleepGateData, CircadianZone } from '../../utils/sleepGateEngine';
 
 interface SleepGateHeroProps {
   logs: Record<string, DailyLog>;
   userName?: string;
   className?: string;
   greeting?: { prefix: string; suffix: string; showLogLink?: boolean; onLogClick?: () => void; };
+  data: SleepGateData | null;
+  showFactors: boolean;
+  onToggleFactors: () => void;
 }
 
-const SleepGateArc = () => {
-  const cx = 150;
-  const cy = 140;
-  const r = 130;
+const timeToAngle = (hours: number, minutes: number) => {
+  let totalMinutes = hours * 60 + minutes;
+  let shifted = totalMinutes - 18 * 60;
+  if (shifted < 0) shifted += 24 * 60;
+  const ratio = shifted / (12 * 60);
+  return -90 + ratio * 180;
+};
 
-  const timeToAngle = (hours: number, minutes: number) => {
-    let totalMinutes = hours * 60 + minutes;
-    let shifted = totalMinutes - 18 * 60;
-    if (shifted < 0) shifted += 24 * 60;
-    const ratio = shifted / (12 * 60);
-    return -90 + ratio * 180;
+const polarToCartesian = (cx: number, cy: number, r: number, angle: number) => {
+  const rad = (angle - 90) * Math.PI / 180;
+  return {
+    x: cx + r * Math.cos(rad),
+    y: cy + r * Math.sin(rad)
   };
+};
 
-  const polarToCartesian = (cx: number, cy: number, r: number, angle: number) => {
-    const rad = (angle - 90) * Math.PI / 180;
-    return {
-      x: cx + r * Math.cos(rad),
-      y: cy + r * Math.sin(rad)
-    };
-  };
+const describeArc = (cx: number, cy: number, r: number, startAngle: number, endAngle: number) => {
+  // Handle cases where startAngle and endAngle are very close or same
+  if (Math.abs(endAngle - startAngle) < 0.1) return '';
+  const start = polarToCartesian(cx, cy, r, startAngle);
+  const end = polarToCartesian(cx, cy, r, endAngle);
+  const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
+  return `M ${start.x} ${start.y} A ${r} ${r} 0 ${largeArcFlag} 1 ${end.x} ${end.y}`;
+};
 
-  const describeArc = (cx: number, cy: number, r: number, startAngle: number, endAngle: number) => {
-    // Handle cases where startAngle and endAngle are very close or same
-    if (Math.abs(endAngle - startAngle) < 0.1) return '';
-    const start = polarToCartesian(cx, cy, r, startAngle);
-    const end = polarToCartesian(cx, cy, r, endAngle);
-    const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
-    return `M ${start.x} ${start.y} A ${r} ${r} 0 ${largeArcFlag} 1 ${end.x} ${end.y}`;
-  };
+interface SleepGateArcProps { data: SleepGateData; }
 
-  // Fixed values for UI mapping illustration as per strategy
-  const windDownStartH = 22, windDownStartM = 30;
-  const sleepGateH = 23, sleepGateM = 15;
-  const wakeH = 6, wakeM = 45; // 23:15 + 7h30m
-
-  const aBaseStart = -90; // 18:00
-  const aBaseEnd = 90; // 06:00
-  
-  const aWindDownStart = timeToAngle(windDownStartH, windDownStartM);
-  const aSleepGate = timeToAngle(sleepGateH, sleepGateM);
-  const aWake = timeToAngle(wakeH, wakeM);
-
-  const gatePos = polarToCartesian(cx, cy, r, aSleepGate);
-
+const SleepGateArc: React.FC<SleepGateArcProps> = ({ data }) => {
+  const cx = 150, cy = 140, r = 130;
+  const [hoveredZone, setHoveredZone] = useState<CircadianZone | null>(null);
+  const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
   const [currentAngle, setCurrentAngle] = useState(-90);
 
   useEffect(() => {
-    const updateTime = () => {
-      const now = new Date();
-      setCurrentAngle(timeToAngle(now.getHours(), now.getMinutes()));
-    };
-    updateTime();
-    const interval = setInterval(updateTime, 60000);
-    return () => clearInterval(interval);
+    const update = () => { const n = new Date(); setCurrentAngle(timeToAngle(n.getHours(), n.getMinutes())); };
+    update(); const iv = setInterval(update, 60000); return () => clearInterval(iv);
   }, []);
 
+  // Arc thickness driven by sleep debt
+  const debtWidth = data.sleepDebtLevel === 'high' ? 16 : data.sleepDebtLevel === 'moderate' ? 9 : 4;
+  const gateAngle = timeToAngle(data.gateH, data.gateM);
+  const confStartAngle = timeToAngle(data.gateH, Math.max(0, data.gateM - data.confidenceMinutes));
+  const confEndAngle = timeToAngle(data.gateH, Math.min(59, data.gateM + data.confidenceMinutes));
   const currentPos = polarToCartesian(cx, cy, r, currentAngle);
+  const gatePos = polarToCartesian(cx, cy, r, gateAngle);
+  const aBaseStart = -90, aBaseEnd = 90;
 
   return (
     <div className="relative w-full max-w-[360px] mx-auto aspect-[2/1.3] flex flex-col justify-end">
-      <svg viewBox="0 0 300 160" className="w-full h-full overflow-visible absolute top-0 left-0 right-0">
+      {/* Layer 8: Hover tooltip */}
+      {hoveredZone && (
+        <div className="absolute z-30 bg-zinc-900/95 border border-zinc-700 rounded-xl p-3 max-w-[180px] text-left pointer-events-none"
+          style={{ left: tooltipPos.x, top: tooltipPos.y, transform: 'translate(-50%, -110%)' }}>
+          <p className="text-[9px] font-black uppercase tracking-widest text-indigo-400 mb-1">{hoveredZone.label}</p>
+          <p className="text-[10px] text-zinc-300 leading-snug">{hoveredZone.description}</p>
+        </div>
+      )}
+
+      <svg viewBox="0 0 300 160" className="w-full h-full overflow-visible absolute top-0 left-0">
         <defs>
-          <linearGradient id="windDownGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="rgba(99,102,241,0.1)" />
-            <stop offset="100%" stopColor="rgba(99,102,241,1)" />
-          </linearGradient>
-          <filter id="glow">
-            <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
-            <feMerge>
-              <feMergeNode in="coloredBlur"/>
-              <feMergeNode in="SourceGraphic"/>
-            </feMerge>
-          </filter>
+          <filter id="glow"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+          <filter id="glow-strong"><feGaussianBlur stdDeviation="6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
         </defs>
 
-        {/* Base Arc (18:00 to 06:00) */}
-        <path 
-          d={describeArc(cx, cy, r, aBaseStart, aBaseEnd)} 
-          fill="none" 
-          stroke="rgba(255,255,255,0.08)" 
-          strokeWidth="3" 
-          strokeLinecap="round"
-          strokeDasharray="1 6"
-        />
+        {/* Layer 1: Base dashed arc */}
+        <path d={describeArc(cx, cy, r, aBaseStart, aBaseEnd)} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth="2" strokeLinecap="round" strokeDasharray="1 6"/>
 
-        {/* Past Time Arc (Dimmed) */}
-        {currentAngle > aBaseStart && currentAngle < aBaseEnd + 180 && (
-          <path 
-            d={describeArc(cx, cy, r, aBaseStart, Math.min(currentAngle, aBaseEnd))} 
-            fill="none" 
-            stroke="rgba(255,255,255,0.04)" 
-            strokeWidth="3" 
-            strokeLinecap="round"
-          />
+        {/* Layer 2: Circadian zone arcs with debt-driven thickness */}
+        {data.zones.map(zone => {
+          const sa = timeToAngle(zone.startH, zone.startM);
+          const ea = timeToAngle(zone.endH, zone.endM);
+          if (Math.abs(ea - sa) < 0.5) return null;
+          const midAngle = (sa + ea) / 2;
+          const midPos = polarToCartesian(cx, cy, r, midAngle);
+          return (
+            <g key={zone.id}
+              onMouseEnter={e => { setHoveredZone(zone); setTooltipPos({ x: midPos.x, y: midPos.y }); }}
+              onMouseLeave={() => setHoveredZone(null)}
+              className="cursor-pointer">
+              <motion.path initial={{ pathLength: 0, opacity: 0 }} animate={{ pathLength: 1, opacity: 1 }}
+                transition={{ duration: 1.4, ease: 'easeOut' }}
+                d={describeArc(cx, cy, r, sa, ea)} fill="none"
+                stroke={zone.color} strokeWidth={debtWidth}
+                strokeLinecap="round" filter="url(#glow)"/>
+              {/* Invisible wider hit area */}
+              <path d={describeArc(cx, cy, r, sa, ea)} fill="none" stroke="transparent" strokeWidth="20" strokeLinecap="round"/>
+            </g>
+          );
+        })}
+
+        {/* Layer 6: Confidence window */}
+        <path d={describeArc(cx, cy, r, confStartAngle, confEndAngle)} fill="none"
+          stroke="rgba(167,139,250,0.2)" strokeWidth={debtWidth + 8} strokeLinecap="round"/>
+
+        {/* Layer 1: Current time dot */}
+        {currentAngle >= aBaseStart && currentAngle <= aBaseEnd && (
+          <circle cx={currentPos.x} cy={currentPos.y} r="3" fill="rgba(255,255,255,0.6)"/>
         )}
 
-        {/* Wind-down Arc (Gradient Soft Glow) */}
-        {aWindDownStart < aSleepGate && (
-          <motion.path 
-            initial={{ pathLength: 0, opacity: 0 }}
-            animate={{ pathLength: 1, opacity: 1 }}
-            transition={{ duration: 1.5, ease: "easeOut" }}
-            d={describeArc(cx, cy, r, aWindDownStart, aSleepGate)} 
-            fill="none" 
-            stroke="url(#windDownGradient)" 
-            strokeWidth="6"
-            strokeLinecap="round"
-            filter="url(#glow)"
-          />
-        )}
+        {/* Layer 5: Chronotype label on arc */}
+        <text x={cx} y={cy - r - 10} textAnchor="middle" fill="rgba(129,140,248,0.7)" fontSize="7" fontWeight="700" letterSpacing="1">{data.chronotypeLabel.toUpperCase()}</text>
 
-        {/* Sleep Duration Arc (Dashed) */}
-        <motion.path 
-          initial={{ pathLength: 0, opacity: 0 }}
-          animate={{ pathLength: 1, opacity: 1 }}
-          transition={{ duration: 1.5, delay: 0.5, ease: "easeOut" }}
-          d={describeArc(cx, cy, r, aSleepGate, aWake)} 
-          fill="none" 
-          stroke="rgba(255,255,255,0.3)" 
-          strokeWidth="2"
-          strokeDasharray="4 6"
-          strokeLinecap="round"
-        />
-
-        {/* Sleep Gate Uncertainty Zone (Soft Zone) */}
-        <path 
-          d={describeArc(cx, cy, r, aSleepGate - 4, aSleepGate + 4)} 
-          fill="none" 
-          stroke="rgba(99,102,241,0.2)" 
-          strokeWidth="12"
-          strokeLinecap="round"
-          filter="url(#glow)"
-        />
-
-        {/* Sleep Gate Node Container for pulsing */}
-        <motion.g 
-          initial={{ scale: 0.8, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ duration: 0.8, delay: 1 }}
-        >
-          {/* Sleep Gate Node Outer Glow */}
-          <motion.circle 
-            animate={{ r: [6, 10, 6], opacity: [0.5, 0.8, 0.5] }}
-            transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-            cx={gatePos.x} 
-            cy={gatePos.y} 
-            r="8" 
-            fill="rgba(120,120,255,0.3)" 
-            filter="url(#glow)"
-          />
-          {/* Sleep Gate Node Core Glow */}
-          <circle 
-            cx={gatePos.x} 
-            cy={gatePos.y} 
-            r="4" 
-            fill="rgba(120,120,255,0.8)" 
-            filter="url(#glow)"
-          />
-          {/* Sleep Gate Node Primary (White center) */}
-          <circle 
-            cx={gatePos.x} 
-            cy={gatePos.y} 
-            r="2.5" 
-            fill="#fff" 
-          />
+        {/* Layer 6: Gate node with pulse */}
+        <motion.g initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ delay: 0.8 }}>
+          <motion.circle cx={gatePos.x} cy={gatePos.y} r="10" fill="rgba(167,139,250,0.15)"
+            animate={{ r: [10, 15, 10] }} transition={{ duration: 2, repeat: Infinity }}/>
+          <circle cx={gatePos.x} cy={gatePos.y} r="5" fill="rgba(167,139,250,0.9)" filter="url(#glow-strong)"/>
+          <circle cx={gatePos.x} cy={gatePos.y} r="2.5" fill="white"/>
         </motion.g>
-
-        {/* Current Time Indicator Node */}
-        {currentAngle >= aBaseStart && currentAngle <= aWake && (
-            <circle 
-              cx={currentPos.x} 
-              cy={currentPos.y} 
-              r="2" 
-              fill="rgba(255,255,255,0.6)" 
-              className="shadow-sm"
-            />
-        )}
       </svg>
-      
-      {/* Inner Text overlay in the bottom middle of the arch */}
-      <div className="flex flex-col items-center justify-end pb-2 font-sans z-10 w-full">
-        <motion.span 
-          initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.8 }}
-          className="text-[10px] uppercase font-black tracking-[0.2em] text-indigo-300"
-        >
-          Sleep Gate
+
+      {/* Gate time text */}
+      <div className="flex flex-col items-center justify-end pb-2 z-10 w-full" onClick={undefined}>
+        <motion.span initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.8 }}
+          className="text-[10px] uppercase font-black tracking-[0.2em] text-indigo-300">Sleep Gate</motion.span>
+        <motion.span initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 1.0 }}
+          className="text-5xl font-black tracking-tighter text-white drop-shadow-xl mt-1">
+          {String(data.gateH).padStart(2,'0')}:{String(data.gateM).padStart(2,'0')}
         </motion.span>
-        <motion.span 
-          initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 1 }}
-          className="text-5xl font-black tracking-tighter text-white drop-shadow-xl mt-1"
-        >
-          {String(sleepGateH).padStart(2, '0')}:{String(sleepGateM).padStart(2, '0')}
-        </motion.span>
-        <motion.span 
-          initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.2 }}
-          className="text-[12px] text-zinc-400 mt-2 font-medium tracking-wide"
-        >
-          Your optimal sleep window
+        <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.2 }}
+          className="text-[11px] text-zinc-400 mt-1 font-bold">± {data.confidenceMinutes} min</motion.span>
+        <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.4 }}
+          className="text-[10px] text-indigo-400/70 mt-2 font-bold flex items-center gap-1">
+          <span className="text-[8px]">⏱</span> {data.statusText}
         </motion.span>
       </div>
     </div>
   );
 };
 
-export const SleepGateHero: React.FC<SleepGateHeroProps> = ({ logs, userName, className, greeting }) => {
+export const SleepGateHero: React.FC<SleepGateHeroProps> = ({ logs, userName, className, greeting, data, showFactors, onToggleFactors }) => {
   const displayGreeting = greeting ? `${greeting.prefix}${userName ? `, ${userName.split(' ')[0]}` : ''}.` : (userName ? `Evening, ${userName}` : 'Good Evening');
 
   const getBackgroundImage = () => {
@@ -258,8 +188,11 @@ export const SleepGateHero: React.FC<SleepGateHeroProps> = ({ logs, userName, cl
             </p>
           ) : (
             <p className="text-zinc-300 mb-8 font-medium text-lg leading-relaxed max-w-md">
-              Your sleep gate is projected for <span className="text-indigo-300 font-black">23:15</span>. 
-              Start winding down in <span className="text-indigo-300 font-black">~45 min</span> for optimal transition.
+              {data ? (
+                <>Your optimal sleep gate tonight is <span className="text-indigo-300 font-black">{String(data.gateH).padStart(2,'0')}:{String(data.gateM).padStart(2,'0')}</span>.</>
+              ) : (
+                <>We need more data to project your Sleep Gate.</>
+              )}
             </p>
           )}
 
@@ -273,26 +206,109 @@ export const SleepGateHero: React.FC<SleepGateHeroProps> = ({ logs, userName, cl
             </button>
           )}
           
-          <div className="flex gap-8">
-            <div className="flex items-center gap-3 text-zinc-300">
-              <Clock size={20} className="text-indigo-400" />
-              <div className="font-black text-xs tracking-widest uppercase">
-                <p>22:30 – 23:15</p>
-                <p className="text-[10px] text-zinc-500">Wind-down window</p>
+          {/* Prediction Factors Panel — Layer 7 */}
+          <AnimatePresence>
+            {showFactors && data && (
+              <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }}
+                className="mt-4 w-full max-w-md rounded-2xl bg-zinc-900/80 border border-zinc-800 p-4 backdrop-blur-sm">
+                <p className="text-[9px] font-black uppercase tracking-widest text-zinc-500 mb-3">Why this prediction?</p>
+                <div className="space-y-2">
+                  {[
+                    { icon: '🌙', label: 'Chronotype',       value: data.predictionFactors.chronotype },
+                    { icon: '⚡', label: 'Sleep Debt',        value: data.predictionFactors.sleepDebt },
+                    { icon: '⏰', label: 'Wake Consistency',  value: data.predictionFactors.wakeConsistency },
+                    { icon: '📊', label: 'Sleep Logs',        value: data.predictionFactors.logsAnalyzed },
+                    { icon: '✨', label: 'Evening Energy',    value: data.predictionFactors.eveningEnergy },
+                    { icon: '◈',  label: 'Confidence',        value: data.predictionFactors.confidence },
+                  ].map(f => (
+                    <div key={f.label} className="flex items-center justify-between">
+                      <span className="text-[11px] text-zinc-400 font-bold flex items-center gap-2">
+                        <span>{f.icon}</span>{f.label}
+                      </span>
+                      <span className="text-[11px] font-black text-white">{f.value}</span>
+                    </div>
+                  ))}
+                </div>
+                {/* Confidence bar */}
+                <div className="mt-3 h-1 w-full bg-zinc-800 rounded-full overflow-hidden">
+                  <motion.div className="h-full bg-indigo-500 rounded-full"
+                    initial={{ width: 0 }}
+                    animate={{ width: data.confidenceLevel === 'high' ? '88%' : data.confidenceLevel === 'medium' ? '60%' : '32%' }}
+                    transition={{ duration: 0.8, ease: 'easeOut' }}/>
+                </div>
+                <p className="text-[9px] text-zinc-600 mt-2 font-bold">
+                  This prediction adapts as your patterns change. Check back daily for updates.
+                </p>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Circadian Sky — Layer 8 */}
+          {data && (
+            <div className="mt-8 w-full max-w-md">
+              <p className="text-[9px] font-black uppercase tracking-widest text-zinc-500 mb-2">Circadian Sky</p>
+              <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+                {[
+                  { time: '21:00', label: 'Dusk',       bg: 'from-orange-950/60 to-zinc-900' },
+                  { time: '22:00', label: 'Nightfall',  bg: 'from-indigo-950/80 to-zinc-900' },
+                  { time: `${String(data.gateH).padStart(2,'0')}:${String(data.gateM).padStart(2,'0')}`,
+                    label: 'Sleep Gate', bg: 'from-violet-950 to-zinc-900', active: true },
+                  { time: '01:00', label: 'Deep Night', bg: 'from-zinc-950 to-zinc-900' },
+                  { time: '02:00', label: 'Late Night', bg: 'from-zinc-950 to-black' },
+                ].map(sky => (
+                  <div key={sky.time}
+                    className={`flex-shrink-0 w-20 rounded-xl bg-gradient-to-b ${sky.bg} p-2 flex flex-col items-center justify-end h-24 border ${sky.active ? 'border-violet-500/60' : 'border-zinc-800'}`}>
+                    <p className={`text-[11px] font-black ${sky.active ? 'text-violet-300' : 'text-zinc-400'}`}>{sky.time}</p>
+                    <p className={`text-[9px] font-bold uppercase tracking-wider mt-1 text-center ${sky.active ? 'text-violet-400/70' : 'text-zinc-600'}`}>{sky.label}</p>
+                  </div>
+                ))}
               </div>
             </div>
-            <div className="flex items-center gap-3 text-zinc-300">
-              <Moon size={20} className="text-indigo-400" />
-              <div className="font-black text-xs tracking-widest uppercase">
-                <p>7h 30m</p>
-                <p className="text-[10px] text-zinc-500">Recommended</p>
+          )}
+
+          {/* Bottom metrics strip */}
+          {data && (
+            <div className="mt-4 grid grid-cols-3 gap-2 w-full max-w-md">
+              {[
+                { label: 'Sleep Pressure', value: data.sleepDebtLevel === 'high' ? 'High' : data.sleepDebtLevel === 'moderate' ? 'Moderate' : 'Low',
+                  color: data.sleepDebtLevel === 'high' ? 'text-red-400' : data.sleepDebtLevel === 'moderate' ? 'text-amber-400' : 'text-emerald-400' },
+                { label: 'Optimal Window', value: `${String(Math.max(0, data.gateH * 60 + data.gateM - data.confidenceMinutes) % 1440 / 60 | 0).padStart(2,'0')}:${String((data.gateM - data.confidenceMinutes + 60) % 60).padStart(2,'0')} – ${String(data.gateH).padStart(2,'0')}:${String(Math.min(59, data.gateM + data.confidenceMinutes)).padStart(2,'0')}`, color: 'text-white' },
+                { label: 'Current Status', value: data.statusText.length > 22 ? data.statusText.substring(0, 22) + '…' : data.statusText, color: 'text-indigo-300' },
+              ].map(m => (
+                <div key={m.label} className="rounded-xl bg-zinc-900/60 border border-zinc-800 p-2">
+                  <p className="text-[8px] font-black uppercase tracking-widest text-zinc-600 mb-1 leading-tight h-6">{m.label}</p>
+                  <p className={`text-[10px] font-black ${m.color}`}>{m.value}</p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {!data && (
+            <div className="flex gap-8">
+              <div className="flex items-center gap-3 text-zinc-300">
+                <Clock size={20} className="text-indigo-400" />
+                <div className="font-black text-xs tracking-widest uppercase">
+                  <p>22:30 – 23:15</p>
+                  <p className="text-[10px] text-zinc-500">Wind-down window</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 text-zinc-300">
+                <Moon size={20} className="text-indigo-400" />
+                <div className="font-black text-xs tracking-widest uppercase">
+                  <p>7h 30m</p>
+                  <p className="text-[10px] text-zinc-500">Recommended</p>
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
         
-        <div className="order-1 md:order-2 flex justify-center md:justify-end">
-          <SleepGateArc />
+        <div className="order-1 md:order-2 flex justify-center md:justify-end cursor-pointer" onClick={onToggleFactors}>
+          {data ? <SleepGateArc data={data} /> : (
+            <div className="relative w-full max-w-[360px] mx-auto aspect-[2/1.3] flex flex-col justify-center items-center rounded-full bg-zinc-900/50 border border-zinc-800/50">
+               <p className="text-xs text-zinc-500 font-bold tracking-widest uppercase">Log data to unlock</p>
+            </div>
+          )}
         </div>
       </div>
     </motion.section>
