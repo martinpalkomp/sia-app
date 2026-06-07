@@ -54,6 +54,14 @@ export const handleAssistantResponse = async (
   ctx: ChatContextPayload,
   isLimitReachedCb: () => void
 ) => {
+  // Check AI Processing Pause (Art.18)
+  const userRef = doc(db, 'users', ctx.userUid);
+  const userSnap = await getDoc(userRef);
+  if (userSnap.exists() && userSnap.data()?.aiProcessingPaused) {
+    await saveChatMessage(ctx.userUid, 'assistant', "⚠️ AI processing is currently paused for your account due to your privacy settings. You can re-enable it in Account -> Pause AI Processing.");
+    return;
+  }
+
   const SLEEP_KEYWORDS = ['sleep','wake','tired','fatigue','rest','nap','insomnia','dream','bed','night','morning','energy','alert','caffeine','alcohol','exercise','stress','recovery','circadian','melatonin','apnea','snore','restless','quality','duration','log','pattern','habit','analyze','analysis','report','insight','score','data','week','month','trend','improve','recommend','health','wellness'];
 
   if (!SLEEP_KEYWORDS.some(kw => text.toLowerCase().includes(kw))) {

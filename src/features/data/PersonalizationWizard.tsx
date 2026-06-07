@@ -86,7 +86,7 @@ export default function PersonalizationWizard({ user, onComplete, onClose }: Per
       },
       notes: '',
     },
-    allowsAnonymizedSharing: true,
+    allowsAnonymizedSharing: false,
     connectedDevices: []
   });
   const [isSaving, setIsSaving] = useState(false);
@@ -365,6 +365,18 @@ export default function PersonalizationWizard({ user, onComplete, onClose }: Per
                   <p className="text-sm text-zinc-400 mb-6">
                     Select any conditions that may affect your sleep. This helps SIA interpret your patterns more accurately. Your selections are private and never shared.
                   </p>
+                  
+                  <div className="p-3 bg-amber-950/40 border border-amber-800/40 rounded-xl mb-4">
+                    <p className="text-[10px] font-bold text-amber-300 uppercase tracking-widest mb-1">Art.9 Health Data Notice</p>
+                    <p className="text-[10px] text-amber-200/70 leading-relaxed">
+                      The conditions you select are stored in your private profile and used to personalise SIA's AI analysis.
+                      This data is processed by Google's Gemini AI on your behalf when you use the chat feature.
+                      You may delete this data at any time from Account → Delete all data.
+                      <br/><br/>
+                      By selecting conditions, you give explicit consent under GDPR Article 9(2)(a) for this specific processing purpose.
+                    </p>
+                  </div>
+
                   {[
                     { group: 'Sleep Disorders', items: ['Insomnia', 'Obstructive Sleep Apnea (OSA)', 'Restless Legs Syndrome (RLS)', 'Narcolepsy', 'Parasomnias'] },
                     { group: 'Mental Health', items: ['Anxiety disorders', 'Depression', 'PTSD', 'Bipolar disorder'] },

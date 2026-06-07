@@ -48,6 +48,17 @@ export default function AccountPage({ onModifyAssessment, onRefresh }: { onModif
     onConfirm: () => {},
   });
 
+  const toggleAIPause = async () => {
+    if (!user) return;
+    try {
+      const newVal = !userData?.aiProcessingPaused;
+      await updateDoc(doc(db, 'users', user.uid), { aiProcessingPaused: newVal });
+      if (onRefresh) onRefresh();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   React.useEffect(() => {
     if (!user) return;
     const userRef = doc(db, 'users', user.uid);
@@ -413,6 +424,16 @@ export default function AccountPage({ onModifyAssessment, onRefresh }: { onModif
 
       {/* Actions */}
       <div className="flex flex-col gap-3">
+        <div className="flex items-center justify-between p-4 bg-zinc-900 rounded-xl border border-zinc-800">
+          <div>
+            <p className="text-sm font-bold text-white">Pause AI Processing</p>
+            <p className="text-xs text-zinc-500">Your data stays stored but SIA will not send it to AI services until re-enabled. (Art.18 right to restrict processing)</p>
+          </div>
+          <button onClick={toggleAIPause} className={`w-12 h-7 rounded-full p-1 transition-all ${userData?.aiProcessingPaused ? 'bg-amber-600' : 'bg-zinc-700'}`}>
+            <div className={`w-5 h-5 rounded-full bg-white transition-all ${userData?.aiProcessingPaused ? 'translate-x-5' : ''}`}/>
+          </button>
+        </div>
+
         <button 
           onClick={() => setView('element-map')}
           className="w-full p-4 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-2xl flex items-center justify-between group transition-all"

@@ -260,6 +260,7 @@ export default function App() {
   } = useAIStore();
 
   const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [agreedToResearch, setAgreedToResearch] = useState(false);
   const [personalizationProfile, setPersonalizationProfile] = useState<PersonalizationProfile | null>(null);
   const [userProfile, setUserProfile] = useState<any>(null);
   const [isProfileLoading, setIsProfileLoading] = useState(true);
@@ -785,7 +786,17 @@ export default function App() {
   const handleLogin = async () => {
     setLoginError(null);
     try {
-      await signInWithPopup(auth, googleProvider);
+      const result = await signInWithPopup(auth, googleProvider);
+      
+      await setDoc(doc(db, 'users', result.user.uid, 'consent', 'v1'), {
+        consentGivenAt: serverTimestamp(),
+        consentVersion: '2026-06',
+        purposes: ['service_provision'],
+        researchConsent: agreedToResearch,
+        ipRegion: 'EU',
+        method: 'google-oauth-checkbox',
+      }, { merge: true });
+
     } catch (error: any) {
       console.error("Login failed", error);
       if (error.code === 'auth/popup-blocked') {
@@ -1292,7 +1303,20 @@ useEffect(() => {
                     className="mt-1 w-4 h-4 rounded border-zinc-700 bg-zinc-800 text-indigo-600 focus:ring-indigo-500"
                   />
                   <label htmlFor="terms" className="text-xs text-zinc-400 leading-relaxed cursor-pointer">
-                    I agree to the <button onClick={() => setView('legal')} className="text-indigo-400 hover:underline">Terms of Use</button> and acknowledge that my anonymized data may be used for scientific research and personalized marketing.
+                    I agree to the <button onClick={() => setView('legal')} className="text-indigo-400 hover:underline">Terms of Use and Privacy Policy</button>. I understand SIA processes sleep and health data as described therein.
+                  </label>
+                </div>
+
+                <div className="flex items-start gap-3 text-left p-4 bg-zinc-900/80 rounded-2xl border border-zinc-800">
+                  <input 
+                    type="checkbox" 
+                    id="research"
+                    checked={agreedToResearch}
+                    onChange={(e) => setAgreedToResearch(e.target.checked)}
+                    className="mt-1 w-4 h-4 rounded border-zinc-700 bg-zinc-800 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <label htmlFor="research" className="text-xs text-zinc-400 leading-relaxed cursor-pointer">
+                    I voluntarily consent to my anonymized sleep data being used for scientific sleep research. This is optional and does not affect app functionality.
                   </label>
                 </div>
 

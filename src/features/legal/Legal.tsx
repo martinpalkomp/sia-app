@@ -158,11 +158,19 @@ export default function Legal({ onBack }: LegalProps) {
                     <li><strong className="text-white">Sleep Logs</strong>: Historical sleep architecture and quantitative nightly metrics.</li>
                     <li><strong className="text-white">Chat Strings</strong>: Your contextual conversational inputs regarding sleep habits.</li>
                     <li><strong className="text-white">Lifestyle Factors</strong>: Environmental configurations, routines, stressors, and specific daily behaviors.</li>
+                    <li><strong className="text-white">Medication Usage</strong>: Whether medication was taken, type, and time — stored daily as a lifestyle factor.</li>
+                    <li><strong className="text-white">Stress & Mood Indicators</strong>: Daily 1–5 stress level and mood score — indicators of mental health state.</li>
+                    <li><strong className="text-white">Clinical Biometrics</strong>: If provided: blood oxygen saturation (SpO2), resting heart rate, and sleep stage percentages — medical-grade biometric data.</li>
                   </ul>
                 </section>
 
                 <section className="space-y-3">
-                  <h3 className="text-base font-bold text-white tracking-widest uppercase">3. The Enhanced Tier Anonymization Pipeline</h3>
+                  <h3 className="text-base font-bold text-white tracking-widest uppercase">3. Third-Party AI Processing</h3>
+                  <p>When you use the SIA Chat feature, your sleep data and any self-reported health conditions are processed by Google LLC via the Gemini AI API. Google acts as a Data Processor under a Data Processing Agreement (DPA) compliant with GDPR Article 28. Google's DPA is available at <a href="https://cloud.google.com/terms/data-processing-addendum" className="text-indigo-400 underline" target="_blank" rel="noopener noreferrer">cloud.google.com/terms/data-processing-addendum</a>. Data is transmitted over encrypted connections and is not used to train Google's models under the current API terms.</p>
+                </section>
+
+                <section className="space-y-3">
+                  <h3 className="text-base font-bold text-white tracking-widest uppercase">4. The Enhanced Tier Anonymization Pipeline</h3>
                   <p>Users in the Enhanced Tier participate in our Data-for-Research Value Exchange. To protect your privacy:</p>
                   <ul className="space-y-2 pl-4 list-disc text-zinc-400">
                     <li><strong className="text-white">Data Minimization</strong>: We deploy a rigorous data minimization process where data ingested is strictly limited to research requirements.</li>
@@ -172,7 +180,7 @@ export default function Legal({ onBack }: LegalProps) {
                 </section>
 
                 <section className="space-y-3">
-                  <h3 className="text-base font-bold text-white tracking-widest uppercase">4. Third-Party AI Data Processing</h3>
+                  <h3 className="text-base font-bold text-white tracking-widest uppercase">5. AI Data Processing Guidelines</h3>
                   <p>Processing of unstructured text and generation of insights occurs via secure Google Gemini API serverless proxy channels.</p>
                   <ul className="space-y-2 pl-4 list-disc text-zinc-400">
                     <li><strong className="text-white">Strict Boundaries</strong>: We operate under rigid enterprise agreements ensuring that your data is never utilized, retained, or ingested to train public LLM baseline models.</li>
@@ -181,7 +189,7 @@ export default function Legal({ onBack }: LegalProps) {
                 </section>
 
                 <section className="space-y-3">
-                  <h3 className="text-base font-bold text-white tracking-widest uppercase">5. Your Rights Under GDPR</h3>
+                  <h3 className="text-base font-bold text-white tracking-widest uppercase">6. Your Rights Under GDPR</h3>
                   <p>SIA natively supports your absolute rights over your data natively within the User Interface:</p>
                   <ul className="space-y-2 pl-4 list-disc text-zinc-400">
                     <li><strong className="text-white">Right to Access</strong>: You may export your personal sleep ledger securely at any time from your Account view.</li>

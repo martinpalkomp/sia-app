@@ -52,8 +52,6 @@ const SleepGateArc: React.FC<SleepGateArcProps> = ({ data }) => {
     update(); const iv = setInterval(update, 60000); return () => clearInterval(iv);
   }, []);
 
-  // Arc thickness driven by sleep debt
-  const debtWidth = data.sleepDebtLevel === 'high' ? 16 : data.sleepDebtLevel === 'moderate' ? 9 : 4;
   const gateAngle = timeToAngle(data.gateH, data.gateM);
   const confStartAngle = timeToAngle(data.gateH, Math.max(0, data.gateM - data.confidenceMinutes));
   const confEndAngle = timeToAngle(data.gateH, Math.min(59, data.gateM + data.confidenceMinutes));
@@ -81,7 +79,7 @@ const SleepGateArc: React.FC<SleepGateArcProps> = ({ data }) => {
         {/* Layer 1: Base dashed arc */}
         <path d={describeArc(cx, cy, r, aBaseStart, aBaseEnd)} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth="2" strokeLinecap="round" strokeDasharray="1 6"/>
 
-        {/* Layer 2: Circadian zone arcs with debt-driven thickness */}
+        {/* Layer 2: Circadian zone arcs */}
         {data.zones.map(zone => {
           const sa = timeToAngle(zone.startH, zone.startM);
           const ea = timeToAngle(zone.endH, zone.endM);
@@ -96,7 +94,7 @@ const SleepGateArc: React.FC<SleepGateArcProps> = ({ data }) => {
               <motion.path initial={{ pathLength: 0, opacity: 0 }} animate={{ pathLength: 1, opacity: 1 }}
                 transition={{ duration: 1.4, ease: 'easeOut' }}
                 d={describeArc(cx, cy, r, sa, ea)} fill="none"
-                stroke={zone.color} strokeWidth={debtWidth}
+                stroke={zone.color} strokeWidth="8"
                 strokeLinecap="round" filter="url(#glow)"/>
               {/* Invisible wider hit area */}
               <path d={describeArc(cx, cy, r, sa, ea)} fill="none" stroke="transparent" strokeWidth="20" strokeLinecap="round"/>
@@ -106,7 +104,7 @@ const SleepGateArc: React.FC<SleepGateArcProps> = ({ data }) => {
 
         {/* Layer 6: Confidence window */}
         <path d={describeArc(cx, cy, r, confStartAngle, confEndAngle)} fill="none"
-          stroke="rgba(167,139,250,0.2)" strokeWidth={debtWidth + 8} strokeLinecap="round"/>
+          stroke="rgba(167,139,250,0.2)" strokeWidth="16" strokeLinecap="round"/>
 
         {/* Layer 1: Current time dot */}
         {currentAngle >= aBaseStart && currentAngle <= aBaseEnd && (
@@ -114,7 +112,13 @@ const SleepGateArc: React.FC<SleepGateArcProps> = ({ data }) => {
         )}
 
         {/* Layer 5: Chronotype label on arc */}
-        <text x={cx} y={cy - r - 10} textAnchor="middle" fill="rgba(129,140,248,0.7)" fontSize="7" fontWeight="700" letterSpacing="1">{data.chronotypeLabel.toUpperCase()}</text>
+        {/* Chronotype Label attached to gate */}
+        <text 
+          x={polarToCartesian(cx, cy, r + 16, gateAngle).x} 
+          y={polarToCartesian(cx, cy, r + 16, gateAngle).y} 
+          textAnchor="middle" fill="rgba(129,140,248,0.7)" fontSize="7" fontWeight="700" letterSpacing="1">
+          {data.chronotypeLabel.toUpperCase()}
+        </text>
 
         {/* Layer 6: Gate node with pulse */}
         <motion.g initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ delay: 0.8 }}>
@@ -242,29 +246,6 @@ export const SleepGateHero: React.FC<SleepGateHeroProps> = ({ logs, userName, cl
               </motion.div>
             )}
           </AnimatePresence>
-
-          {/* Circadian Sky — Layer 8 */}
-          {data && (
-            <div className="mt-8 w-full max-w-md">
-              <p className="text-[9px] font-black uppercase tracking-widest text-zinc-500 mb-2">Circadian Sky</p>
-              <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-                {[
-                  { time: '21:00', label: 'Dusk',       bg: 'from-orange-950/60 to-zinc-900' },
-                  { time: '22:00', label: 'Nightfall',  bg: 'from-indigo-950/80 to-zinc-900' },
-                  { time: `${String(data.gateH).padStart(2,'0')}:${String(data.gateM).padStart(2,'0')}`,
-                    label: 'Sleep Gate', bg: 'from-violet-950 to-zinc-900', active: true },
-                  { time: '01:00', label: 'Deep Night', bg: 'from-zinc-950 to-zinc-900' },
-                  { time: '02:00', label: 'Late Night', bg: 'from-zinc-950 to-black' },
-                ].map(sky => (
-                  <div key={sky.time}
-                    className={`flex-shrink-0 w-20 rounded-xl bg-gradient-to-b ${sky.bg} p-2 flex flex-col items-center justify-end h-24 border ${sky.active ? 'border-violet-500/60' : 'border-zinc-800'}`}>
-                    <p className={`text-[11px] font-black ${sky.active ? 'text-violet-300' : 'text-zinc-400'}`}>{sky.time}</p>
-                    <p className={`text-[9px] font-bold uppercase tracking-wider mt-1 text-center ${sky.active ? 'text-violet-400/70' : 'text-zinc-600'}`}>{sky.label}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
 
           {/* Bottom metrics strip */}
           {data && (

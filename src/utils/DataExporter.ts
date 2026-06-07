@@ -1,10 +1,13 @@
 import ExcelJS from 'exceljs';
+import JSZip from 'jszip';
 import { format, parseISO, addDays } from 'date-fns';
 import { 
   collection, 
   getDocs, 
   query, 
-  orderBy 
+  orderBy,
+  doc,
+  getDoc
 } from 'firebase/firestore';
 import { User } from 'firebase/auth';
 import { DailyLog } from '../types';
@@ -199,12 +202,7 @@ export const exportToExcel = async (logs: DailyLog[]) => {
   // Trigger file download
   const buffer = await workbook.xlsx.writeBuffer();
   const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-  const url = window.URL.createObjectURL(blob);
-  const anchor = document.createElement('a');
-  anchor.href = url;
-  anchor.download = `sia_sleep_export_${format(new Date(), 'yyyyMMdd')}.xlsx`;
-  anchor.click();
-  window.URL.revokeObjectURL(url);
+  return blob;
 };
 
 /**
@@ -217,5 +215,31 @@ export async function exportUserData(user: User, db: any) {
   const logsSnap = await getDocs(q);
   const logs = logsSnap.docs.map(d => d.data() as DailyLog);
   
-  await exportToExcel(logs);
+  const excelBlob = await exportToExcel(logs);
+
+  const zip = new JSZip();
+  zip.file('sleep_logs.xlsx', excelBlob as any);
+
+  try {
+    const profileSnap = await getDoc(doc(db, 'users', user.uid, 'personalization', 'profile'));
+    if (profileSnap.exists()) zip.file('profile.json', JSON.stringify(profileSnap.data(), null, 2));
+
+    const consentSnap = await getDoc(doc(db, 'users', user.uid, 'consent', 'v1'));
+    if (consentSnap.exists()) zip.file('consent.json', JSON.stringify(consentSnap.data(), null, 2));
+
+    const insightsSnap = await getDocs(collection(db, 'users', user.uid, 'insights'));
+    if (!insightsSnap.empty) {
+      zip.file('insights.json', JSON.stringify(insightsSnap.docs.map(d => d.data()), null, 2));
+    }
+  } catch (err) {
+    console.error('Error fetching additional export data', err);
+  }
+
+  const zipBlob = await zip.generateAsync({ type: 'blob' });
+  const url = window.URL.createObjectURL(zipBlob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = `sia_data_export_${format(new Date(), 'yyyyMMdd')}.zip`;
+  anchor.click();
+  window.URL.revokeObjectURL(url);
 }

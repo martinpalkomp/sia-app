@@ -86,27 +86,40 @@ function computeSleepDebt(logs: DailyLog[]): { hours: number; level: DebtLevel }
 
 function buildZones(gateH: number, gateM: number): CircadianZone[] {
   const gateMin = gateH * 60 + gateM;
-  const windDownEnd = gateMin - 45;
-  const melatoninStart = gateMin - 105;
+  const wdEnd = gateMin - 90;
+  const melEnd = gateMin - 30;
+  const gateEnd = gateMin + 30;
+  const deepEnd = gateMin + 210;
+
+  const toHM = (totalM: number) => {
+    const norm = (totalM + 1440) % 1440;
+    return { h: Math.floor(norm / 60), m: norm % 60 };
+  };
+
+  const wd = toHM(wdEnd);
+  const mel = toHM(melEnd);
+  const gate = toHM(gateEnd);
+  const ds = toHM(deepEnd);
+
   return [
-    { id: 'wind-down',   label: 'Wind Down',            startH: 20, startM: 0,
-      endH: Math.floor(melatoninStart / 60), endM: melatoninStart % 60,
+    { id: 'wind-down',   label: 'Wind Down',            startH: 18, startM: 0,
+      endH: wd.h, endM: wd.m,
       description: 'Reduce stimulation. Dim lights. No screens after this point.',
       color: 'rgba(96,165,250,0.55)', glowColor: 'rgba(96,165,250,0.25)' },
-    { id: 'melatonin',   label: 'Melatonin Rise',        startH: Math.floor(melatoninStart / 60), startM: melatoninStart % 60,
-      endH: Math.floor((gateMin - 45) / 60), endM: (gateMin - 45) % 60,
+    { id: 'melatonin',   label: 'Melatonin Rise',        startH: wd.h, startM: wd.m,
+      endH: mel.h, endM: mel.m,
       description: 'Body temperature begins to fall. Screens and bright light have the greatest effect during this phase.',
       color: 'rgba(129,140,248,0.75)', glowColor: 'rgba(129,140,248,0.3)' },
-    { id: 'sleep-gate',  label: 'Sleep Gate',            startH: Math.floor((gateMin - 45) / 60), startM: (gateMin - 45) % 60,
-      endH: Math.floor((gateMin + 45) / 60), endM: (gateMin + 45) % 60,
+    { id: 'sleep-gate',  label: 'Sleep Gate',            startH: mel.h, startM: mel.m,
+      endH: gate.h, endM: gate.m,
       description: 'Your optimal transition window. Sleep pressure peaks. This is your biological sleep gate.',
       color: 'rgba(167,139,250,1.0)', glowColor: 'rgba(167,139,250,0.45)' },
-    { id: 'deep-sleep',  label: 'Deep Sleep Opportunity', startH: Math.floor((gateMin + 45) / 60), startM: (gateMin + 45) % 60,
-      endH: 1, endM: 30,
+    { id: 'deep-sleep',  label: 'Deep Sleep Opportunity', startH: gate.h, startM: gate.m,
+      endH: ds.h, endM: ds.m,
       description: 'SWS (slow-wave sleep) window. Missing this phase increases cortisol and reduces growth hormone release.',
       color: 'rgba(109,40,217,0.85)', glowColor: 'rgba(109,40,217,0.3)' },
-    { id: 'circadian',   label: 'Circadian Night',        startH: 1, startM: 30,
-      endH: 2, endM: 0,
+    { id: 'circadian',   label: 'Circadian Night',        startH: ds.h, startM: ds.m,
+      endH: 6, endM: 0,
       description: 'Biological night. Core body temperature at minimum. Maximum melatonin saturation.',
       color: 'rgba(88,28,135,0.5)', glowColor: 'rgba(88,28,135,0.2)' },
   ];
