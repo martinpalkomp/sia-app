@@ -34,6 +34,7 @@ import FeedbackForm from './FeedbackForm';
 import AdminFeedback from './AdminFeedback';
 import DevElementMap from './DevElementMap';
 import TierDetailsModal from './TierDetailsModal';
+import { AdminMasterPanel } from '../dev/AdminMasterPanel';
 import { calculateAge, getAgeDecade } from '../../utils/dateUtils';
 import { tierDetails } from '../../data/tierData';
 
@@ -126,8 +127,7 @@ export default function AccountPage({ onModifyAssessment, onRefresh }: { onModif
   const handleTierChange = async (newTier: string) => {
     try {
       // Protect role and tier: Only allow tier update if not changing role, and ensure role is not modified here.
-      const levelOverride = newTier === 'Pro' ? 3 : newTier === 'Enhanced' ? 2 : 1;
-      const updateData: any = { tier: newTier, levelOverride };
+      const updateData: any = { tier: newTier };
       
       // Explicitly ensure role is not in updateData
       delete updateData.role; 
@@ -135,7 +135,7 @@ export default function AccountPage({ onModifyAssessment, onRefresh }: { onModif
       await updateDoc(doc(db, 'users', user!.uid), updateData);
       setModal({
         isOpen: true,
-        message: `Tier changed to ${newTier} (Level ${levelOverride}). Please refresh.`,
+        message: `Tier changed to ${newTier}. Please refresh.`,
         onConfirm: () => {
           setModal({ ...modal, isOpen: false });
           onRefresh?.();
@@ -553,47 +553,12 @@ export default function AccountPage({ onModifyAssessment, onRefresh }: { onModif
           </div>
 
           {/* DEV SWITCHBOARD */}
-          <div className="mt-8 p-4 border-2 border-amber-500 rounded-2xl bg-amber-950/10">
-            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-500 mb-4">DEV SWITCHBOARD</h4>
-            
-            <div className="space-y-4">
-              <div>
-                <p className="text-[9px] font-bold text-amber-400 uppercase tracking-widest mb-2">User Tier</p>
-                <div className="grid grid-cols-3 gap-2">
-                  {['Basic', 'Enhanced', 'Pro'].map(t => (
-                    <button key={t} onClick={() => { localStorage.setItem('dev_tier', t); window.location.reload(); }} className="p-2 bg-zinc-800 hover:bg-zinc-700 rounded text-[10px] font-bold text-white uppercase">{t}</button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <p className="text-[9px] font-bold text-amber-400 uppercase tracking-widest mb-2">Maturity Level</p>
-                <div className="grid grid-cols-2 gap-2">
-                  {['Baseline', 'Trends', 'Deep', 'Advanced'].map(m => (
-                    <button key={m} onClick={() => { localStorage.setItem('dev_maturity', m); window.location.reload(); }} className="p-2 bg-zinc-800 hover:bg-zinc-700 rounded text-[10px] font-bold text-white uppercase">{m}</button>
-                  ))}
-                </div>
-              </div>
-
-              <button 
-                onClick={() => { localStorage.removeItem('dev_tier'); localStorage.removeItem('dev_maturity'); window.location.reload(); }}
-                className="w-full p-2 bg-red-900/20 hover:bg-red-900/40 text-red-400 rounded text-[10px] font-bold uppercase tracking-widest"
-              >
-                Reset to Real Data
-              </button>
-            </div>
-          </div>
-          <div className="mt-4 grid grid-cols-3 gap-2">
-            {['Basic', 'Enhanced', 'Pro'].map((tier) => (
-              <button
-                key={tier}
-                onClick={() => handleTierChange(tier)}
-                className="p-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-lg text-[10px] font-bold text-zinc-300 uppercase tracking-widest transition-all"
-              >
-                {tier}
-              </button>
-            ))}
-          </div>
+          <AdminMasterPanel
+            user={user}
+            userProfile={userProfile}
+            maturity={maturity}
+            onRefresh={() => onRefresh?.()}
+          />
         </div>
       )}
       

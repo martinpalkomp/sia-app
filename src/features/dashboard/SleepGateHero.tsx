@@ -15,11 +15,8 @@ interface SleepGateHeroProps {
 }
 
 const timeToAngle = (hours: number, minutes: number) => {
-  let totalMinutes = hours * 60 + minutes;
-  let shifted = totalMinutes - 18 * 60;
-  if (shifted < 0) shifted += 24 * 60;
-  const ratio = shifted / (12 * 60);
-  return -90 + ratio * 180;
+  const hNorm = hours >= 12 ? hours - 24 : hours;
+  return (hNorm + minutes / 60) * 15;
 };
 
 const polarToCartesian = (cx: number, cy: number, r: number, angle: number) => {
@@ -81,9 +78,17 @@ const SleepGateArc: React.FC<SleepGateArcProps> = ({ data }) => {
 
         {/* Layer 2: Circadian zone arcs */}
         {data.zones.map(zone => {
-          const sa = timeToAngle(zone.startH, zone.startM);
-          const ea = timeToAngle(zone.endH, zone.endM);
-          if (Math.abs(ea - sa) < 0.5) return null;
+          let sa = timeToAngle(zone.startH, zone.startM);
+          let ea = timeToAngle(zone.endH, zone.endM);
+          
+          if (ea - sa < 0.5) return null;
+          
+          // Gap for round caps to prevent overlapping
+          sa += 1.5;
+          ea -= 1.5;
+          
+          if (ea <= sa) return null; // segment too small
+
           const midAngle = (sa + ea) / 2;
           const midPos = polarToCartesian(cx, cy, r, midAngle);
           return (
@@ -102,10 +107,6 @@ const SleepGateArc: React.FC<SleepGateArcProps> = ({ data }) => {
           );
         })}
 
-        {/* Layer 6: Confidence window */}
-        <path d={describeArc(cx, cy, r, confStartAngle, confEndAngle)} fill="none"
-          stroke="rgba(167,139,250,0.2)" strokeWidth="16" strokeLinecap="round"/>
-
         {/* Layer 1: Current time dot */}
         {currentAngle >= aBaseStart && currentAngle <= aBaseEnd && (
           <circle cx={currentPos.x} cy={currentPos.y} r="3" fill="rgba(255,255,255,0.6)"/>
@@ -114,9 +115,9 @@ const SleepGateArc: React.FC<SleepGateArcProps> = ({ data }) => {
         {/* Layer 5: Chronotype label on arc */}
         {/* Chronotype Label attached to gate */}
         <text 
-          x={polarToCartesian(cx, cy, r + 16, gateAngle).x} 
-          y={polarToCartesian(cx, cy, r + 16, gateAngle).y} 
-          textAnchor="middle" fill="rgba(129,140,248,0.7)" fontSize="7" fontWeight="700" letterSpacing="1">
+          x={polarToCartesian(cx, cy, r + 18, gateAngle).x} 
+          y={polarToCartesian(cx, cy, r + 18, gateAngle).y} 
+          textAnchor="middle" alignmentBaseline="middle" fill="rgba(129,140,248,0.7)" fontSize="7" fontWeight="700" letterSpacing="1">
           {data.chronotypeLabel.toUpperCase()}
         </text>
 
@@ -284,10 +285,31 @@ export const SleepGateHero: React.FC<SleepGateHeroProps> = ({ logs, userName, cl
           )}
         </div>
         
-        <div className="order-1 md:order-2 flex justify-center md:justify-end cursor-pointer" onClick={onToggleFactors}>
+        <div className="order-1 md:order-2 flex justify-center md:justify-end cursor-pointer" onClick={data ? onToggleFactors : undefined}>
           {data ? <SleepGateArc data={data} /> : (
-            <div className="relative w-full max-w-[360px] mx-auto aspect-[2/1.3] flex flex-col justify-center items-center rounded-full bg-zinc-900/50 border border-zinc-800/50">
-               <p className="text-xs text-zinc-500 font-bold tracking-widest uppercase">Log data to unlock</p>
+            <div className="relative w-full max-w-[360px] mx-auto aspect-[2/1.3]">
+              <div className="absolute inset-0 opacity-20 pointer-events-none blur-[4px] select-none scale-[0.98]">
+                <SleepGateArc data={{
+                  gateH: 22, gateM: 30, confidenceMinutes: 30, confidenceLevel: 'low',
+                  chronotype: 'intermediate', chronotypeLabel: 'Awaiting Data',
+                  sleepDebtHours: 0, sleepDebtLevel: 'low', wakeConsistency: 'weak',
+                  logsAnalyzed: 0,
+                  zones: [
+                    { id: 'z1', label: 'Wind Down', startH: 21, startM: 0, endH: 22, endM: 0, description: '', color: 'rgba(56,189,248,0.5)', glowColor: '' },
+                    { id: 'z2', label: 'Night', startH: 22, startM: 0, endH: 3, endM: 0, description: '', color: 'rgba(88,28,135,0.5)', glowColor: '' }
+                  ],
+                  predictionFactors: { chronotype: '-', sleepDebt: '-', wakeConsistency: '-', logsAnalyzed: '0', eveningEnergy: '-', confidence: '-' },
+                  statusText: 'Calibrating Model...', minutesUntilGate: 0
+                }} />
+              </div>
+              <div className="absolute inset-0 flex flex-col items-center justify-center pt-[10%]">
+                <div className="bg-zinc-900/90 backdrop-blur-md rounded-2xl border border-zinc-700/50 p-5 px-6 flex flex-col items-center max-w-[240px] text-center shadow-2xl">
+                  <span className="text-[10px] font-black tracking-widest text-indigo-400 mb-2.5 uppercase">Intelligence Locked</span>
+                  <p className="text-xs text-zinc-300 font-medium leading-relaxed">
+                    SIA requires at least <strong className="text-white">1 sleep log</strong> to compute your biological circadian rhythm and project your <strong className="text-indigo-300">Sleep Gate</strong>.
+                  </p>
+                </div>
+              </div>
             </div>
           )}
         </div>
