@@ -88,8 +88,8 @@ export const GuideView: React.FC = () => {
           <div className="flex items-center gap-4 bg-[#0B0F17] border border-zinc-800/60 rounded-xl p-4 shadow-sm">
              <div className="text-zinc-500 hidden sm:block"><BookOpen size={24} /></div>
              <div>
-                <p className="font-black tracking-widest text-[9px] uppercase text-slate-400 mb-1">Science. Signals. Self.</p>
-                <p className="text-[10px] font-sans text-zinc-500">Everything in this guide is grounded in peer-reviewed research and aligned with the two laws of sleep.</p>
+                <p className="font-black tracking-widest text-[10px] md:text-xs uppercase text-slate-400 mb-1">Science. Signals. Self.</p>
+                <p className="text-xs md:text-sm font-sans text-zinc-500">Everything in this guide is grounded in peer-reviewed research and aligned with the two laws of sleep.</p>
              </div>
           </div>
         </div>
@@ -100,7 +100,7 @@ export const GuideView: React.FC = () => {
              <button
                key={tab.id}
                onClick={() => setActiveTab(tab.id)}
-               className={`whitespace-nowrap text-[9px] font-black tracking-widest uppercase pb-2 border-b-2 transition-colors ${
+               className={`whitespace-nowrap text-[10px] md:text-xs font-black tracking-widest uppercase pb-2 border-b-2 transition-colors ${
                  activeTab === tab.id 
                  ? 'text-white border-indigo-500' 
                  : 'text-zinc-600 border-transparent hover:text-zinc-400'
@@ -131,7 +131,7 @@ export const GuideView: React.FC = () => {
           <div className="flex flex-col items-center justify-center p-12 border border-zinc-800/50 border-dashed rounded-2xl h-[40vh]">
              <BookOpen size={24} className="text-zinc-700 mb-4" />
              <p className="text-zinc-500 text-xs font-mono uppercase tracking-widest">SIA Calibration in Progress</p>
-             <p className="text-zinc-600 text-[10px] mt-2">Section structure pending.</p>
+             <p className="text-zinc-600 text-xs lg:text-sm mt-2">Section structure pending.</p>
           </div>
         )}
       </div>

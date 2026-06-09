@@ -45,7 +45,7 @@ export const DashboardView: React.FC<{
   greeting: { prefix: string; suffix: string; showLogLink?: boolean; onLogClick?: () => void; };
   recentGadgets: string[];
   forecastMetrics?: { quality: number; alertness: number; energy: number } | null;
-  hasNinetyLogsInFiveMonths: boolean;
+  hasEnoughLogsForDeepAnalysis: boolean;
   quickInsight?: any;
   sleepGateData: SleepGateData | null;
   showGateFactors: boolean;
@@ -82,7 +82,7 @@ export const DashboardView: React.FC<{
   greeting,
   recentGadgets,
   forecastMetrics,
-  hasNinetyLogsInFiveMonths,
+  hasEnoughLogsForDeepAnalysis,
   quickInsight,
   sleepGateData,
   showGateFactors,
@@ -370,7 +370,7 @@ export const DashboardView: React.FC<{
           <section className="space-y-4 mt-8">
             <div className="flex items-center justify-between">
               <h2 className="font-black text-xs tracking-widest text-slate-400 uppercase mb-4">Clinical Insights</h2>
-              {dataMaturity?.level >= 3 && hasNinetyLogsInFiveMonths && !isDeepAnalysis && !deepAnalysisResult && (
+              {dataMaturity?.level >= 3 && hasEnoughLogsForDeepAnalysis && !isDeepAnalysis && !deepAnalysisResult && (
                 <button onClick={handleDeepAnalysis} className="text-[10px] text-zinc-500 hover:text-zinc-300 uppercase tracking-widest font-bold mb-4">
                   Refresh Analysis
                 </button>
@@ -385,13 +385,13 @@ export const DashboardView: React.FC<{
                   Deep Analysis reviews your entire sleep history to identify dominant long-term trends and deviations. 
                   It correlates your behavioral patterns with sleep quality over months of data. 
                   You will receive a highly actionable clinical protocol tailored to your unique biological rhythm. 
-                  This feature requires 90 logs in the past 5 months to ensure precision.
+                  This feature requires 14 logs in the past month to ensure precision.
                 </p>
                 <button onClick={() => onViewChange('account')} className="w-full md:w-auto py-3 px-6 bg-zinc-900 border border-indigo-500/30 text-indigo-400 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-900/20 transition-all flex items-center justify-center gap-2">
                   Upgrade to Enhanced
                 </button>
               </div>
-            ) : !hasNinetyLogsInFiveMonths ? (
+            ) : !hasEnoughLogsForDeepAnalysis ? (
               <div className="relative group">
                 <div className="absolute -inset-0.5 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-3xl opacity-20 group-hover:opacity-40 transition duration-500 blur"></div>
                 <Card className="relative bg-zinc-950 border border-zinc-800 p-6 flex flex-col md:flex-row items-center justify-between gap-6">
@@ -408,7 +408,7 @@ export const DashboardView: React.FC<{
                     disabled
                     className="w-full md:w-auto py-3 px-6 bg-zinc-900 border border-zinc-700 text-zinc-500 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2"
                   >
-                    Unlock at 90 Logs
+                    Unlock at 14 Logs
                   </button>
                 </Card>
               </div>

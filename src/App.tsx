@@ -110,7 +110,6 @@ import {
 import { calculateSafeAverage } from './utils/statsEngine';
 
 import Legal from './features/legal/Legal';
-import { DevSwitchboardMini } from './features/dev/DevSwitchboardMini';
 import CorrectionHub from './features/data/CorrectionHub';
 const AIInsightsAgent = lazy(() => import('./features/ai/AIInsightsAgent'));
 const DashboardContainer = lazy(() => import('./features/dashboard/DashboardContainer'));
@@ -870,6 +869,8 @@ export default function App() {
     return (currentLog.factors.sleepGadgets || []).find(g => g.type === type);
   };
 
+  const lastTouchTime = useRef<number>(0);
+
   const setSlotState = (index: number, state: SleepState) => {
     const newVisualTimeline = [...currentLog.visualTimeline];
     newVisualTimeline[index] = state;
@@ -877,8 +878,9 @@ export default function App() {
     updateLog({ visualTimeline: newVisualTimeline, sleepEvents: newEvents });
   };
 
-  const handleMouseDown = (index: number) => {
+  const handleMouseDown = (index: number, fromTouch = false) => {
     if (!isEditing) return;
+    if (!fromTouch && Date.now() - lastTouchTime.current < 500) return;
     setIsDragging(true);
     const currentState = currentLog.visualTimeline[index];
     const nextState = currentState === activeState ? 'awake-out' : activeState;
@@ -896,14 +898,14 @@ export default function App() {
 
   const handleTouchStart = (e: React.TouchEvent) => {
     if (!isEditing) return;
-    e.preventDefault();
+    lastTouchTime.current = Date.now();
     const target = e.target as HTMLElement;
     const element = target.closest('[data-slot-index]') as HTMLElement;
     if (element) {
       const indexAttr = element.getAttribute('data-slot-index');
       if (indexAttr !== null) {
         const index = parseInt(indexAttr);
-        handleMouseDown(index);
+        handleMouseDown(index, true);
       }
     }
   };
@@ -2441,7 +2443,6 @@ useEffect(() => {
                   Reset Day
                 </button>
               </div>
-              {import.meta.env.DEV && <DevSwitchboardMini key="log-switchboard" />}
             </motion.div>
           </AnimatePresence>
         </motion.div>
@@ -2460,7 +2461,6 @@ useEffect(() => {
               <Suspense fallback={<div className="flex items-center justify-center h-64"><div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"/></div>}>
                 <AIInsightsAgent onForecastUpdate={setForecastMetrics} />
               </Suspense>
-              {import.meta.env.DEV && <DevSwitchboardMini key="ai-switchboard" />}
             </motion.div>
           ) : view === 'legal' ? (
             <Legal onBack={() => setView('dashboard')} />
@@ -2683,13 +2683,12 @@ useEffect(() => {
                   periodType={view === 'monthly' ? '30-DAY' : view === 'custom' ? 'CUSTOM' : '7-DAY'}
                   personalizationProfile={personalizationProfile}
                   user={user}
-                  userProfile={userProfile}
+                  userProfile={{ ...userProfile, tier: derivedTier } as any}
                   activeDates={activeDates}
                   viewMode={view as 'weekly' | 'monthly' | 'custom'}
                   onViewChange={handleViewChange}
                 />
               </section>
-              {import.meta.env.DEV && <DevSwitchboardMini key="insights-switchboard" />}
             </motion.div>
           )}
         </AnimatePresence>

@@ -3,7 +3,7 @@ import { calculateSleepDuration, calculateSleepEfficiency, formatDuration } from
 import { calculateAge } from './dateUtils';
 import { format, parseISO } from 'date-fns';
 
-export function generateDoctorReport(
+export function generateProviderReport(
   logs: DailyLog[],
   personalizationProfile: PersonalizationProfile | null,
   userName: string,
@@ -211,7 +211,7 @@ export function generateDoctorReport(
 
         <div class="flex justify-between border-b" style="padding-bottom: 16px; margin-bottom: 32px;">
           <div style="flex:1;">
-            <div class="text-xs text-slate-500 uppercase tracking-widest font-bold">Patient</div>
+            <div class="text-xs text-slate-500 uppercase tracking-widest font-bold">User</div>
             <div class="font-bold text-sm">${userName}</div>
           </div>
           <div style="flex:1;">

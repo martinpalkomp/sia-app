@@ -93,6 +93,7 @@ const SleepGateArc: React.FC<SleepGateArcProps> = ({ data }) => {
           const midPos = polarToCartesian(cx, cy, r, midAngle);
           return (
             <g key={zone.id}
+              onClick={(e) => { e.stopPropagation(); if (hoveredZone?.id === zone.id) setHoveredZone(null); else { setHoveredZone(zone); setTooltipPos({ x: midPos.x, y: midPos.y }); } }}
               onMouseEnter={e => { setHoveredZone(zone); setTooltipPos({ x: midPos.x, y: midPos.y }); }}
               onMouseLeave={() => setHoveredZone(null)}
               className="cursor-pointer">
@@ -131,7 +132,7 @@ const SleepGateArc: React.FC<SleepGateArcProps> = ({ data }) => {
       </svg>
 
       {/* Gate time text */}
-      <div className="flex flex-col items-center justify-end pb-2 z-10 w-full" onClick={undefined}>
+      <div className="flex flex-col items-center justify-end pb-2 z-10 w-full pt-4">
         <motion.span initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.8 }}
           className="text-[10px] uppercase font-black tracking-[0.2em] text-indigo-300">Sleep Gate</motion.span>
         <motion.span initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 1.0 }}
@@ -254,7 +255,11 @@ export const SleepGateHero: React.FC<SleepGateHeroProps> = ({ logs, userName, cl
               {[
                 { label: 'Sleep Pressure', value: data.sleepDebtLevel === 'high' ? 'High' : data.sleepDebtLevel === 'moderate' ? 'Moderate' : 'Low',
                   color: data.sleepDebtLevel === 'high' ? 'text-red-400' : data.sleepDebtLevel === 'moderate' ? 'text-amber-400' : 'text-emerald-400' },
-                { label: 'Optimal Window', value: `${String(Math.max(0, data.gateH * 60 + data.gateM - data.confidenceMinutes) % 1440 / 60 | 0).padStart(2,'0')}:${String((data.gateM - data.confidenceMinutes + 60) % 60).padStart(2,'0')} – ${String(data.gateH).padStart(2,'0')}:${String(Math.min(59, data.gateM + data.confidenceMinutes)).padStart(2,'0')}`, color: 'text-white' },
+                { label: 'Optimal Window', value: ((min) => {
+                  const ws = (min - data.confidenceMinutes + 1440) % 1440;
+                  const we = (min + data.confidenceMinutes) % 1440;
+                  return `${String(Math.floor(ws/60)).padStart(2,'0')}:${String(ws%60).padStart(2,'0')} – ${String(Math.floor(we/60)).padStart(2,'0')}:${String(we%60).padStart(2,'0')}`;
+                })(data.gateH * 60 + data.gateM), color: 'text-white' },
                 { label: 'Current Status', value: data.statusText.length > 22 ? data.statusText.substring(0, 22) + '…' : data.statusText, color: 'text-indigo-300' },
               ].map(m => (
                 <div key={m.label} className="rounded-xl bg-zinc-900/60 border border-zinc-800 p-2">
@@ -285,8 +290,18 @@ export const SleepGateHero: React.FC<SleepGateHeroProps> = ({ logs, userName, cl
           )}
         </div>
         
-        <div className="order-1 md:order-2 flex justify-center md:justify-end cursor-pointer" onClick={data ? onToggleFactors : undefined}>
-          {data ? <SleepGateArc data={data} /> : (
+        <div className="order-1 md:order-2 flex flex-col items-center justify-center md:justify-end gap-2 md:mt-4">
+          {data ? (
+            <>
+              <SleepGateArc data={data} />
+              <button 
+                onClick={onToggleFactors}
+                className="mt-2 text-[10px] uppercase font-black tracking-widest text-zinc-500 hover:text-white transition-colors bg-zinc-900/40 hover:bg-zinc-800/40 border border-zinc-800 rounded-full px-5 py-2 cursor-pointer z-30 flex items-center justify-center gap-2"
+              >
+                Click to explore <span className="text-[8px] opacity-60">▼</span>
+              </button>
+            </>
+          ) : (
             <div className="relative w-full max-w-[360px] mx-auto aspect-[2/1.3]">
               <div className="absolute inset-0 opacity-20 pointer-events-none blur-[4px] select-none scale-[0.98]">
                 <SleepGateArc data={{

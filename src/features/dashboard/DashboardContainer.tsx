@@ -59,13 +59,12 @@ export default function DashboardContainer({
     return { level: 1, count: 0, label: 'Baseline', nextThreshold: 7 } as MaturityInfo;
   }, [externalMaturity, contextMaturity]);
 
-  const hasNinetyLogsInFiveMonths = useMemo(() => {
+  const hasEnoughLogsForDeepAnalysis = useMemo(() => {
+    if (dataMaturity?.level && dataMaturity.level >= 3) return true;
     if (!logs) return false;
-    const fiveMonthsAgo = new Date();
-    fiveMonthsAgo.setDate(fiveMonthsAgo.getDate() - 150);
     const logsArray = Object.values(logs);
-    return logsArray.filter(log => new Date(log.date) >= fiveMonthsAgo).length >= 90;
-  }, [logs]);
+    return logsArray.length >= 14;
+  }, [logs, dataMaturity]);
 
   const [showGateFactors, setShowGateFactors] = useState(false);
 
@@ -232,7 +231,7 @@ export default function DashboardContainer({
   const handleDeepAnalysis = async () => {
     if (!user || !userProfile || isAiLoading || !dataMaturity) return;
 
-    if (userProfile?.tier === 'Basic' || !hasNinetyLogsInFiveMonths) {
+    if (userProfile?.tier === 'Basic' || !hasEnoughLogsForDeepAnalysis) {
       setShowUnlockEnhanced(true);
       return;
     }
@@ -251,20 +250,26 @@ export default function DashboardContainer({
       });
 
       // Keeping Deep Analysis legacy until its moved to Domain Layer too
+      const cacheKey = `sia_deep_analysis_date_${user.uid}`;
+      const lastGenDate = sessionStorage.getItem(cacheKey);
+      
       const response = await generateDeepAnalysis(
         user.uid,
         historicalLogs,
         userProfile.tier as any,
         dataMaturity as any,
-        today
+        lastGenDate
       );
 
       if (response.status === 'success' && response.content) {
+        sessionStorage.setItem(cacheKey, today);
         setDeepAnalysisResult({
           summary: response.content.summary,
           recommendation: response.content.recommendation,
           confidence: response.content.confidence
         });
+      } else {
+        console.warn('Deep analysis did not succeed:', response.reason || 'Unknown error');
       }
     } catch (e) {
       console.error("Deep Analysis Error:", e);
@@ -422,7 +427,7 @@ export default function DashboardContainer({
       greeting={greeting}
       recentGadgets={recentGadgets}
       forecastMetrics={forecastMetrics}
-      hasNinetyLogsInFiveMonths={hasNinetyLogsInFiveMonths}
+      hasEnoughLogsForDeepAnalysis={hasEnoughLogsForDeepAnalysis}
       quickInsight={quickInsight}
       sleepGateData={sleepGateData}
       showGateFactors={showGateFactors}

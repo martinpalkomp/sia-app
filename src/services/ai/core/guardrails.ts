@@ -43,8 +43,8 @@ export const shouldTriggerAI = (
       if (userTier === 'Basic') {
         return { shouldTrigger: false, reason: "Deep Analysis requires Enhanced or Pro tier." };
       }
-      if (logsInTimeframeCount < 90) {
-        return { shouldTrigger: false, reason: "Deep Analysis requires 90 logs in the last 5 months." };
+      if (maturityLevel < 3) {
+        return { shouldTrigger: false, reason: "Deep Analysis requires Maturity Level 3 (at least 14 logs)." };
       }
       break;
     case 'DailyBrief':

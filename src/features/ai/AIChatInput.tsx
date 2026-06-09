@@ -64,7 +64,7 @@ export default function AIChatInput({
       { label: 'Trigger Map',     prompt: 'What are my top 3 confirmed sleep disruptors across all data?' },
       { label: 'Recovery Index',  prompt: 'Build a 4-week rolling recovery index from quality and efficiency.' },
       { label: 'Optimise Tonight',prompt: 'Based on all patterns, what one change would most improve tonight?' },
-      { label: 'Doctor Brief',    prompt: 'Summarise my sleep health concisely for a clinical consultation.' },
+      { label: 'Provider Brief',    prompt: 'Summarise my sleep health concisely for a clinical consultation.' },
       { label: 'Seasonal Shift',  prompt: 'Has my sleep quality or timing shifted across different months?' },
     ];
   

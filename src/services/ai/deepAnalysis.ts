@@ -23,16 +23,16 @@ export const generateDeepAnalysis = async (
 ): Promise<DeepAnalysisAIResponse> => {
     
     // Maturity Gate check if required
-    const fiveMonthsAgo = new Date();
-    fiveMonthsAgo.setDate(fiveMonthsAgo.getDate() - 150);
-    const logsInFiveMonthsCount = logs.filter(log => new Date(log.date) >= fiveMonthsAgo).length;
+    const oneMonthAgo = new Date();
+    oneMonthAgo.setDate(oneMonthAgo.getDate() - 30);
+    const logsInTimeframeCount = logs.filter(log => new Date(log.date) >= oneMonthAgo).length;
 
-    const guardrail = shouldTriggerAI(tier, maturity.level, logs.length, logsInFiveMonthsCount, 'DeepAnalysis', lastGeneratedDate);
+    const guardrail = shouldTriggerAI(tier, maturity.level, logs.length, logsInTimeframeCount, 'DeepAnalysis', lastGeneratedDate);
     if (!guardrail.shouldTrigger) {
       return { content: null, status: 'skipped', reason: guardrail.reason };
     }
 
-    const lightweightLogs = logs.slice(0, 90).map(log => {
+    const lightweightLogs = logs.slice(0, 30).map(log => {
       const { visualTimeline, sleepEvents, ...rest } = log;
       return rest;
     });
@@ -40,7 +40,7 @@ export const generateDeepAnalysis = async (
     const systemPrompt = `${SIA_ANALYSIS_PERSONA}\n\n${SIA_KNOWLEDGE_BASE}`;
 
     const prompt = `
-  Analyze ${logs.length} nights of sleep history (Longitudinal Layer, 90+ days): ${JSON.stringify(lightweightLogs)}
+  Analyze ${logs.length} nights of sleep history (Longitudinal Layer, 30 days): ${JSON.stringify(lightweightLogs)}
 
   Your goal is to provide a comprehensive Deep Analysis of the user's sleep patterns over the last several months.
   Focus on the most dominant long-term trends (e.g. chronotype inference, social jetlag, chronic sleep debt) 

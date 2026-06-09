@@ -12,7 +12,7 @@ import { ClipboardCheck, Share2, Info, Printer, FileText, Sparkles, Lock } from 
 import { formatDuration, getGridFromEvents, generateASCIIRibbon, generateASCIIRibbonHeader, calculateSleepEfficiency } from '../../utils/sleepUtils';
 import { format, parseISO } from 'date-fns';
 import PrintableReport from '../data/PrintableReport';
-import { generateDoctorReport } from '../../utils/generateDoctorReport';
+import { generateProviderReport } from '../../utils/generateProviderReport';
 import { User } from 'firebase/auth';
 
 interface SleepPatternCardProps {
@@ -98,10 +98,10 @@ const SleepPatternCard: React.FC<SleepPatternCardProps> = ({ logs, periodType, p
       viewMode === 'monthly' ? 'Last 30 Days' :
       `${from} to ${to}`;
 
-    const html = generateDoctorReport(
+    const html = generateProviderReport(
       activeLogs,
       personalizationProfile,
-      user?.displayName || 'Patient',
+      user?.displayName || 'User',
       { from, to, label: reportLabel }
     );
 
@@ -219,7 +219,7 @@ ${generateASCIIRibbonHeader()}
                     <Lock size={16} />
                   </div>
                   <div>
-                    <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Doctor PDF Export</p>
+                    <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Provider PDF Export</p>
                     <p className="text-[9px] text-zinc-500 font-medium">Enhanced or PRO tier required</p>
                   </div>
                 </div>

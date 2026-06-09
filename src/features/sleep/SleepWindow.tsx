@@ -53,6 +53,7 @@ export const SleepWindow: React.FC<SleepWindowProps> = ({
                 else if (state === 'awake-in') colorClass = 'bg-indigo-500';
 
                 const isHourStart = idx % 4 === 0;
+                const textColorClass = state === 'sleep' || state === 'awake-in' ? 'text-white font-black drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] z-10' : 'text-zinc-500 font-bold';
 
                 return (
                   <div
@@ -64,12 +65,12 @@ export const SleepWindow: React.FC<SleepWindowProps> = ({
                   >
                     <div className="absolute inset-0 opacity-0 group-hover:opacity-100 bg-white/5 pointer-events-none transition-opacity" />
                     {isEditing && (
-                      <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-zinc-800 text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 pointer-events-none z-50 whitespace-nowrap border border-zinc-700 shadow-xl">
+                      <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-zinc-800 text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 pointer-events-none z-50 whitespace-nowrap border border-zinc-700 shadow-xl text-zinc-200">
                         {getSlotLabel(idx)}
                       </div>
                     )}
                     {isHourStart && (
-                      <span className="text-[7px] text-zinc-400 font-mono font-bold pointer-events-none">
+                      <span className={`text-[9px] ${textColorClass} pointer-events-none`}>
                         {getSlotLabel(idx).split(':')[1] === '00' ? getSlotLabel(idx).split(':')[0] : ''}
                       </span>
                     )}

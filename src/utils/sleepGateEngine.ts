@@ -136,7 +136,7 @@ export function computeSleepGateData(logs: DailyLog[], maturityLevel: number): S
   let gateMin = avgBedtimeMin
     ? avgBedtimeMin + (chronotype === 'morning-lark' ? -30 : chronotype === 'night-owl' ? 30 : 0)
     : BASE_GATE_H * 60 + BASE_GATE_M;
-  gateMin = Math.min(Math.max(gateMin, 21 * 60), 25 * 60);
+  gateMin = Math.round(Math.min(Math.max(gateMin, 21 * 60), 25 * 60));
   const gateH = Math.floor(gateMin / 60) % 24;
   const gateM = gateMin % 60;
 
@@ -145,15 +145,26 @@ export function computeSleepGateData(logs: DailyLog[], maturityLevel: number): S
 
   const now = new Date();
   const nowMin = now.getHours() * 60 + now.getMinutes();
-  const gateMinNorm = gateMin > 24 * 60 ? gateMin - 24 * 60 : gateMin;
-  let minutesUntilGate = gateMinNorm - nowMin;
-  if (minutesUntilGate < -120) minutesUntilGate = null as any;
+  const gateMinNorm = gateMin % (24 * 60);
+  let diff = gateMinNorm - nowMin;
+  if (diff > 12 * 60) diff -= 24 * 60;
+  if (diff < -12 * 60) diff += 24 * 60;
+  let minutesUntilGate: number | null = diff;
+  if (minutesUntilGate < -120) minutesUntilGate = null;
+
+  const winStart = (gateMinNorm - confidenceMinutes + 1440) % 1440;
+  const winEnd = (gateMinNorm + confidenceMinutes) % 1440;
+  const wsH = Math.floor(winStart / 60);
+  const wsM = winStart % 60;
+  const weH = Math.floor(winEnd / 60);
+  const weM = winEnd % 60;
+  const windowStr = `${String(wsH).padStart(2,'0')}:${String(wsM).padStart(2,'0')} – ${String(weH).padStart(2,'0')}:${String(weM).padStart(2,'0')}`;
 
   const statusText = minutesUntilGate !== null && minutesUntilGate > 0
     ? `Entering your sleep gate in ${minutesUntilGate} min`
     : minutesUntilGate !== null && minutesUntilGate <= 0 && minutesUntilGate > -90
     ? 'You are in your sleep gate now'
-    : `Ideal window: ${String(gateH).padStart(2,'0')}:${String(Math.max(0, gateM - confidenceMinutes)).padStart(2,'0')} – ${String(gateH).padStart(2,'0')}:${String(Math.min(59, gateM + confidenceMinutes)).padStart(2,'0')}`;
+    : `Ideal window: ${windowStr}`;
 
   return {
     gateH, gateM, confidenceMinutes, confidenceLevel, chronotype,

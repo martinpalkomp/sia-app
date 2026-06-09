@@ -16,7 +16,7 @@ export const SystemModuleTab: React.FC<SystemModuleTabProps> = ({ title, descrip
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="space-y-12 max-w-4xl">
         <div className="max-w-2xl">
-          <h2 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">{title}</h2>
+          <h2 className="text-xs md:text-sm font-black uppercase tracking-widest text-slate-400 mb-2">{title}</h2>
           <p className="text-zinc-400 font-sans text-sm leading-relaxed">
             {description}
           </p>
@@ -37,7 +37,7 @@ export const SystemModuleTab: React.FC<SystemModuleTabProps> = ({ title, descrip
                   {/* Left Column: Number & Title */}
                   <div className="p-6 md:p-8 md:w-1/3 flex flex-col justify-center bg-[#111827]/30">
                     <div className="flex items-center gap-3 mb-4">
-                      <div className="text-[10px] font-black tracking-widest text-indigo-500 border border-indigo-500/20 bg-indigo-500/10 px-2 py-0.5 rounded">
+                      <div className="text-xs md:text-sm font-black tracking-widest text-indigo-500 border border-indigo-500/20 bg-indigo-500/10 px-2 py-0.5 rounded">
                         MOD {(i + 1).toString().padStart(2, '0')}
                       </div>
                     </div>
@@ -47,7 +47,7 @@ export const SystemModuleTab: React.FC<SystemModuleTabProps> = ({ title, descrip
                   {/* Right Column: Compartmentalized Data */}
                   <div className="p-6 md:p-8 flex-1 flex flex-col justify-center gap-6">
                     <div>
-                      <h4 className="text-[9px] font-black tracking-widest text-slate-500 uppercase mb-2">Core Principle</h4>
+                      <h4 className="text-[10px] md:text-xs font-black tracking-widest text-slate-500 uppercase mb-2">Core Principle</h4>
                       <p className="text-sm font-sans text-zinc-300 leading-relaxed">
                         {mainPrinciple}
                       </p>
@@ -55,8 +55,8 @@ export const SystemModuleTab: React.FC<SystemModuleTabProps> = ({ title, descrip
 
                     {details && (
                       <div className="pt-5 border-t border-zinc-800/50">
-                        <h4 className="text-[9px] font-black tracking-widest text-slate-500 uppercase mb-2">Key Detail / Impact</h4>
-                        <p className="text-[11px] font-sans text-zinc-400 leading-relaxed">
+                        <h4 className="text-[10px] md:text-xs font-black tracking-widest text-slate-500 uppercase mb-2">Key Detail / Impact</h4>
+                        <p className="text-xs md:text-sm font-sans text-zinc-400 leading-relaxed">
                           {details}
                         </p>
                       </div>
@@ -71,7 +71,7 @@ export const SystemModuleTab: React.FC<SystemModuleTabProps> = ({ title, descrip
              <div className="flex flex-col items-center justify-center p-12 border border-zinc-800/50 border-dashed rounded-2xl h-[30vh]">
                 <BookOpen size={24} className="text-zinc-700 mb-4" />
                 <p className="text-zinc-500 text-xs font-mono uppercase tracking-widest">SIA Calibration in Progress</p>
-                <p className="text-zinc-600 text-[10px] mt-2">Section structure pending.</p>
+                <p className="text-zinc-600 text-xs lg:text-sm mt-2">Section structure pending.</p>
              </div>
           )}
         </div>
