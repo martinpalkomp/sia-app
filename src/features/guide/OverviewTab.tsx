@@ -119,14 +119,14 @@ export const OverviewTab: React.FC<{ setActiveTab: (t: string) => void }> = ({ s
                 { step: '5', title: 'IMPROVEMENT', icon: <TrendingUp size={14} className="text-emerald-400" />, desc: 'Track progress and adapt recommendations over time' },
               ].map((item, i) => (
                 <div key={i} className="h-full border border-zinc-800/60 bg-[#0B0F17] rounded-xl p-4 flex flex-col justify-between z-10 relative group hover:border-zinc-700/80 transition-colors shadow-sm min-h-[220px]">
-                  <div>
-                    <div className="flex items-center gap-2 mb-3">
-                      <span className="text-[10px] md:text-xs font-mono text-zinc-500">{item.step}.</span>
-                      <h4 className="text-[10px] md:text-xs font-black tracking-widest text-slate-400 uppercase">{item.title}</h4>
+                  <div className="w-full min-w-0">
+                    <div className="mb-4 text-zinc-500 group-hover:text-zinc-300 transition-colors">{item.icon}</div>
+                    <div className="flex items-start gap-2 mb-2 w-full min-w-0">
+                      <span className="text-[10px] md:text-xs font-mono text-zinc-500 shrink-0">{item.step}.</span>
+                      <h4 className="text-[10px] md:text-xs font-black tracking-widest text-slate-400 uppercase break-words min-w-0 flex-1">{item.title}</h4>
                     </div>
-                    <div className="mb-4 text-zinc-400">{item.icon}</div>
                   </div>
-                  <p className="text-xs md:text-sm text-zinc-400 font-sans leading-relaxed pt-4 mt-auto">{item.desc}</p>
+                  <p className="text-xs md:text-sm text-zinc-400 font-sans leading-relaxed pt-2 mt-auto w-full">{item.desc}</p>
                 </div>
               ))}
               
@@ -152,8 +152,8 @@ export const OverviewTab: React.FC<{ setActiveTab: (t: string) => void }> = ({ s
                   className="h-full text-left border border-zinc-800/60 bg-[#0B0F17] hover:bg-[#111827] hover:border-zinc-700 transition-colors rounded-xl p-4 flex flex-col items-start gap-4 group shadow-sm"
                 >
                   <div className="text-zinc-500 group-hover:text-zinc-300 transition-colors">{topic.icon}</div>
-                  <div>
-                    <h4 className="text-[10px] md:text-xs font-black tracking-widest text-slate-400 uppercase mb-2">{topic.title}</h4>
+                  <div className="w-full min-w-0">
+                    <h4 className="text-[10px] md:text-xs font-black tracking-widest text-slate-400 uppercase mb-2 break-words min-w-0">{topic.title}</h4>
                     <p className="text-xs md:text-sm text-zinc-500 font-sans leading-relaxed line-clamp-3">{topic.desc}</p>
                   </div>
                 </button>

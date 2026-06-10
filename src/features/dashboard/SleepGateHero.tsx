@@ -69,8 +69,8 @@ const SleepGateArc: React.FC<SleepGateArcProps> = ({ data }) => {
 
       <svg viewBox="0 0 300 160" className="w-full h-full overflow-visible absolute top-0 left-0">
         <defs>
-          <filter id="glow"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-          <filter id="glow-strong"><feGaussianBlur stdDeviation="6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+          <filter id="glow" x="-50%" y="-50%" width="200%" height="200%" filterUnits="userSpaceOnUse"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+          <filter id="glow-strong" x="-50%" y="-50%" width="200%" height="200%" filterUnits="userSpaceOnUse"><feGaussianBlur stdDeviation="6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
         </defs>
 
         {/* Layer 1: Base dashed arc */}

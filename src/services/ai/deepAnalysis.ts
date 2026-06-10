@@ -1,45 +1,51 @@
-import { aiClient as siaClient } from './core/aiClient';
-import { DailyLog, UserTier } from '../../types';
-import { MaturityInfo } from './core/maturitySystem';
-import { shouldTriggerAI } from './core/guardrails';
-import { format } from 'date-fns';
-import { StructuredInsight } from './responseSchemas';
-import { SIA_KNOWLEDGE_BASE } from './core/knowledgeBase';
+import { aiClient as siaClient } from "./core/aiClient";
+import { DailyLog, UserTier } from "../../types";
+import { MaturityInfo } from "./core/maturitySystem";
+import { shouldTriggerAI } from "./core/guardrails";
+import { format } from "date-fns";
+import { StructuredInsight } from "./responseSchemas";
+import { SIA_KNOWLEDGE_BASE } from "./core/knowledgeBase";
+import { getLightweightLogsForAI } from "../../utils/sleepUtils";
 
-import { SIA_DISCLAIMER, SIA_ANALYSIS_PERSONA } from './aiConstants';
+import { SIA_DISCLAIMER, SIA_ANALYSIS_PERSONA } from "./aiConstants";
 
 export interface DeepAnalysisAIResponse {
   content: StructuredInsight | null;
-  status: 'success' | 'skipped';
+  status: "success" | "skipped";
   reason?: string;
 }
 
 export const generateDeepAnalysis = async (
-    userId: string, 
-    logs: DailyLog[], 
-    tier: UserTier, 
-    maturity: MaturityInfo, 
-    lastGeneratedDate: string | null
+  userId: string,
+  logs: DailyLog[],
+  tier: UserTier,
+  maturity: MaturityInfo,
+  lastGeneratedDate: string | null,
 ): Promise<DeepAnalysisAIResponse> => {
-    
-    // Maturity Gate check if required
-    const oneMonthAgo = new Date();
-    oneMonthAgo.setDate(oneMonthAgo.getDate() - 30);
-    const logsInTimeframeCount = logs.filter(log => new Date(log.date) >= oneMonthAgo).length;
+  // Maturity Gate check if required
+  const oneMonthAgo = new Date();
+  oneMonthAgo.setDate(oneMonthAgo.getDate() - 30);
+  const logsInTimeframeCount = logs.filter(
+    (log) => new Date(log.date) >= oneMonthAgo,
+  ).length;
 
-    const guardrail = shouldTriggerAI(tier, maturity.level, logs.length, logsInTimeframeCount, 'DeepAnalysis', lastGeneratedDate);
-    if (!guardrail.shouldTrigger) {
-      return { content: null, status: 'skipped', reason: guardrail.reason };
-    }
+  const guardrail = shouldTriggerAI(
+    tier,
+    maturity.level,
+    logs.length,
+    logsInTimeframeCount,
+    "DeepAnalysis",
+    lastGeneratedDate,
+  );
+  if (!guardrail.shouldTrigger) {
+    return { content: null, status: "skipped", reason: guardrail.reason };
+  }
 
-    const lightweightLogs = logs.slice(0, 30).map(log => {
-      const { visualTimeline, sleepEvents, ...rest } = log;
-      return rest;
-    });
+  const lightweightLogs = getLightweightLogsForAI(logs, 30);
 
-    const systemPrompt = `${SIA_ANALYSIS_PERSONA}\n\n${SIA_KNOWLEDGE_BASE}`;
+  const systemPrompt = `${SIA_ANALYSIS_PERSONA}\n\n${SIA_KNOWLEDGE_BASE}`;
 
-    const prompt = `
+  const prompt = `
   Analyze ${logs.length} nights of sleep history (Longitudinal Layer, 30 days): ${JSON.stringify(lightweightLogs)}
 
   Your goal is to provide a comprehensive Deep Analysis of the user's sleep patterns over the last several months.
@@ -61,47 +67,53 @@ export const generateDeepAnalysis = async (
   }
 `;
 
+  try {
+    const response = await siaClient.generateContent(prompt, {
+      systemInstruction: systemPrompt,
+      temperature: 0.2, // lowered
+      responseMimeType: "application/json",
+    });
+
+    const contentText = response.text || "{}";
+    let parsed: StructuredInsight;
     try {
-        const response = await siaClient.generateContent(prompt, {
-            systemInstruction: systemPrompt,
-            temperature: 0.2, // lowered
-            responseMimeType: "application/json"
-        });
-
-        const contentText = response.text || "{}";
-        let parsed: StructuredInsight;
-        try {
-            parsed = JSON.parse(contentText.replace(/```json/g, '').replace(/```/g, '').trim()) as StructuredInsight;
-        } catch {
-            parsed = { 
-                type: "Summary",
-                category: "General",
-                confidence: 0,
-                summary: "Unable to parse analysis.", 
-                recommendation: "Please try again later.", 
-                evidence: [],
-                severity: "low",
-                requiresFollowup: false
-            };
-        }
-
-        return { content: parsed, status: 'success' };
-    } catch (error: any) {
-        if (error.status === 503) {
-            return { 
-                content: { 
-                    type: "Summary",
-                    category: "General",
-                    confidence: 0,
-                    summary: "SIA is currently busy. Please try applying the pattern again in a few seconds.", 
-                    recommendation: "Wait a moment and refresh.", 
-                    evidence: [],
-                    severity: "low",
-                    requiresFollowup: false
-                }, 
-                status: 'success' 
-            };
-        }
-        throw error;
+      parsed = JSON.parse(
+        contentText
+          .replace(/```json/g, "")
+          .replace(/```/g, "")
+          .trim(),
+      ) as StructuredInsight;
+    } catch {
+      parsed = {
+        type: "Summary",
+        category: "General",
+        confidence: 0,
+        summary: "Unable to parse analysis.",
+        recommendation: "Please try again later.",
+        evidence: [],
+        severity: "low",
+        requiresFollowup: false,
+      };
     }
+
+    return { content: parsed, status: "success" };
+  } catch (error: any) {
+    if (error.status === 503) {
+      return {
+        content: {
+          type: "Summary",
+          category: "General",
+          confidence: 0,
+          summary:
+            "SIA is currently busy. Please try applying the pattern again in a few seconds.",
+          recommendation: "Wait a moment and refresh.",
+          evidence: [],
+          severity: "low",
+          requiresFollowup: false,
+        },
+        status: "success",
+      };
+    }
+    throw error;
+  }
 };

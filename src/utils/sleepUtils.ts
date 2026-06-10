@@ -1,5 +1,5 @@
-import { SleepState, SleepEvent } from '../types';
-import { format } from 'date-fns';
+import { SleepState, SleepEvent } from "../types";
+import { format } from "date-fns";
 
 /**
  * Generates a 96-slot ASCII ribbon from a SleepState array, grouped into 4-hour segments.
@@ -7,22 +7,27 @@ import { format } from 'date-fns';
 export const generateASCIIRibbon = (grid: SleepState[]): string => {
   const segments = [];
   for (let i = 0; i < 96; i += 16) {
-    const segment = grid.slice(i, i + 16).map(state => {
-      if (state === 'sleep') return '#';
-      if (state === 'awake-in') return '=';
-      return '.';
-    }).join('');
+    const segment = grid
+      .slice(i, i + 16)
+      .map((state) => {
+        if (state === "sleep") return "#";
+        if (state === "awake-in") return "=";
+        return ".";
+      })
+      .join("");
     segments.push(segment);
   }
-  return segments.join('|');
+  return segments.join("|");
 };
 
 /**
  * Generates the ASCII ribbon header.
  */
 export const generateASCIIRibbonHeader = (): string => {
-  const row1 = '           20:00           00:00           04:00           08:00           12:00           16:00     20:00';
-  const row2 = '           |-------4h------|-------4h------|-------4h------|-------4h------|-------4h------|-------4h------|';
+  const row1 =
+    "           20:00           00:00           04:00           08:00           12:00           16:00     20:00";
+  const row2 =
+    "           |-------4h------|-------4h------|-------4h------|-------4h------|-------4h------|-------4h------|";
   return `${row1}\n${row2}`;
 };
 
@@ -30,51 +35,65 @@ export const generateASCIIRibbonHeader = (): string => {
  * Maps HH:mm time to minutes from 20:00 (the start of our tracking day).
  */
 export const getMinutesFrom2000 = (time: string): number => {
-  if (!time || !time.includes(':')) return 0;
-  const [h, m] = time.split(':').map(Number);
+  if (!time || !time.includes(":")) return 0;
+  const [h, m] = time.split(":").map(Number);
   // 20:00 is the start of our tracking day
   return ((h + 24 - 20) % 24) * 60 + m;
 };
 
-export const calculateSleepDuration = (data: SleepState[] | SleepEvent[]): number => {
-  if (Array.isArray(data) && data.length > 0 && typeof data[0] === 'string') {
-    const sleepSlots = (data as SleepState[]).filter(s => s === 'sleep').length;
+export const calculateSleepDuration = (
+  data: SleepState[] | SleepEvent[],
+): number => {
+  if (Array.isArray(data) && data.length > 0 && typeof data[0] === "string") {
+    const sleepSlots = (data as SleepState[]).filter(
+      (s) => s === "sleep",
+    ).length;
     return sleepSlots * 0.25;
   }
-  
+
   if (Array.isArray(data)) {
     return (data as SleepEvent[]).reduce((acc, event) => {
-      if (event.type === 'sleep') {
+      if (event.type === "sleep") {
         const startMins = getMinutesFrom2000(event.start);
         const endMins = getMinutesFrom2000(event.end);
-        const duration = endMins < startMins ? (1440 - startMins + endMins) : (endMins - startMins);
-        return acc + (duration / 60);
+        const duration =
+          endMins < startMins
+            ? 1440 - startMins + endMins
+            : endMins - startMins;
+        return acc + duration / 60;
       }
       return acc;
     }, 0);
   }
-  
+
   return 0;
 };
 
-export const calculateTimeInBed = (data: SleepState[] | SleepEvent[]): number => {
-  if (Array.isArray(data) && data.length > 0 && typeof data[0] === 'string') {
-    const inBedSlots = (data as SleepState[]).filter(s => s === 'sleep' || s === 'awake-in').length;
+export const calculateTimeInBed = (
+  data: SleepState[] | SleepEvent[],
+): number => {
+  if (Array.isArray(data) && data.length > 0 && typeof data[0] === "string") {
+    const inBedSlots = (data as SleepState[]).filter(
+      (s) => s === "sleep" || s === "awake-in",
+    ).length;
     return inBedSlots * 0.25;
   }
-  
+
   if (Array.isArray(data)) {
     return (data as SleepEvent[]).reduce((acc, event) => {
-      if (event.type === 'sleep' || event.type === 'awake-in') {
+      if (event.type === "sleep" || event.type === "awake-in") {
         const startMins = getMinutesFrom2000(event.start);
         const endMins = getMinutesFrom2000(event.end);
-        const duration = endMins < startMins ? (1440 - startMins + endMins) : (endMins - startMins);
-        return acc + (duration / 60);
+        const duration =
+          endMins < startMins
+            ? 1440 - startMins + endMins
+            : endMins - startMins;
+        return acc + duration / 60;
       }
       return acc;
     }, 0);
   }
-  
+
   return 0;
 };
 
@@ -83,18 +102,20 @@ export const formatDuration = (hours: number): string => {
   const totalMinutes = Math.round(hours * 60);
   const h = Math.floor(totalMinutes / 60);
   const m = totalMinutes % 60;
-  
-  return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+
+  return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`;
 };
 
 export const snapTo15Min = (hours: number): number => {
   return Math.round(hours * 4) / 4;
 };
 
-export const calculateSleepEfficiency = (data: SleepState[] | SleepEvent[]): string => {
+export const calculateSleepEfficiency = (
+  data: SleepState[] | SleepEvent[],
+): string => {
   const sleepDuration = calculateSleepDuration(data);
   const inBedDuration = calculateTimeInBed(data);
-  
+
   if (inBedDuration === 0) return "0";
   return ((sleepDuration / inBedDuration) * 100).toFixed(1);
 };
@@ -106,16 +127,16 @@ export const calculateSleepEfficiency = (data: SleepState[] | SleepEvent[]): str
 // CRITICAL: 0 = 20:00, 48 = 08:00, 95 = 19:45
 export const timeToIndex = (time: string): number => {
   if (!time) return 0;
-  const t = /^\d:\d{2}$/.test(time.trim()) ? '0' + time.trim() : time.trim();
-  if (!t.includes(':')) return 0;
-  const [hours, minutes] = t.split(':').map(Number);
-  
+  const t = /^\d:\d{2}$/.test(time.trim()) ? "0" + time.trim() : time.trim();
+  if (!t.includes(":")) return 0;
+  const [hours, minutes] = t.split(":").map(Number);
+
   // Apply -20 hour offset logic
   // Use Math.floor to ensure time snaps to the beginning of the 15-min slot
   // e.g., 23:59 still belongs to the 23:45 slot (Index 15)
-  const index = (((hours + 24 - 20) % 24) * 4) + Math.floor(minutes / 15);
-  
-  // Boundary guard: 0-96. 
+  const index = ((hours + 24 - 20) % 24) * 4 + Math.floor(minutes / 15);
+
+  // Boundary guard: 0-96.
   // 96 represents the end of the 24h cycle (20:00 the next day).
   // This allows loops like i < endIdx to correctly cover the last slot (index 95).
   return Math.max(0, Math.min(96, index));
@@ -128,19 +149,21 @@ export const indexToTime = (index: number): string => {
   const totalMinutes = index * 15;
   const hours = (Math.floor(totalMinutes / 60) + 20) % 24;
   const minutes = totalMinutes % 60;
-  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+  return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
 };
 
 /**
  * Generates a 96-slot visual grid from an array of SleepEvents.
  */
-export const getGridFromEvents = (sleepEvents: SleepEvent[] = []): SleepState[] => {
-  const grid: SleepState[] = new Array(96).fill('awake-out');
-  
-  sleepEvents.forEach(event => {
+export const getGridFromEvents = (
+  sleepEvents: SleepEvent[] = [],
+): SleepState[] => {
+  const grid: SleepState[] = new Array(96).fill("awake-out");
+
+  sleepEvents.forEach((event) => {
     const startIdx = timeToIndex(event.start);
     const endIdx = timeToIndex(event.end);
-    
+
     // Handle events within the 20:00-20:00 window
     if (startIdx <= endIdx) {
       for (let i = startIdx; i < endIdx; i++) {
@@ -152,14 +175,17 @@ export const getGridFromEvents = (sleepEvents: SleepEvent[] = []): SleepState[] 
       for (let i = 0; i < endIdx; i++) grid[i] = event.type;
     }
   });
-  
+
   return grid;
 };
 
 /**
  * Converts a 96-slot grid back into a clean array of SleepEvents.
  */
-export const convertGridToEvents = (grid: SleepState[], date?: string): SleepEvent[] => {
+export const convertGridToEvents = (
+  grid: SleepState[],
+  date?: string,
+): SleepEvent[] => {
   const sleepEvents: SleepEvent[] = [];
   if (!grid || grid.length === 0) return [];
 
@@ -168,14 +194,16 @@ export const convertGridToEvents = (grid: SleepState[], date?: string): SleepEve
 
   for (let i = 0; i < 96; i++) {
     if (grid[i] !== currentType) {
-      if (currentType && currentType !== 'awake-out') {
+      if (currentType && currentType !== "awake-out") {
         const typeStr = currentType.toString();
-        const id = date ? `import-${date}-${typeStr}-${sleepEvents.length}` : crypto.randomUUID();
+        const id = date
+          ? `import-${date}-${typeStr}-${sleepEvents.length}`
+          : crypto.randomUUID();
         sleepEvents.push({
           id,
           type: currentType,
           start: indexToTime(startIdx),
-          end: indexToTime(i)
+          end: indexToTime(i),
         });
       }
       currentType = grid[i];
@@ -184,20 +212,26 @@ export const convertGridToEvents = (grid: SleepState[], date?: string): SleepEve
   }
 
   // Handle the last segment
-  if (currentType && currentType !== 'awake-out') {
+  if (currentType && currentType !== "awake-out") {
     const typeStr = currentType.toString();
     // Continuous Block Merging (Wrap-around):
     // If the last segment has the same type as the first event of the day (which starts at 20:00),
     // merge them into a single continuous event.
-    if (sleepEvents.length > 0 && sleepEvents[0].start === "20:00" && sleepEvents[0].type === currentType) {
+    if (
+      sleepEvents.length > 0 &&
+      sleepEvents[0].start === "20:00" &&
+      sleepEvents[0].type === currentType
+    ) {
       sleepEvents[0].start = indexToTime(startIdx);
     } else {
-      const id = date ? `import-${date}-${typeStr}-${sleepEvents.length}` : crypto.randomUUID();
+      const id = date
+        ? `import-${date}-${typeStr}-${sleepEvents.length}`
+        : crypto.randomUUID();
       sleepEvents.push({
         id,
         type: currentType,
         start: indexToTime(startIdx),
-        end: "20:00" // End of the tracking day
+        end: "20:00", // End of the tracking day
       });
     }
   }
@@ -208,21 +242,24 @@ export const convertGridToEvents = (grid: SleepState[], date?: string): SleepEve
 /**
  * Merges events into a 96-slot ledger where 'sleep' has priority over 'awake-in'.
  */
-export const generateSleepEventsLedger = (events: SleepEvent[], date?: string): SleepEvent[] => {
+export const generateSleepEventsLedger = (
+  events: SleepEvent[],
+  date?: string,
+): SleepEvent[] => {
   // Initialize with null/awake-out
-  const grid: SleepState[] = new Array(96).fill('awake-out');
-  
+  const grid: SleepState[] = new Array(96).fill("awake-out");
+
   // Sort events so 'sleep' comes last and thus overwrites 'awake-in'
   const sortedEvents = [...events].sort((a, b) => {
-    if (a.type === 'sleep' && b.type !== 'sleep') return 1;
-    if (a.type !== 'sleep' && b.type === 'sleep') return -1;
+    if (a.type === "sleep" && b.type !== "sleep") return 1;
+    if (a.type !== "sleep" && b.type === "sleep") return -1;
     return 0;
   });
 
-  sortedEvents.forEach(event => {
+  sortedEvents.forEach((event) => {
     const startIdx = timeToIndex(event.start);
     const endIdx = timeToIndex(event.end);
-    
+
     if (startIdx <= endIdx) {
       // Interval-Based Ownership: slot i is filled if event_start <= slot_start < event_end
       for (let i = startIdx; i < endIdx; i++) {
@@ -234,21 +271,47 @@ export const generateSleepEventsLedger = (events: SleepEvent[], date?: string): 
       for (let i = 0; i < endIdx; i++) grid[i] = event.type;
     }
   });
-  
+
   return convertGridToEvents(grid, date);
 };
 
 export const addMinutes = (timeStr: string, minutes: number): string => {
-  if (!timeStr || !timeStr.includes(':')) return timeStr;
-  const [h, m] = timeStr.split(':').map(Number);
+  if (!timeStr || !timeStr.includes(":")) return timeStr;
+  const [h, m] = timeStr.split(":").map(Number);
   const date = new Date(2000, 0, 1, h, m);
   date.setMinutes(date.getMinutes() + minutes);
-  return format(date, 'HH:mm');
+  return format(date, "HH:mm");
 };
 
 /**
  * Migration utility: Converts old timeline array to events ledger.
  */
-export const migrateTimelineToEvents = (timeline: SleepState[]): SleepEvent[] => {
+export const migrateTimelineToEvents = (
+  timeline: SleepState[],
+): SleepEvent[] => {
   return convertGridToEvents(timeline);
+};
+
+/**
+ * Creates lightweight log objects for AI by omitting heavy UI arrays
+ * but injecting an explicit 'sleepDurationFormatted' string to prevent LLM hallucination.
+ */
+export const getLightweightLogsForAI = (
+  logs: any[],
+  sliceCount: number = 14,
+) => {
+  return logs.slice(0, sliceCount).map((log) => {
+    const dataToCalculate =
+      log.sleepEvents && log.sleepEvents.length > 0
+        ? log.sleepEvents
+        : log.timeline || [];
+    const sleepHours = calculateSleepDuration(dataToCalculate);
+    const hours = Math.floor(sleepHours);
+    const mins = Math.round((sleepHours - hours) * 60);
+    const sleepDurationFormatted = `${hours}h ${mins}m`;
+
+    // Omit large UI-only arrays but preserve all other vital scores
+    const { visualTimeline, sleepEvents, timeline, ...rest } = log;
+    return { ...rest, sleepDurationFormatted };
+  });
 };

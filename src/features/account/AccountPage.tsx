@@ -1,6 +1,7 @@
 import React from 'react';
 import { useUser } from '../../context/UserContext';
 import { DevModal } from '../dev/DevModal';
+import { DevRawDataExporter } from '../dev/DevRawDataExporter';
 import { signOut, auth, db, doc, setDoc, onSnapshot, updateDoc } from '../../lib/firebase';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -539,6 +540,11 @@ export default function AccountPage({ onModifyAssessment, onRefresh }: { onModif
           <div className="mb-4">
             <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 ml-1">Developer Tools</h3>
           </div>
+          
+          <div className="mb-4">
+            <DevRawDataExporter userId={user!.uid} />
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <button 
               onClick={() => {
