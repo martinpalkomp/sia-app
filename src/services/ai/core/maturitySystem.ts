@@ -94,7 +94,7 @@ export class MaturitySystem {
       case 3: return "Provide deep multi-factor correlation analysis. Uncover specific behavioral and environmental triggers affecting sleep quality over a sustained multi-week period.";
       case 2: return "Provide trend-based analysis. Identify common factors between the best and worst nights over the week and note sleep consistency issues.";
       case 1:
-      default: return "Provide surface-level reflection. Summarize recent individual logs and encourage continued daily logging to unlock pattern recognition.";
+      default: return "Provide surface-level reflection. Summarize recent individual logs and state that continued daily logging is required to unlock pattern recognition.";
     }
   }
 
@@ -123,7 +123,7 @@ export class MaturitySystem {
   }
 
   static getTeaserRules(level: MaturityLevel): string {
-    if (level < 2) return "Not enough data for teasing patterns. Encourage logging.";
+    if (level < 2) return "Not enough data for teasing patterns. State that more logging is required.";
     return "Limit teaser to exactly 5 sentences. Hint at correlations without fully resolving them. End with a call to action to use pattern decoder.";
   }
 }

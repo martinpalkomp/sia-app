@@ -137,7 +137,10 @@ export interface AIInsight {
   category: 'sleep_quality' | 'efficiency' | 'consistency' | 'behavioral' | 'anomalies';
   confidence: 'high' | 'medium' | 'low';
   evidence: string[];
+  counterEvidence?: string[];
   recommendation: string;
+  limitations?: string[];
+  pattern?: string;
   timeframe: 'immediate' | 'short_term' | 'long_term';
   severity: 'critical' | 'warning' | 'info' | 'positive';
   summary: string;

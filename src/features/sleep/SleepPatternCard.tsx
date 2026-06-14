@@ -171,10 +171,10 @@ ${generateASCIIRibbonHeader()}
           <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">• {periodType}</span>
           <button 
             onClick={() => toggleTooltip('header')}
-            className="w-4 h-4 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-500 cursor-pointer relative"
+            className="w-4 h-4 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-500 cursor-pointer relative group/tooltip"
           >
             <span className="text-[10px]">i</span>
-            <div className={`absolute top-full left-0 mt-2 w-64 p-4 bg-zinc-900/95 border border-zinc-800 rounded-lg text-[11px] text-zinc-300 z-50 transition-opacity ${activeTooltip === 'header' ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} pointer-events-none`}>
+            <div className={`absolute top-full right-0 sm:right-auto sm:left-1/2 sm:-translate-x-1/2 mt-2 w-64 max-w-[85vw] p-4 bg-zinc-900/95 border border-zinc-800 rounded-lg text-[11px] text-zinc-300 z-50 transition-opacity ${activeTooltip === 'header' ? 'opacity-100' : 'opacity-0 group-hover/tooltip:opacity-100'} pointer-events-none text-left`}>
               This summary provides observations based on your logged data over the selected period.
             </div>
           </button>
@@ -190,10 +190,10 @@ ${generateASCIIRibbonHeader()}
               <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">{m.label}</span>
               <button 
                 onClick={() => toggleTooltip(m.label)}
-                className="w-4 h-4 rounded-full bg-zinc-700 flex items-center justify-center text-zinc-500 cursor-pointer relative"
+                className="w-4 h-4 rounded-full bg-zinc-700 flex items-center justify-center text-zinc-500 cursor-pointer relative group/tooltip"
               >
                 <span className="text-[8px]">i</span>
-                <div className={`absolute bottom-full left-0 mb-2 w-48 p-2 bg-zinc-800 text-[10px] text-zinc-300 rounded-lg transition-opacity ${activeTooltip === m.label ? 'opacity-100' : 'opacity-0 group-hover/tooltip:opacity-100'} pointer-events-none z-10 border border-zinc-700 shadow-xl`}>
+                <div className={`absolute bottom-full left-0 sm:left-1/2 sm:-translate-x-1/2 mb-2 w-48 max-w-[80vw] p-2 bg-zinc-800 text-[10px] text-zinc-300 rounded-lg transition-opacity ${activeTooltip === m.label ? 'opacity-100' : 'opacity-0 group-hover/tooltip:opacity-100'} pointer-events-none z-50 border border-zinc-700 shadow-xl text-left`}>
                   {m.desc}
                 </div>
               </button>

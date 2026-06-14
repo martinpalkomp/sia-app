@@ -1,10 +1,13 @@
 export interface StructuredInsight {
   type: "Pattern" | "Recommendation" | "Alert" | "Summary" | "Brief";
   category: "Circadian" | "Environment" | "Substance" | "Activity" | "Consistency" | "General";
-  confidence: number;
+  confidence: "high" | "medium" | "low";
   summary: string;
+  pattern?: string;
   recommendation?: string;
   evidence?: string[];
+  counterEvidence?: string[];
+  limitations?: string[];
   severity: "low" | "medium" | "high";
   requiresFollowup: boolean;
 }
@@ -14,7 +17,7 @@ export interface PatternTeaserResponse {
   correlation: string;
   factor: string;
   metric: string;
-  confidence: number;
+  confidence: "high" | "medium" | "low";
 }
 
 export interface DailyBriefResponse {
@@ -26,6 +29,6 @@ export interface DailyBriefResponse {
 export interface DeepAnalysisResponse {
   summary: string;
   recommendation: string;
-  confidence: number;
+  confidence: "high" | "medium" | "low";
   keyInsights: string[];
 }

@@ -20,14 +20,14 @@ export interface ChatContextPayload {
   unstructuredCache?: UnstructuredData[];
 }
 
-export const getAnalyzingLabel = (prompt: string): string => {
-  if (/last\s+7\s+days?|past\s+week/i.test(prompt)) return 'ANALYZING 7 DAYS';
-  if (/last\s+14\s+days?|past\s+two\s+weeks?/i.test(prompt)) return 'ANALYZING 14 DAYS';
-  if (/last\s+30\s+days?|past\s+month/i.test(prompt)) return 'ANALYZING 30 DAYS';
-  if (/last\s+90\s+days?|past\s+3\s+months?/i.test(prompt)) return 'ANALYZING 90 DAYS';
-  const match = prompt.match(/last\s+(\d+)\s+days?/i);
-  if (match) return `ANALYZING ${match[1]} DAYS`;
-  return `ANALYZING ALL DATA`;
+export const getAnalyzingLabel = (text: string): string => {
+  const t = text.toLowerCase();
+  if (t.includes('trend') || t.includes('pattern') || t.includes('week') || t.includes('month')) return 'RUNNING TEMPORAL ANALYSIS';
+  if (t.includes('caffeine') || t.includes('alcohol') || t.includes('exercise') || t.includes('factor')) return 'COMPUTING FACTOR CORRELATIONS';
+  if (t.includes('debt') || t.includes('recovery') || t.includes('pressure')) return 'CALCULATING SLEEP PRESSURE';
+  if (t.includes('chrono') || t.includes('gate') || t.includes('circadian')) return 'MAPPING CIRCADIAN PROFILE';
+  if (t.includes('brief') || t.includes('report') || t.includes('summary')) return 'COMPILING CLINICAL BRIEF';
+  return 'ANALYZING SLEEP DATA';
 };
 
 export const fetchHistoricalContext = async (uid: string) => {
@@ -97,6 +97,11 @@ export const handleAssistantResponse = async (
   const logsInLastMonthCount = (recentLogs || []).filter(log => new Date(log.date) >= oneMonthAgo).length;
   const today = format(new Date(), 'yyyy-MM-dd');
 
+  const MAX_HISTORY_TURNS = 12; // 6 user + 6 assistant = ~3000 tokens max
+  const truncatedHistory = ctx.history.length > MAX_HISTORY_TURNS
+    ? ctx.history.slice(-MAX_HISTORY_TURNS)
+    : ctx.history;
+
   const response = await chatWithSIA(
     ctx.userUid,
     text,
@@ -104,7 +109,7 @@ export const handleAssistantResponse = async (
     {
       clinicalBrief,
       personalizationProfile: profile,
-      history: ctx.history,
+      history: truncatedHistory,
       logsCount,
       logsInLastMonthCount
     },

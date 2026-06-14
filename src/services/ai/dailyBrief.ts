@@ -3,6 +3,7 @@ import { DailyLog, UserTier, AIInsight } from "../../types";
 import { calculateLogVitality } from "../../utils/correctionLogic";
 import { shouldTriggerAI } from "./core/guardrails";
 import { SIA_KNOWLEDGE_BASE } from "./core/knowledgeBase";
+import { SIA_FORMAT_REQUIREMENTS } from "./core/insightFormatter";
 import { getLightweightLogsForAI } from "../../utils/sleepUtils";
 
 import { SIA_DISCLAIMER, SIA_BRIEF_PERSONA } from "./aiConstants";
@@ -53,7 +54,7 @@ export const generateDailyBrief = async (
     return "SIA morning brief requires last night's data. Please log your sleep for the night before to unlock today's briefing.";
   }
 
-  const systemPrompt = `${SIA_BRIEF_PERSONA}\n\n${SIA_KNOWLEDGE_BASE}`;
+  const systemPrompt = `${SIA_BRIEF_PERSONA}\n\n${SIA_KNOWLEDGE_BASE}\n\n${SIA_FORMAT_REQUIREMENTS}`;
 
   const prompt = `
       Today's date is ${currentDate}.
@@ -63,16 +64,18 @@ export const generateDailyBrief = async (
 
       Follow the SIA_KNOWLEDGE_BASE strictly. No vague language. 
 
-      Return a JSON object in EXACTLY this format, which matches our AIInsight schema:
+      Return a JSON object in EXACTLY this format, which matches our AIInsight schema (do NOT include "confidence"):
       {
         "type": "daily_brief",
         "category": "sleep_quality",
-        "confidence": "high",
         "evidence": ["e.g. your efficiency dropped 5%"],
+        "counterEvidence": [],
+        "limitations": ["Small sample size"],
         "recommendation": "${tier !== "Basic" ? "Actionable protocol goes here" : ""}",
         "timeframe": "immediate",
         "severity": "info",
-        "summary": "1 sentence brief summary here. Plus 1 short sentence of context maximum. Be dense and restrained."
+        "summary": "1 sentence brief summary here. Plus 1 short sentence of context maximum. Be dense and restrained.",
+        "pattern": "Observed drop in efficiency"
       }
     `;
 
@@ -101,6 +104,8 @@ export const generateDailyBrief = async (
         .replace(/```/g, "")
         .trim(),
     );
+    
+    parsed.confidence = "high";
 
     if (db) {
       try {

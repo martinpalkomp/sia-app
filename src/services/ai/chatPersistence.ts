@@ -12,6 +12,7 @@ import {
   doc 
 } from '../../lib/firebase';
 import { Insight } from '../../types';
+import { calculateConfidence, calculateRecencyScore } from './core/evidenceEngine';
 
 export interface ChatMessage {
   role: 'user' | 'assistant';
@@ -66,9 +67,17 @@ export const saveAIInsights = async (userId: string, newInsights: any[]) => {
   const insightsRef = collection(db, 'users', userId, 'insights');
   
   const computeConfidence = (linkedDates: string[]): number => {
+    const daysAgoList = linkedDates.map(d => {
+      const ms = Date.now() - new Date(d).getTime();
+      return ms / (1000 * 60 * 60 * 24);
+    });
+    const recency = calculateRecencyScore(daysAgoList);
     const count = linkedDates.length;
-    if (count > 5) return 0.9;
-    if (count >= 2) return 0.65;
+    // Assuming 0 contradictions and full coverage for backwards compatibility
+    const conf = calculateConfidence(count, 0, recency, 1.0);
+    
+    if (conf === 'high') return 0.9;
+    if (conf === 'medium') return 0.65;
     return 0.3;
   };
 

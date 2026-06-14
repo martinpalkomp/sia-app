@@ -67,13 +67,22 @@ export default function AIChatInput({
       { label: 'Provider Brief',    prompt: 'Summarise my sleep health concisely for a clinical consultation.' },
       { label: 'Seasonal Shift',  prompt: 'Has my sleep quality or timing shifted across different months?' },
     ];
+    
+    const isEnhanced = t === 'Enhanced' || t === 'Pro';
+    const advancedPills = isEnhanced && maturityLevel >= 3 ? [
+      { label: 'Chronotype Report',  prompt: 'Based on my wake times and sleep onset patterns across my logs, define my chronotype with specific behavioral recommendations.' },
+      { label: 'Trigger Map',        prompt: 'Map the factors that most consistently precede my worst sleep nights. Rank by frequency and impact.' },
+      { label: 'Gadget Report',      prompt: 'Analyse the nights I used sleep gadgets versus nights I did not. What measurable difference did each device make?' },
+      { label: 'Recovery Index',     prompt: 'Compute my sleep recovery score for the last 14 days. Account for debt accumulation, consistency, and deep sleep indicators.' },
+      { label: 'Provider Brief',     prompt: 'Generate a clinical summary of my sleep patterns I could share with a healthcare provider. Include key metrics, concerning patterns, and timeline.' },
+    ] : [];
   
     const level4Basic = level3Basic;
-    const level4Enhanced = level3Enhanced;
+    const level4Enhanced = [...level3Enhanced, ...advancedPills];
   
     if (maturityLevel === 1) return level1;
     if (maturityLevel === 2) return (t === 'Basic') ? level2Basic : level2Enhanced;
-    if (maturityLevel === 3) return (t === 'Basic') ? level3Basic : level3Enhanced;
+    if (maturityLevel === 3) return (t === 'Basic') ? level3Basic : [...level3Enhanced, ...advancedPills];
     return (t === 'Basic') ? level4Basic : level4Enhanced;
   };
 

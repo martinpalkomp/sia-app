@@ -8,6 +8,7 @@ import { db } from '../../lib/firebase';
 
 import { SIA_DISCLAIMER, SIA_BASE_PERSONA, CONDITION_GUIDANCE } from './aiConstants';
 import { SIA_KNOWLEDGE_BASE } from './core/knowledgeBase';
+import { SIA_FORMAT_REQUIREMENTS } from './core/insightFormatter';
 
 export const chatWithSIA = async (
     userId: string, 
@@ -48,6 +49,9 @@ export const chatWithSIA = async (
       
       SIA_KNOWLEDGE_BASE (STRICT RULES):
       ${SIA_KNOWLEDGE_BASE}
+      
+      SIA_FORMAT_REQUIREMENTS:
+      ${SIA_FORMAT_REQUIREMENTS}
       
       DATA MATURITY: You are at Level ${maturity.level} (${maturity.label}).
       ${maturity.level === 1 ? "Only provide basic daily correlations. Avoid long-term trend analysis." : ""}
@@ -91,10 +95,12 @@ export const chatWithSIA = async (
         "newInsights": [
           {
             "type": "Pattern" | "Risk" | "Recommendation",
-            "confidence": 0.0 to 1.0,
             "summary": "Short 1-sentence takeaway",
             "details": "Optional longer explanation",
-            "linkedDates": ["YYYY-MM-DD", ...]
+            "linkedDates": ["YYYY-MM-DD", ...],
+            "evidence": ["...", "..."],
+            "counterEvidence": ["...", "..."],
+            "limitations": ["...", "..."]
           }
         ]
       }
@@ -123,12 +129,11 @@ export const chatWithSIA = async (
                     type: "OBJECT",
                     properties: {
                       type: { type: "STRING", enum: ["Pattern", "Risk", "Recommendation"] },
-                      confidence: { type: "NUMBER" },
                       summary: { type: "STRING" },
                       details: { type: "STRING" },
                       linkedDates: { type: "ARRAY", items: { type: "STRING" } }
                     },
-                    required: ["type", "confidence", "summary", "linkedDates"]
+                    required: ["type", "summary", "linkedDates"]
                   }
                 }
               },

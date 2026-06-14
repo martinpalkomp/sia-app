@@ -27,7 +27,7 @@ export const DashboardView: React.FC<{
   isEnhanced: boolean;
   isAiLoading: boolean;
   handleDeepAnalysis: () => void;
-  deepAnalysisResult?: { summary: string, recommendation: string, confidence: number } | null;
+  deepAnalysisResult?: { summary: string, recommendation: string, confidence: "high"|"medium"|"low" } | null;
   correctionsCount: number;
   selectedDate: string;
   onOpenPersonalization: () => void;
@@ -451,7 +451,7 @@ export const DashboardView: React.FC<{
                       <div className="bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded">
                         <span className="text-[9px] font-black uppercase tracking-widest text-emerald-400 flex items-center gap-2">
                           <Zap size={10} className="text-emerald-400" />
-                          {Math.round(deepAnalysisResult.confidence * 100)}% Confidence
+                          {deepAnalysisResult.confidence.toUpperCase()} CONFIDENCE
                         </span>
                       </div>
                     </div>

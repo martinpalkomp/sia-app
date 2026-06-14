@@ -77,7 +77,7 @@ export const MetricDisplay: React.FC<MetricDisplayProps> = ({ title, value, unit
           <span className="text-[8px]">i</span>
         </div>
         {showTooltip && (
-          <div className="absolute bottom-full left-0 mb-2 w-48 p-2 bg-zinc-900/90 border border-zinc-800 rounded-lg text-[10px] text-zinc-300 z-50">
+          <div className="absolute bottom-full left-0 sm:left-1/2 sm:-translate-x-1/2 mb-2 w-48 max-w-[80vw] p-2 bg-zinc-900/95 border border-zinc-700 shadow-xl rounded-lg text-[10px] text-zinc-300 z-50 text-left pointer-events-none">
             {title === 'Avg Quality' && "Composite score of sleep depth, cycles, and physical restoration."}
             {title === 'Restedness' && "Subjective recovery level and mental readiness upon waking."}
             {title === 'Avg Rested' && "Subjective recovery level and mental readiness upon waking."}

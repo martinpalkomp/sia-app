@@ -76,7 +76,7 @@ export default function DashboardContainer({
   }, [logs, dataMaturity.level]);
 
   const [insightTeaser, setInsightTeaser] = useState<string | AIInsight | null>(null);
-  const [deepAnalysisResult, setDeepAnalysisResult] = useState<{summary: string, recommendation: string, confidence: number} | null>(null);
+  const [deepAnalysisResult, setDeepAnalysisResult] = useState<{summary: string, recommendation: string, confidence: "high"|"medium"|"low"} | null>(null);
   const [dailyBrief, setDailyBrief] = useState<string | AIInsight | null>(null);
   const [insights, setInsights] = useState<any[]>([]);
   const [isAiLoading, setIsAiLoading] = useState(false);

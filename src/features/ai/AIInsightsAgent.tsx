@@ -40,7 +40,7 @@ export default function AIInsightsAgent({
     return () => unsubscribe();
   }, [user]);
 
-  const isEnhanced = !!personalizationProfile;
+  const isEnhanced = userProfile?.tier === 'Enhanced' || userProfile?.tier === 'Pro';
 
   const handleSend = async (text: string) => {
     if (!text.trim() || isLoading || !user || !userProfile || isProfileLoading) return;
@@ -52,7 +52,8 @@ export default function AIInsightsAgent({
     setAnalyzingLabel(getAnalyzingLabel(text));
 
     try {
-      const historyCtx = messages.slice(-6).map(m => ({
+      const MAX_HISTORY_TURNS = 12;
+      const historyCtx = messages.slice(-MAX_HISTORY_TURNS).map(m => ({
         role: m.role === 'user' ? 'user' : 'model' as 'user'|'model',
         parts: [{ text: m.content }]
       }));
@@ -108,7 +109,7 @@ export default function AIInsightsAgent({
           <div>
             <h3 className="text-xl md:text-2xl font-bold text-zinc-50 tracking-tight">Sleep Intelligence Agent</h3>
             <div className="flex items-center gap-2 mt-1">
-              <span className={`text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full border ${isEnhanced ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400' : 'bg-zinc-800 border-zinc-700 text-zinc-400'}`}>
+              <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border ${isEnhanced ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400' : 'bg-zinc-800 border-zinc-700 text-zinc-400'}`}>
                 {isEnhanced ? 'Enhanced Analysis' : 'Basic'}
               </span>
             </div>

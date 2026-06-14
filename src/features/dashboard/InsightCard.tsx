@@ -16,7 +16,7 @@ import { Card } from '../../components/UI';
 interface InsightCardProps {
   insight: Insight;
   tier?: 'Basic' | 'Enhanced' | 'Pro';
-  confidence?: number;
+  confidence?: number | "high" | "medium" | "low";
 }
 
 const getCategoryInfo = (insight: Insight) => {

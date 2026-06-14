@@ -6,7 +6,10 @@ import { format } from "date-fns";
 
 import { SIA_DISCLAIMER, SIA_CORRELATION_PERSONA } from "./aiConstants";
 import { SIA_KNOWLEDGE_BASE } from "./core/knowledgeBase";
+import { SIA_FORMAT_REQUIREMENTS } from "./core/insightFormatter";
 import { getLightweightLogsForAI } from "../../utils/sleepUtils";
+import { runDeterministicAnalysis } from "./core/preAnalysisEngine";
+import { evaluateEvidenceCount, generateCoverageSummary } from "./core/evidenceEngine";
 
 export interface AIResponse {
   content: string | null;
@@ -48,12 +51,49 @@ export const generatePatternDecoder = async (
     return { content: null, status: "skipped", reason: guardrail.reason };
   }
 
-  const lightweightLogs = getLightweightLogsForAI(logs, 30);
+  const recentLogs = logs.slice(0, 30);
+  const coverageReport = generateCoverageSummary(recentLogs);
+  
+  const evidenceStatus = evaluateEvidenceCount(recentLogs.length);
+  
+  if (evidenceStatus === 'insufficient') {
+    return {
+      content: "PATTERN:\nInsufficient evidence.\n\nEVIDENCE:\nOnly " + recentLogs.length + " observations available.\n\nRECOMMENDATION:\nNone.\n\nCONFIDENCE:\nlow.\n\nLIMITATIONS:\nInsufficient sample size." + (coverageReport.averageCoveragePercent < 0.25 ? "\nCoverage too limited for reliable analysis." : ""),
+      status: "success"
+    };
+  }
+
+  const findings = runDeterministicAnalysis(recentLogs);
+  
+  const topFinding = findings.sort((a,b) => {
+    const score = (val: string) => val === 'high' ? 3 : val === 'medium' ? 2 : 1;
+    return score(b.confidence) - score(a.confidence);
+  })[0];
+
+  if (topFinding && topFinding.contradictionRatio > 0.5) {
+     return {
+        content: `PATTERN:\nNo recommendation generated.\n\nRECOMMENDATION:\nNo recommendation generated.\n\nRATIONALE:\nContradictory observations exceed supporting observations.\n\nCONFIDENCE:\nlow\n\nLIMITATIONS:\nHigh contradiction rate.` + (coverageReport.averageCoveragePercent < 0.25 ? "\nCoverage too limited for reliable analysis." : ""),
+        status: "success"
+     };
+  }
 
   let promptText = `
-      Analyze recent sleep logs: ${JSON.stringify(lightweightLogs)}
-      Perform a Correlation Analysis on sleep data and lifestyle factors.
+      Perform a Correlation Analysis on sleep data and lifestyle factors based on the follow deterministically verified findings:
+      ${JSON.stringify(findings, null, 2)}
+      
+      Data Coverage Summary:
+      ${coverageReport.summaryString}
+      
+      Recency Summary:
+      ${topFinding ? topFinding.recencySummary : 'No findings available.'}
+      
+      Your role is ONLY to explain these findings, synthesize a summary, and provide a recommendation.
+      Do NOT invent new patterns. Only format and explain the verified findings.
     `;
+
+  if (evidenceStatus === 'emerging') {
+    promptText += `\n\nCRITICAL: Since this is an emerging pattern, your output MUST explicitly include the phrase: "Current evidence is insufficient to establish a stable pattern."`;
+  }
 
   if (tier === "Enhanced" || tier === "Pro") {
     promptText += `Deliver a "Correlative Insight" linking two metrics (e.g., lifestyle factor vs Heart Rate/Efficiency/Quality in REM).`;
@@ -62,7 +102,7 @@ export const generatePatternDecoder = async (
   }
 
   try {
-    const systemInstruction = `${SIA_CORRELATION_PERSONA}\n\n${SIA_KNOWLEDGE_BASE}`;
+    const systemInstruction = `${SIA_CORRELATION_PERSONA}\n\n${SIA_KNOWLEDGE_BASE}\n\n${SIA_FORMAT_REQUIREMENTS}`;
     const response = await siaClient.generateContent(promptText, {
       systemInstruction,
       temperature: 0.2,

@@ -5,6 +5,8 @@ import { getTimelineContext } from "./timelineContext";
 import { getTrendContext } from "./trendContext";
 import { getCorrelationContext } from "./correlationContext";
 import { calculateSleepDuration } from "../../../utils/sleepUtils";
+import { runDeterministicAnalysis } from "../core/preAnalysisEngine";
+import { generateCoverageSummary } from "../core/evidenceEngine";
 
 export function buildClinicalBrief(
   logs: DailyLog[],
@@ -18,6 +20,32 @@ export function buildClinicalBrief(
   const trends = getTrendContext(sortedLogs);
   const correlations = getCorrelationContext(sortedLogs);
   const behave = getBehavioralContext(sortedLogs);
+
+  const coverageReport = generateCoverageSummary(sortedLogs);
+  const findings = runDeterministicAnalysis(sortedLogs);
+  let aiDirectives = "";
+  let recencySummaryText = "No findings available for recency analysis.";
+  if (findings.length > 0) {
+    const topFinding = findings.sort((a,b) => {
+      const score = (val: string) => val === 'high' ? 3 : val === 'medium' ? 2 : 1;
+      return score(b.confidence) - score(a.confidence);
+    })[0];
+    
+    recencySummaryText = topFinding.recencySummary;
+    
+    if (topFinding.contradictionRatio > 0.5) {
+      aiDirectives = `
+CRITICAL DIRECTIVE:
+You MUST NOT generate any new behavioral recommendations.
+Contradictory observations exceed supporting observations (Contradiction rate: ${topFinding.contradictionRatio.toFixed(2)}).
+Any clinical recommendations MUST explicitly state: "No recommendation generated due to high contradiction rate."
+CONFIDENCE IS FORCED TO: low.`;
+    }
+  }
+
+  if (coverageReport.averageCoveragePercent < 0.25) {
+    aiDirectives += `\nCRITICAL DIRECTIVE:\nData coverage is too limited for reliable analysis. You MUST state: "Coverage too limited for reliable analysis."`;
+  }
 
   const recentNotes = unstructured
     .sort((a, b) => b.uploadDate.localeCompare(a.uploadDate))
@@ -48,6 +76,12 @@ PRIMARY PATTERNS:
 - Average Bedtime: ${timeline.logsWithBedtime > 0 ? timeline.formattedAvgBedtime : "Insufficient data"}
 - Consistency Score: ${timeline.consistencyScore.toFixed(0)}/100 (Bedtime Variance: ${Math.round(timeline.bedtimeVariance)} min²)
 - Data Completeness: ${timeline.logsWithBedtime} of 14 days logged
+
+DATA COVERAGE SUMMARY:
+${coverageReport.summaryString}
+
+RECENCY SUMMARY:
+${recencySummaryText}
 
 EFFICIENCY & QUALITY (LAST 7 DAYS averages):
 - Avg Sleep Efficiency: ${trends.avgEfficiency.toFixed(1)}% (Total Sleep vs. Total Time in Bed)
@@ -89,5 +123,6 @@ You are SIA (Sleep Intelligence Assistant). Use this Clinical Brief as your prim
 Prioritize efficiency and quality metrics over simple duration. 
 When the user asks questions about specific days or durations, refer strictly to the RAW DAILY METRICS section.
 When the user asks questions, cross-reference their 'Daily Remarks' with their 'Efficiency' drops to find hidden stressors.
+${aiDirectives}
 `.trim();
 }
