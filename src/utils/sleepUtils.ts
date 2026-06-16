@@ -310,8 +310,75 @@ export const getLightweightLogsForAI = (
     const mins = Math.round((sleepHours - hours) * 60);
     const sleepDurationFormatted = `${hours}h ${mins}m`;
 
+    let bedtime = null;
+    let wakeTime = null;
+    let awakeningCount = 0;
+    let sleepLatency = 0;
+
+    const events = log.sleepEvents || [];
+    if (events.length > 0) {
+      const inBedEvents = events.filter((e: any) => e.type === 'sleep' || e.type === 'awake-in');
+      if (inBedEvents.length > 0) {
+        bedtime = inBedEvents[0].start;
+        wakeTime = inBedEvents[inBedEvents.length - 1].end;
+      }
+      
+      const sleepOnly = events.filter((e: any) => e.type === 'sleep');
+      if (inBedEvents.length > 0 && sleepOnly.length > 0) {
+          const btMins = getMinutesFrom2000(inBedEvents[0].start);
+          const firstSleepMins = getMinutesFrom2000(sleepOnly[0].start);
+          sleepLatency = firstSleepMins >= btMins ? firstSleepMins - btMins : Math.max(0, firstSleepMins - btMins + 1440); // Shouldn't happen unless they sleep over 24h later
+      }
+      
+      if (sleepOnly.length > 0) {
+          const firstSleepIdx = events.findIndex((e: any) => e.type === 'sleep');
+          let lastSleepIdx = events.length - 1;
+          while (lastSleepIdx >= 0 && events[lastSleepIdx].type !== 'sleep') {
+              lastSleepIdx--;
+          }
+          for (let i = firstSleepIdx + 1; i < lastSleepIdx; i++) {
+              if (events[i].type === 'awake-in' || events[i].type === 'awake-out') {
+                  awakeningCount++;
+              }
+          }
+      }
+    } else if (log.timeline && log.timeline.length > 0) {
+      const t = log.timeline;
+      const firstInBed = t.findIndex((s: string) => s === 'sleep' || s === 'awake-in');
+      let lastInBed = t.length - 1;
+      while(lastInBed >= 0 && t[lastInBed] !== 'sleep' && t[lastInBed] !== 'awake-in') {
+          lastInBed--;
+      }
+      if (firstInBed !== -1) {
+          bedtime = indexToTime(firstInBed);
+          wakeTime = indexToTime(lastInBed + 1);
+          
+          const firstSleep = t.findIndex((s: string) => s === 'sleep');
+          if (firstSleep !== -1 && firstSleep >= firstInBed) {
+              sleepLatency = (firstSleep - firstInBed) * 15;
+          }
+          
+          if (firstSleep !== -1) {
+              let lastSleep = t.length - 1;
+              while(lastSleep >= 0 && t[lastSleep] !== 'sleep') lastSleep--;
+              
+              let currentAwakeBlock = false;
+              for (let i = firstSleep + 1; i < lastSleep; i++) {
+                  if (t[i] === 'awake-out' || t[i] === 'awake-in') {
+                      if (!currentAwakeBlock) {
+                          awakeningCount++;
+                          currentAwakeBlock = true;
+                      }
+                  } else {
+                      currentAwakeBlock = false;
+                  }
+              }
+          }
+      }
+    }
+
     // Omit large UI-only arrays but preserve all other vital scores
     const { visualTimeline, sleepEvents, timeline, ...rest } = log;
-    return { ...rest, sleepDurationFormatted };
+    return { ...rest, sleepDurationFormatted, bedtime, wakeTime, awakeningCount, sleepLatency };
   });
 };

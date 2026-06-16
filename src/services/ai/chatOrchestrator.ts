@@ -4,6 +4,7 @@ import { buildClinicalBrief } from './context/clinicalSummary';
 import { DailyLog, UnstructuredData } from '../../types';
 import { format } from 'date-fns';
 import { doc, getDoc, getDocs, collection, query, orderBy, limit, db } from '../../lib/firebase';
+import { detectUnavailableCapabilities } from './core/capabilityRegistry';
 
 import { UserTier } from '../../types';
 
@@ -75,6 +76,12 @@ export const handleAssistantResponse = async (
 
   // Save User msg immediately
   await saveChatMessage(ctx.userUid, 'user', text);
+
+  const capabilityError = detectUnavailableCapabilities(text);
+  if (capabilityError) {
+    await saveChatMessage(ctx.userUid, 'assistant', capabilityError);
+    return;
+  }
 
   // Use caches if available
   let recentLogs = ctx.logsCache;
