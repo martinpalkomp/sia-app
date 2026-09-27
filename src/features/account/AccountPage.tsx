@@ -24,12 +24,15 @@ import {
   TrendingUp,
   Moon,
   Camera,
-  X
+  X,
+  Download,
+  FileJson
 } from 'lucide-react';
 import { Card, AvatarFrame } from '../../components/UI';
 import DataMaturityTracker from '../data/DataMaturityTracker';
 import EthicalDataPledge from './EthicalDataPledge';
 import { purgeUserData } from '../../utils/devTools';
+import { exportUserData } from '../../utils/gdprExport';
 import DataManager from '../data/DataManager';
 import FeedbackForm from './FeedbackForm';
 import AdminFeedback from './AdminFeedback';
@@ -99,24 +102,38 @@ export default function AccountPage({ onModifyAssessment, onRefresh }: { onModif
     }
   };
 
-  const handlePurgeData = async () => {
+  const handleDownloadData = async () => {
+    try {
+      setModal({
+        isOpen: true,
+        message: "Compiling your data. The download will start shortly.",
+        onConfirm: () => setModal({ ...modal, isOpen: false }),
+      });
+      await exportUserData(user!.uid);
+    } catch (err) {
+      console.error(err);
+      setModal({
+        isOpen: true,
+        message: "Failed to compile data.",
+        onConfirm: () => setModal({ ...modal, isOpen: false }),
+      });
+    }
+  };
+
+  const handleDeleteAccount = async () => {
     setModal({
       isOpen: true,
-      message: "WARNING: This will permanently delete ALL your sleep history and raw data. This cannot be undone. Proceed?",
+      message: "WARNING (GDPR Right to be Forgotten): This will permanently delete your account, ALL your sleep history, and raw data. This action CANNOT be undone. Proceed?",
       onConfirm: async () => {
         setModal({ ...modal, isOpen: false });
         try {
           await purgeUserData(user!.uid, onRefresh);
-          setModal({
-            isOpen: true,
-            message: "Database Cleared. You are starting with a clean slate.",
-            onConfirm: () => setModal({ ...modal, isOpen: false }),
-          });
+          // Assuming user gets logged out automatically by firebase or we can reload
         } catch (error) {
           console.error("Purge error:", error);
           setModal({
             isOpen: true,
-            message: "Failed to purge data.",
+            message: "Failed to delete account.",
             onConfirm: () => setModal({ ...modal, isOpen: false }),
           });
         }
@@ -532,6 +549,44 @@ export default function AccountPage({ onModifyAssessment, onRefresh }: { onModif
             <ChevronRight size={20} className="text-indigo-400 group-hover:translate-x-1 transition-transform" />
           </button>
         )}
+      </div>
+
+      {/* GDPR & Privacy */}
+      <div className="pt-8 border-t border-zinc-800">
+        <div className="mb-4">
+          <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 ml-1">Data & Privacy (GDPR)</h3>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <button 
+            onClick={handleDownloadData}
+            className="w-full p-4 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-2xl flex items-center justify-between group transition-all"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 rounded-xl bg-zinc-800 flex items-center justify-center text-zinc-400 group-hover:text-indigo-400 transition-colors">
+                <Download size={20} />
+              </div>
+              <div className="text-left">
+                <div className="text-sm font-black text-white">Download My Data</div>
+                <div className="text-[10px] text-zinc-400 uppercase tracking-widest">Right to Access (Art. 15)</div>
+              </div>
+            </div>
+          </button>
+
+          <button 
+            onClick={handleDeleteAccount}
+            className="w-full p-4 bg-zinc-900 hover:bg-red-900/10 border border-zinc-800 hover:border-red-900/30 rounded-2xl flex items-center justify-between group transition-all"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 rounded-xl bg-zinc-800 flex items-center justify-center text-zinc-400 group-hover:text-red-500 transition-colors">
+                <Trash2 size={20} />
+              </div>
+              <div className="text-left">
+                <div className="text-sm font-black text-white">Delete Account</div>
+                <div className="text-[10px] text-zinc-400 uppercase tracking-widest">Right to be Forgotten (Art. 17)</div>
+              </div>
+            </div>
+          </button>
+        </div>
       </div>
 
       {/* Developer Tools */}

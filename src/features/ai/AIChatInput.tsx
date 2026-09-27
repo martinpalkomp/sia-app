@@ -14,6 +14,7 @@ interface AIChatInputProps {
   tier: UserTier;
   chatMessagesUsed: number;
   isLimitReached: boolean;
+  onShowPaywall: () => void;
 }
 
 export default function AIChatInput({
@@ -24,7 +25,8 @@ export default function AIChatInput({
   dataDepthCount,
   tier,
   chatMessagesUsed,
-  isLimitReached
+  isLimitReached,
+  onShowPaywall
 }: AIChatInputProps) {
   const [input, setInput] = useState('');
   const [isExpanded, setIsExpanded] = useState(false);
@@ -142,23 +144,37 @@ export default function AIChatInput({
             </div>
           </div>
         )}
-        <form onSubmit={handleSubmit} className="relative">
-          <input 
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder={isAnalyzing ? "SIA is thinking..." : "Ask about your sleep trends..."}
-            disabled={isLoading || isAnalyzing}
-            className="w-full bg-zinc-800 border border-zinc-700 rounded-2xl py-3 pl-4 pr-12 text-sm focus:outline-none focus:border-indigo-500 transition-colors disabled:opacity-50"
-          />
-          <button 
-            type="submit"
-            disabled={!input.trim() || isLoading || isAnalyzing}
-            className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-indigo-600 rounded-2xl flex items-center justify-center text-white disabled:opacity-50 disabled:bg-zinc-700 transition-all"
-          >
-            {isAnalyzing ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
-          </button>
-        </form>
+        {isLimitReached ? (
+          <div className="bg-zinc-800/80 border border-zinc-700 rounded-2xl py-3 px-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-sm">
+            <span className="text-zinc-400">You have reached your daily message limit.</span>
+            {tier !== 'Pro' && (
+              <button 
+                onClick={(e) => { e.preventDefault(); onShowPaywall(); }}
+                className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all"
+              >
+                Upgrade Plan
+              </button>
+            )}
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="relative">
+            <input 
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder={isAnalyzing ? "SIA is thinking..." : "Ask about your sleep trends..."}
+              disabled={isLoading || isAnalyzing}
+              className="w-full bg-zinc-800 border border-zinc-700 rounded-2xl py-3 pl-4 pr-12 text-sm focus:outline-none focus:border-indigo-500 transition-colors disabled:opacity-50"
+            />
+            <button 
+              type="submit"
+              disabled={!input.trim() || isLoading || isAnalyzing}
+              className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-indigo-600 rounded-2xl flex items-center justify-center text-white disabled:opacity-50 disabled:bg-zinc-700 transition-all"
+            >
+              {isAnalyzing ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+            </button>
+          </form>
+        )}
         
         {/* Quota Display */}
         <div className="mt-3 flex items-center justify-between px-1">
@@ -171,12 +187,15 @@ export default function AIChatInput({
               />
             </div>
             <span className="text-[10px] text-zinc-400 font-medium uppercase tracking-wide">
-              {chatMessagesUsed} / {ChatQuotaManager.getQuotaLimit(tier)} Messages
+              {chatMessagesUsed} / {ChatQuotaManager.getQuotaLimit(tier) === Infinity ? '∞' : ChatQuotaManager.getQuotaLimit(tier)} Messages
             </span>
           </div>
           
-          {tier === 'Basic' && (
-            <button className="text-[10px] text-indigo-400 font-semibold uppercase tracking-wide hover:text-indigo-300 transition-colors">
+          {tier !== 'Pro' && (
+            <button 
+              onClick={onShowPaywall}
+              className="text-[10px] text-indigo-400 font-semibold uppercase tracking-wide hover:text-indigo-300 transition-colors"
+            >
               Upgrade for More
             </button>
           )}

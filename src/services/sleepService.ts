@@ -2,6 +2,7 @@ import { db, doc, serverTimestamp, setDoc } from '../lib/firebase';
 import { DailyLog, SummaryLog } from '../types';
 import { handleFirestoreError, OperationType } from '../lib/errorHandling';
 import { sanitizeAndValidateLog } from '../utils/logSchema';
+import { AIStateManager } from './ai/AIStateManager';
 
 /**
  * Validates sleep metrics to ensure they are within clinical ranges.
@@ -72,6 +73,7 @@ export const saveLog = async (uid: string, logData: Partial<DailyLog> & { date: 
   // Assuming the document exists for updates.
   try {
     await setDoc(docRef, payload, { merge: true });
+    AIStateManager.invalidateAllForUser(uid);
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, `users/${uid}/sleep_logs/${date}`);
   }

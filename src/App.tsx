@@ -596,26 +596,23 @@ export default function App() {
     // Apply predicted sleep range if available
     let newTimeline = [...currentLog.visualTimeline];
     let sleepEvents = currentLog.sleepEvents;
+    let computedBedTime = currentLog.bedTime;
+    let computedWakeTime = currentLog.wakeTime;
+
     if (suggestion.sleepEvents && suggestion.sleepEvents.length > 0) {
-      const { start, end } = suggestion.sleepEvents[0];
+      const firstEvent = suggestion.sleepEvents[0];
+      const lastEvent =
+        suggestion.sleepEvents[suggestion.sleepEvents.length - 1];
 
-      // Update bedTime/wakeTime
-      currentLog.bedTime = start;
-      currentLog.wakeTime = end;
+      // Update bedTime/wakeTime to true in-bed and out-of-bed boundaries
+      computedBedTime = firstEvent.start;
+      computedWakeTime = lastEvent.end;
+      currentLog.bedTime = firstEvent.start;
+      currentLog.wakeTime = lastEvent.end;
 
-      // Clear existing sleep to avoid overlapping or messy timeline
-      for (let i = 0; i < TOTAL_SLOTS; i++) {
-        if (newTimeline[i] === "sleep") newTimeline[i] = "awake-out";
-      }
-
-      const startIdx = timeToIndex(start);
-      const endIdx = timeToIndex(end);
-
-      for (let i = startIdx; i < endIdx; i++) {
-        newTimeline[i] = "sleep";
-      }
-
-      sleepEvents = convertGridToEvents(newTimeline);
+      // Accurately construct visual timeline from multi-segment events (awake-in and sleep)
+      newTimeline = getGridFromEvents(suggestion.sleepEvents);
+      sleepEvents = [...suggestion.sleepEvents];
     }
 
     // Canonical String Fix: Ensure HH:mm format
@@ -630,14 +627,20 @@ export default function App() {
       ...currentLog, // Keep existing values
       factors: mergedFactors,
       daily_remarks: suggestion.daily_remarks || currentLog.daily_remarks,
-      bedTime: getFormattedTime(
-        (suggestion as any).bedTime,
-        (suggestion as any).bedTimeSlot,
-      ),
-      wakeTime: getFormattedTime(
-        (suggestion as any).wakeTime,
-        (suggestion as any).wakeTimeSlot,
-      ),
+      bedTime:
+        computedBedTime ||
+        getFormattedTime(
+          (suggestion as any).bedTime,
+          (suggestion as any).bedTimeSlot,
+        ) ||
+        currentLog.bedTime,
+      wakeTime:
+        computedWakeTime ||
+        getFormattedTime(
+          (suggestion as any).wakeTime,
+          (suggestion as any).wakeTimeSlot,
+        ) ||
+        currentLog.wakeTime,
       visualTimeline: newTimeline,
       sleepEvents: sleepEvents,
 

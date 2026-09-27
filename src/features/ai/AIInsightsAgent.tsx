@@ -8,6 +8,7 @@ import AIChatInput from './AIChatInput';
 import { ChatMessage, subscribeToChatHistory } from '../../services/ai/chatPersistence';
 import { handleAssistantResponse, getAnalyzingLabel, ChatContextPayload } from '../../services/ai/chatOrchestrator';
 import { DailyLog, UnstructuredData } from '../../types';
+import PaywallModal from '../account/PaywallModal';
 
 export default function AIInsightsAgent({
   onForecastUpdate
@@ -20,8 +21,9 @@ export default function AIInsightsAgent({
   const [isLoading, setIsLoading] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analyzingLabel, setAnalyzingLabel] = useState('');
-  const [isLimitReached, setIsLimitReached] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [showPaywall, setShowPaywall] = useState(false);
+  const isLimitReached = (userProfile?.quota?.chatMessagesUsed || 0) >= (userProfile?.tier === 'Pro' ? Infinity : (userProfile?.tier === 'Enhanced' ? 10 : 3));
 
   const cachedLogsRef = useRef<DailyLog[] | null>(null);
   const cachedUnstructuredRef = useRef<UnstructuredData[] | null>(null);
@@ -46,7 +48,6 @@ export default function AIInsightsAgent({
     if (!text.trim() || isLoading || !user || !userProfile || isProfileLoading) return;
     
     setErrorMsg(null);
-    setIsLimitReached(false);
     setIsLoading(true);
     setIsAnalyzing(true);
     setAnalyzingLabel(getAnalyzingLabel(text));
@@ -73,7 +74,7 @@ export default function AIInsightsAgent({
         unstructuredCache: cachedUnstructuredRef.current || undefined,
       };
 
-      await handleAssistantResponse(text, ctx, () => setIsLimitReached(true));
+      await handleAssistantResponse(text, ctx, () => setShowPaywall(true));
     } catch (error: any) {
       console.error("Chat orchestration error:", error);
       setErrorMsg("I'm sorry, I encountered an error. Please try again later.");
@@ -146,7 +147,17 @@ export default function AIInsightsAgent({
         tier={userProfile.tier}
         chatMessagesUsed={userProfile.quota?.chatMessagesUsed || 0}
         isLimitReached={isLimitReached}
+        onShowPaywall={() => setShowPaywall(true)}
       />
+
+      {showPaywall && (
+        <PaywallModal
+          isOpen={showPaywall}
+          onClose={() => setShowPaywall(false)}
+          userId={user.uid}
+          currentTier={userProfile.tier}
+        />
+      )}
     </div>
   );
 }

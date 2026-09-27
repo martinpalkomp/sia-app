@@ -4,9 +4,29 @@ import { DailyLog, UserProfile, AIInsight } from '../../types';
 
 export class AIStateManager {
   
+  static invalidateAllForUser(userId: string) {
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < sessionStorage.length; i++) {
+      const key = sessionStorage.key(i);
+      if (key && key.includes(`_${userId}_`)) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach(k => sessionStorage.removeItem(k));
+  }
+
   static invalidateCache(userId: string, targetDate: string) {
     sessionStorage.removeItem(`sia_brief_${userId}_${targetDate}`);
     sessionStorage.removeItem(`sia_insight_${userId}_${targetDate}`);
+    sessionStorage.removeItem(`sia_clinical_brief_${userId}_${targetDate}`);
+  }
+
+  static getClinicalBrief(userId: string, targetDate: string): string | null {
+    return sessionStorage.getItem(`sia_clinical_brief_${userId}_${targetDate}`);
+  }
+
+  static setClinicalBrief(userId: string, targetDate: string, brief: string) {
+    sessionStorage.setItem(`sia_clinical_brief_${userId}_${targetDate}`, brief);
   }
 
   static async syncDailyBrief(

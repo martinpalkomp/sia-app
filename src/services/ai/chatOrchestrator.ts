@@ -4,8 +4,10 @@ import { buildClinicalBrief } from './context/clinicalSummary';
 import { DailyLog, UnstructuredData } from '../../types';
 import { format } from 'date-fns';
 import { doc, getDoc, getDocs, collection, query, orderBy, limit, db } from '../../lib/firebase';
-import { detectUnavailableCapabilities } from './core/capabilityRegistry';
+import { canAnalyze } from './core/capabilityRegistry';
+import { routeChatIntent } from './core/intentRouter';
 
+import { AIStateManager } from './AIStateManager';
 import { UserTier } from '../../types';
 
 export interface ChatContextPayload {
@@ -63,23 +65,26 @@ export const handleAssistantResponse = async (
     return;
   }
 
-  const SLEEP_KEYWORDS = ['sleep','wake','tired','fatigue','rest','nap','insomnia','dream','bed','night','morning','energy','alert','caffeine','alcohol','exercise','stress','recovery','circadian','melatonin','apnea','snore','restless','quality','duration','log','pattern','habit','analyze','analysis','report','insight','score','data','week','month','trend','improve','recommend','health','wellness'];
+  // Save User msg immediately
+  await saveChatMessage(ctx.userUid, 'user', text);
 
-  if (!SLEEP_KEYWORDS.some(kw => text.toLowerCase().includes(kw))) {
+  const routerResponse = await routeChatIntent(text);
+
+  if (routerResponse.action === 'REFUSE') {
     await saveChatMessage(
       ctx.userUid, 
       'assistant', 
-      "That's outside my expertise! I'm SIA — I specialise in sleep science and recovery.\n\nFor general questions, **[Gemini](https://gemini.google.com)** is a great all-purpose assistant.\n\nCan I help with your sleep patterns or energy levels instead? 🌙"
+      routerResponse.reason || "I specialize in sleep science and recovery. I cannot assist with that topic."
     );
     return;
   }
 
-  // Save User msg immediately
-  await saveChatMessage(ctx.userUid, 'user', text);
-
-  const capabilityError = detectUnavailableCapabilities(text);
-  if (capabilityError) {
-    await saveChatMessage(ctx.userUid, 'assistant', capabilityError);
+  if (routerResponse.action === 'REDIRECT') {
+    await saveChatMessage(
+      ctx.userUid, 
+      'assistant', 
+      routerResponse.reason || "I focus on sleep and recovery, but we can explore how that relates to your rest."
+    );
     return;
   }
 
@@ -96,18 +101,33 @@ export const handleAssistantResponse = async (
       unstructuredData = unstructuredData !== undefined ? unstructuredData : fetched.fetchedUnstructured;
   }
 
-  const clinicalBrief = buildClinicalBrief(recentLogs || [], unstructuredData || []);
+  const today = format(new Date(), 'yyyy-MM-dd');
+
+  let clinicalBrief = AIStateManager.getClinicalBrief(ctx.userUid, today);
+  if (!clinicalBrief) {
+    clinicalBrief = buildClinicalBrief(recentLogs || [], unstructuredData || []);
+    AIStateManager.setClinicalBrief(ctx.userUid, today, clinicalBrief);
+  }
 
   const oneMonthAgo = new Date();
   oneMonthAgo.setDate(oneMonthAgo.getDate() - 30);
   const logsCount = recentLogs?.length || 0;
   const logsInLastMonthCount = (recentLogs || []).filter(log => new Date(log.date) >= oneMonthAgo).length;
-  const today = format(new Date(), 'yyyy-MM-dd');
 
   const MAX_HISTORY_TURNS = 12; // 6 user + 6 assistant = ~3000 tokens max
   const truncatedHistory = ctx.history.length > MAX_HISTORY_TURNS
     ? ctx.history.slice(-MAX_HISTORY_TURNS)
     : ctx.history;
+
+  const pipelineState = {
+    hasBedtime: (recentLogs || []).some((l: any) => l.bedTime || l.bedtime),
+    hasWakeTime: (recentLogs || []).some((l: any) => l.wakeTime),
+    hasAwakenings: (recentLogs || []).some((l: any) => (l.sleepEvents && l.sleepEvents.some((e: any) => e.type === 'awake-in' || e.type === 'awake-out')) || l.awakeningCount > 0),
+    hasAlcohol: (recentLogs || []).some((l: any) => l.factors?.alcohol?.consumed !== undefined && l.factors?.alcohol?.consumed !== null),
+    hasCaffeine: (recentLogs || []).some((l: any) => l.factors?.caffeine?.consumed !== undefined && l.factors?.caffeine?.consumed !== null),
+    hasStress: (recentLogs || []).some((l: any) => l.factors?.stressLevel !== undefined && l.factors?.stressLevel !== null),
+    hasExercise: (recentLogs || []).some((l: any) => l.factors?.exercise?.completed !== undefined && l.factors?.exercise?.completed !== null)
+  };
 
   const response = await chatWithSIA(
     ctx.userUid,
@@ -118,7 +138,8 @@ export const handleAssistantResponse = async (
       personalizationProfile: profile,
       history: truncatedHistory,
       logsCount,
-      logsInLastMonthCount
+      logsInLastMonthCount,
+      pipelineState
     },
     {
       level: ctx.dataDepthLevel as 1 | 2 | 3 | 4,

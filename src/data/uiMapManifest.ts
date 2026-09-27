@@ -710,7 +710,10 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
           { id: 'acc-modify-assessment-btn', name: 'Modify Assessment Button', tag: 'btn', description: 'Modify assessment', path: '/src/features/account/AccountPage.tsx', function: 'Re-opens wizard.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
           { id: 'acc-export-summary-btn', name: 'Export Summary Button', tag: 'btn', description: 'Downloads daily_trends_summary.csv.', path: '/src/features/account/AccountPage.tsx', function: 'Export gated by isEnhanced. Calls DataExporter utility.', tierDiff: 'Enhanced/Pro only', maturityDiff: null, aiUsed: 'No AI.', trigger: null, dependsOn: [] },
           { id: 'acc-export-deep-btn', name: 'Export Deep Architecture Button', tag: 'btn', description: 'Downloads deep_architecture.csv. Disabled for Basic tier.', path: '/src/features/account/AccountPage.tsx', function: 'Export data.', tierDiff: 'Enhanced/Pro only', maturityDiff: null, aiUsed: 'No AI.', trigger: null, dependsOn: [] },
-          { id: 'acc-delete-account-btn', name: 'Delete Account Button', tag: 'btn', description: 'Delete account', path: '/src/features/account/AccountPage.tsx', function: 'Available to all tiers.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
+        ]},
+        { id: 'acc-gdpr-section', name: 'Data & Privacy (GDPR) Section', tag: 'section', description: 'GDPR compliance section for downloading and deleting data', path: '/src/features/account/AccountPage.tsx', function: 'Provides right to access and right to be forgotten compliance.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [], children: [
+          { id: 'acc-download-data-btn', name: 'Download My Data Button', tag: 'btn', description: 'Downloads raw JSON data export', path: '/src/features/account/AccountPage.tsx', function: 'Triggers exportUserData utility.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
+          { id: 'acc-delete-account-btn', name: 'Delete Account Button', tag: 'btn', description: 'Delete account and purge all data', path: '/src/features/account/AccountPage.tsx', function: 'Available to all tiers. Triggers handleDeleteAccount.', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
         ]},
         { id: 'acc-dev-tools', name: 'Developer Tools Section', tag: 'section', description: 'Admin-only debugging and data management', path: '/src/features/account/AccountPage.tsx', function: 'Contains AdminMasterPanel (tier/maturity override), DevElementMap.', tierDiff: 'Only visible when userData.role === "admin". Section is hidden entirely for non-admins.', maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [], children: [
           { id: 'dev-raw-data-exporter', name: 'Raw Data Exporter', tag: 'comp', description: 'Administrative data export widget', path: '/src/features/dev/DevRawDataExporter.tsx', function: 'Fetch all Firestore collections into raw or jsonl output', tierDiff: null, maturityDiff: null, aiUsed: null, trigger: null, dependsOn: [] },
@@ -725,6 +728,17 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
     },
   ],
   Overlays: [
+    {
+      id: 'ovl-paywall-modal',
+      name: 'Paywall Modal',
+      tag: 'overlay',
+      description: 'Triggered when chat quota is reached or via UI upgrade CTAs. Allows upgrading tier.',
+      path: '/src/features/account/PaywallModal.tsx',
+      children: [
+        { id: 'ovl-paywall-modal-bg', name: 'Backdrop', tag: 'overlay', description: 'Modal backdrop', path: '/src/features/account/PaywallModal.tsx' },
+        { id: 'ovl-paywall-modal-panel', name: 'Panel', tag: 'overlay', description: 'Content panel with upgrade options', path: '/src/features/account/PaywallModal.tsx' },
+      ]
+    },
     {
       id: 'ovl-tier-details',
       name: 'Tier Details Modal',
@@ -755,6 +769,7 @@ export const UI_MAP_DATA: Record<string, UIElement[]> = {
       children: [
         { id: 'ovl-prefill-backdrop', name: 'Backdrop', tag: 'overlay', description: 'Modal backdrop', path: '/src/features/ai/SiaPatternReview.tsx' },
         { id: 'ovl-prefill-panel', name: 'Panel', tag: 'overlay', description: 'Content panel', path: '/src/features/ai/SiaPatternReview.tsx', children: [
+          { id: 'ovl-prefill-sleep-breakdown', name: 'Sleep Window Breakdown', tag: 'comp', description: 'Multi-segment sleep window breakdown displaying pre-sleep wind-down, core sleep, morning awake-in-bed states, and predicted efficiency.', path: '/src/features/ai/SiaPatternReview.tsx' },
           { id: 'ovl-factor-row', name: 'Factor Row', tag: 'comp', description: 'Data factor row', path: '/src/features/ai/SiaPatternReview.tsx' },
           { id: 'ovl-conf-badge', name: 'Confirmation Badge', tag: 'comp', description: 'Status badge. Colors: emerald (>=75%), indigo (>=50%), amber (<50%) based on confidence.', path: '/src/features/ai/SiaPatternReview.tsx' },
           { id: 'ovl-prefill-cancel', name: 'Cancel Button', tag: 'btn', description: 'Cancel action', path: '/src/features/ai/SiaPatternReview.tsx' },

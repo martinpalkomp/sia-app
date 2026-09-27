@@ -20,6 +20,7 @@ export const chatWithSIA = async (
       history: any[];
       logsCount: number;
       logsInLastMonthCount: number;
+      pipelineState?: any;
     },
     maturity: MaturityInfo,
     dailyBriefContent: string | null
@@ -63,6 +64,7 @@ export const chatWithSIA = async (
 
       USER CONTEXT:
       - Personalization: ${JSON.stringify(context.personalizationProfile)}
+      - Pipeline State (Data Availability): ${JSON.stringify(context.pipelineState || {})}
       ${(() => {
           const conditions = context.personalizationProfile?.demographics?.healthConditions;
           if (!conditions || conditions.length === 0) return '';

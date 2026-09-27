@@ -2,6 +2,7 @@ import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Check } from 'lucide-react';
 import { SuggestionResult } from '../../utils/patternEngine';
+import { calculateSleepEfficiency } from '../../utils/sleepUtils';
 
 interface SiaPatternReviewProps {
   isOpen: boolean;
@@ -46,9 +47,16 @@ export const SiaPatternReview: React.FC<SiaPatternReviewProps> = ({ isOpen, onCl
   const cm = suggestion.confidenceMap;
   const f = s.factors;
 
-  const sleepWindow = s.sleepEvents?.[0]
-    ? `${s.sleepEvents[0].start} → ${s.sleepEvents[0].end}`
-    : null;
+  const coreSleepEvent = s.sleepEvents?.find(e => e.type === 'sleep');
+  const preSleepEvent = s.sleepEvents?.find(e => e.type === 'awake-in' && coreSleepEvent && e.end === coreSleepEvent.start);
+  const postSleepEvent = s.sleepEvents?.find(e => e.type === 'awake-in' && coreSleepEvent && e.start === coreSleepEvent.end);
+  const hasMultiSegment = !!(preSleepEvent || postSleepEvent);
+
+  const sleepWindow = coreSleepEvent
+    ? `${coreSleepEvent.start} → ${coreSleepEvent.end}`
+    : s.sleepEvents?.[0]
+      ? `${s.sleepEvents[0].start} → ${s.sleepEvents[0].end}`
+      : null;
 
   const gadgets = f?.sleepGadgets?.length
     ? f.sleepGadgets.map(g => g.type.replace(/_/g, ' ')).join(', ')
@@ -108,12 +116,55 @@ export const SiaPatternReview: React.FC<SiaPatternReviewProps> = ({ isOpen, onCl
 
             <div className="space-y-5">
               {sleepWindow && (
-                <div>
-                  <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-2">Sleep Window</p>
-                  <div className="flex justify-between items-center bg-zinc-800/50 px-4 py-3 rounded-xl">
-                    <span className="text-sm font-mono font-bold text-white">{sleepWindow}</span>
+                <div id="ovl-prefill-sleep-breakdown">
+                  <div className="flex justify-between items-center mb-2">
+                    <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">
+                      {hasMultiSegment ? "Sleep Window & Routine" : "Sleep Window"}
+                    </p>
                     <ConfBadge value={cm['sleepEvents'] || 0} />
                   </div>
+                  {hasMultiSegment ? (
+                    <div className="bg-zinc-800/50 p-3.5 rounded-xl space-y-2">
+                      {preSleepEvent && (
+                        <div className="flex items-center justify-between text-xs">
+                          <div className="flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-indigo-500" />
+                            <span className="text-zinc-400 font-medium">In Bed (Wind-down)</span>
+                          </div>
+                          <span className="font-mono text-zinc-300 font-bold">{preSleepEvent.start} → {preSleepEvent.end}</span>
+                        </div>
+                      )}
+                      {coreSleepEvent && (
+                        <div className="flex items-center justify-between text-xs">
+                          <div className="flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-indigo-400" />
+                            <span className="text-white font-bold">Asleep</span>
+                          </div>
+                          <span className="font-mono text-white font-bold">{coreSleepEvent.start} → {coreSleepEvent.end}</span>
+                        </div>
+                      )}
+                      {postSleepEvent && (
+                        <div className="flex items-center justify-between text-xs">
+                          <div className="flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-indigo-500" />
+                            <span className="text-zinc-400 font-medium">Awake in Bed</span>
+                          </div>
+                          <span className="font-mono text-zinc-300 font-bold">{postSleepEvent.start} → {postSleepEvent.end}</span>
+                        </div>
+                      )}
+                      {s.sleepEvents && s.sleepEvents.length > 1 && (
+                        <div className="pt-2 border-t border-zinc-700/50 flex justify-between items-center text-[10px]">
+                          <span className="text-zinc-400 uppercase tracking-wider">Predicted Efficiency</span>
+                          <span className="font-mono font-bold text-emerald-400">{calculateSleepEfficiency(s.sleepEvents)}%</span>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="flex justify-between items-center bg-zinc-800/50 px-4 py-3 rounded-xl">
+                      <span className="text-sm font-mono font-bold text-white">{sleepWindow}</span>
+                      <span className="text-[10px] text-zinc-400 font-medium">Pure Sleep Window</span>
+                    </div>
+                  )}
                 </div>
               )}
 

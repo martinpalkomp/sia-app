@@ -3,6 +3,7 @@ import { DailyLog, SleepState } from '../types';
 import { saveLog as saveLogService } from '../services/sleepService';
 import { db, doc, deleteDoc } from '../lib/firebase';
 import { convertGridToEvents, getGridFromEvents, calculateSleepDuration, calculateTimeInBed } from '../utils/sleepUtils';
+import { AIStateManager } from '../services/ai/AIStateManager';
 
 interface SleepStore {
   logs: Record<string, DailyLog>;
@@ -66,6 +67,7 @@ export const useSleepStore = create<SleepStore>((set, get) => ({
   deleteLog: async (userId, date) => {
     try {
       await deleteDoc(doc(db, 'users', userId, 'sleep_logs', date));
+      AIStateManager.invalidateAllForUser(userId);
       set((state) => {
         const newLogs = { ...state.logs };
         delete newLogs[date];
@@ -111,6 +113,7 @@ export const useSleepStore = create<SleepStore>((set, get) => ({
     };
 
     await saveLogService(userId, logData);
+    AIStateManager.invalidateAllForUser(userId);
     
     set((state) => ({ 
       logs: { ...state.logs, [date]: logData } 

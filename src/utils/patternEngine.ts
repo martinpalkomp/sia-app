@@ -1,6 +1,6 @@
 import { DailyLog, SleepState } from '../types';
 import { parse, getDay, subDays, format, differenceInMinutes } from 'date-fns';
-import { getGridFromEvents } from './sleepUtils';
+import { getGridFromEvents, indexToTime } from './sleepUtils';
 
 export interface SuggestionResult {
   suggestion: Partial<DailyLog>;
@@ -29,12 +29,20 @@ const calculateRecencyScore = (logs: DailyLog[], path: string, days = 5): { scor
 };
 
 /**
- * Predicts and snaps the sleep window to 15-minute increments.
+ * Predicts sleep window and in-bed habit states (pre-sleep wind-down and morning wake latency)
+ * snapped to 15-minute increments.
  */
 export const generateSleepWindowSuggestion = (
   historicalLogs: DailyLog[],
   targetDate: string
-): { sleepEvents: import('../types').SleepEvent[]; confidence: number; reasons: string[], isStreak: boolean } => {
+): { 
+  sleepEvents: import('../types').SleepEvent[]; 
+  confidence: number; 
+  reasons: string[]; 
+  isStreak: boolean;
+  preAwakeMinutes?: number;
+  postAwakeMinutes?: number;
+} => {
   const targetDay = getDay(parse(targetDate, 'yyyy-MM-dd', new Date()));
   const sortedLogs = [...historicalLogs].sort((a, b) => b.date.localeCompare(a.date));
   
@@ -42,23 +50,43 @@ export const generateSleepWindowSuggestion = (
   const sameDayLogs = sortedLogs.filter(log => getDay(parse(log.date, 'yyyy-MM-dd', new Date())) === targetDay);
   const relevantLogs = sameDayLogs.length >= 2 ? sameDayLogs.slice(0, 2) : sortedLogs.slice(0, 14);
 
-  const sleepRanges = relevantLogs.map(l => {
+  // Extract sleep and in-bed boundaries for each log
+  const logProfiles = relevantLogs.map(l => {
     const timeline = l.sleepEvents ? getGridFromEvents(l.sleepEvents) : (l.timeline || []);
     const firstSleep = timeline.indexOf('sleep');
     const lastSleep = timeline.lastIndexOf('sleep');
-    return { start: firstSleep, end: lastSleep };
-  }).filter(r => r.start !== -1);
+    if (firstSleep === -1 || lastSleep === -1) return null;
 
-  if (sleepRanges.length < 2) return { sleepEvents: [], confidence: 0, reasons: [], isStreak: false };
+    // Detect pre-sleep awake-in (consecutive awake-in slots immediately preceding firstSleep)
+    let preAwakeSlots = 0;
+    while (firstSleep - 1 - preAwakeSlots >= 0 && timeline[firstSleep - 1 - preAwakeSlots] === 'awake-in') {
+      preAwakeSlots++;
+    }
 
-  // 2. Median calculation and snapping
-  const starts = sleepRanges.map(r => r.start).sort((a, b) => a - b);
-  const ends = sleepRanges.map(r => r.end).sort((a, b) => a - b);
+    // Detect post-sleep awake-in (consecutive awake-in slots immediately following lastSleep)
+    let postAwakeSlots = 0;
+    while (lastSleep + 1 + postAwakeSlots < 96 && timeline[lastSleep + 1 + postAwakeSlots] === 'awake-in') {
+      postAwakeSlots++;
+    }
+
+    return {
+      startSleep: firstSleep,
+      endSleep: lastSleep + 1, // End slot boundary for the sleep segment
+      preAwakeSlots,
+      postAwakeSlots
+    };
+  }).filter((p): p is NonNullable<typeof p> => p !== null);
+
+  if (logProfiles.length < 2) return { sleepEvents: [], confidence: 0, reasons: [], isStreak: false };
+
+  // 2. Median calculation for Core Sleep
+  const startSleeps = logProfiles.map(p => p.startSleep).sort((a, b) => a - b);
+  const endSleeps = logProfiles.map(p => p.endSleep).sort((a, b) => a - b);
   
-  const medianStart = starts[Math.floor(starts.length / 2)];
-  const medianEnd = ends[Math.floor(ends.length / 2)];
-  
-  // 3. Steady State Detection (last 3 nights variance < 15 mins = 1 slot)
+  const medianStartSleep = startSleeps[Math.floor(startSleeps.length / 2)];
+  const medianEndSleep = endSleeps[Math.floor(endSleeps.length / 2)];
+
+  // 3. Steady State Detection for Core Sleep (last 3 nights variance <= 1 slot)
   const last3Logs = sortedLogs.slice(0, 3);
   const bedTimes = last3Logs.map(l => {
     const timeline = l.sleepEvents ? getGridFromEvents(l.sleepEvents) : (l.timeline || []);
@@ -75,24 +103,72 @@ export const generateSleepWindowSuggestion = (
     }
   }
 
-  // 4. Convert to HH:mm
-  const slotToTime = (slot: number): string => {
-    const totalMinutes = (20 * 60) + (slot * 15);
-    const hours = Math.floor((totalMinutes / 60) % 24);
-    const mins = totalMinutes % 60;
-    return `${hours.toString().padStart(2,'0')}:${mins.toString().padStart(2,'0')}`;
-  };
+  // 4. Pre-sleep and post-sleep awake-in habit detection
+  // Threshold: present in >= 50% of logs (or both logs if sample is 2)
+  const minRequiredCount = Math.max(2, Math.ceil(logProfiles.length * 0.5));
+  
+  const logsWithPreAwake = logProfiles.filter(p => p.preAwakeSlots > 0);
+  let medianPreAwake = 0;
+  if (logsWithPreAwake.length >= minRequiredCount || (logProfiles.length === 2 && logsWithPreAwake.length === 2)) {
+    const sortedPre = logsWithPreAwake.map(p => p.preAwakeSlots).sort((a, b) => a - b);
+    medianPreAwake = sortedPre[Math.floor(sortedPre.length / 2)];
+  }
+
+  const logsWithPostAwake = logProfiles.filter(p => p.postAwakeSlots > 0);
+  let medianPostAwake = 0;
+  if (logsWithPostAwake.length >= minRequiredCount || (logProfiles.length === 2 && logsWithPostAwake.length === 2)) {
+    const sortedPost = logsWithPostAwake.map(p => p.postAwakeSlots).sort((a, b) => a - b);
+    medianPostAwake = sortedPost[Math.floor(sortedPost.length / 2)];
+  }
+
+  const reasons: string[] = isStreak ? ['+ Perfect streak detected'] : ['+ Predicted based on recent schedule'];
+
+  const sleepEvents: import('../types').SleepEvent[] = [];
+
+  // 5. Build sequence of events
+  // Pre-sleep awake-in (wind-down habit)
+  if (medianPreAwake > 0) {
+    const preStartSlot = Math.max(0, medianStartSleep - medianPreAwake);
+    if (preStartSlot < medianStartSleep) {
+      sleepEvents.push({
+        id: 'suggested-awake-pre',
+        type: 'awake-in',
+        start: indexToTime(preStartSlot),
+        end: indexToTime(medianStartSleep)
+      });
+      reasons.push(`+ ${medianPreAwake * 15}m pre-sleep wind-down recognized`);
+    }
+  }
+
+  // Core sleep event
+  sleepEvents.push({
+    id: 'suggested-sleep-1',
+    type: 'sleep',
+    start: indexToTime(medianStartSleep),
+    end: indexToTime(medianEndSleep)
+  });
+
+  // Post-sleep awake-in (morning lingering in bed habit)
+  if (medianPostAwake > 0) {
+    const postEndSlot = Math.min(96, medianEndSleep + medianPostAwake);
+    if (postEndSlot > medianEndSleep) {
+      sleepEvents.push({
+        id: 'suggested-awake-post',
+        type: 'awake-in',
+        start: indexToTime(medianEndSleep),
+        end: indexToTime(postEndSlot)
+      });
+      reasons.push(`+ ${medianPostAwake * 15}m morning in-bed habit recognized`);
+    }
+  }
 
   return {
-    sleepEvents: [{
-      id: 'suggested-sleep-1',
-      type: 'sleep',
-      start: slotToTime(medianStart),
-      end: slotToTime(medianEnd)
-    }],
+    sleepEvents,
     confidence,
-    reasons: isStreak ? ['+ Perfect streak detected'] : ['+ Predicted based on recent schedule'],
-    isStreak
+    reasons,
+    isStreak,
+    preAwakeMinutes: medianPreAwake * 15,
+    postAwakeMinutes: medianPostAwake * 15
   };
 };
 
